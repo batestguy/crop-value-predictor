@@ -33,3 +33,16 @@ evidence.
 The browser never calls upstream agricultural APIs. User-entered costs and
 yield overrides remain local to the device, and recommendations include source,
 freshness, price type, uncertainty, and fallback context.
+
+## Delivery progress
+
+Implementation follows the review-gated stages in
+[`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md). The live status dashboard
+is [`PROJECT_PROGRESS.md`](./PROJECT_PROGRESS.md), with an evidence record for
+each baseline and delivery stage under [`docs/phases/`](./docs/phases/).
+
+Cloud execution rules are documented in
+[`docs/cloud-compute.md`](./docs/cloud-compute.md). GitHub Actions is the
+authoritative environment for data processing, forecasting, validation, tests,
+and production builds; the browser performs only the small deterministic
+scenario calculation required for offline use.

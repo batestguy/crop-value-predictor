@@ -140,6 +140,15 @@ published JSON snapshot, validates it, and atomically replaces its cached
 last-known-good version. This keeps the user path fast, anonymous, and fully
 offline after initial synchronization.
 
+All authoritative computation runs in cloud-hosted GitHub Actions runners:
+source downloads, normalization, qualification, forecast training and
+backtesting, contract validation, automated tests, and production builds. The
+browser's profit, revenue, ranking, and interval arithmetic is intentionally a
+small deterministic presentation calculation over cached inputs; it is not the
+forecasting or data-processing workload and remains available offline. Local
+machines are editing and inspection environments, not the source of truth for
+an accepted snapshot or release.
+
 ### 4.2 Repository shape to implement
 
 ```text
