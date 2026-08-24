@@ -63,3 +63,10 @@ point before changing the seed implementation.
 
 Cloud bootstrap evidence is complete. Awaiting user approval; Stage 1 remains
 locked until this baseline gate is approved.
+
+## Session closeout — 2026-08-24
+
+This session ends with Stage 0 documented and no Stage 1 work started. The
+closeout commit is `d0f0c12`; the repository is clean, its public remote is
+configured, and the cloud CI and refresh evidence remain linked above. Approval
+is intentionally left as an explicit next-session gate.
