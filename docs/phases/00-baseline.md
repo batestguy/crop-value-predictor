@@ -1,6 +1,6 @@
 # Stage 0 — Baseline and Tracking Setup
 
-**Status:** In progress  
+**Status:** Gate review  
 **Started:** 2026-08-24  
 **Evidence owner:** implementation agent  
 **Approval owner:** project user
@@ -30,9 +30,11 @@ point before changing the seed implementation.
 | `npm test` | Passed |
 | `npm run build` | Passed |
 | Git worktree before documentation | Clean; one baseline commit |
-| Git remote | Pending public GitHub repository bootstrap |
+| Git remote | `https://github.com/batestguy/crop-value-predictor`, `main` tracking `origin/main` |
 | CI workflow | Cloud validation/build workflow with read-only permissions |
 | Refresh workflow | Scheduled/manual cloud validation with 30-day artifact retention; source adapters explicitly deferred until Stage 1 |
+| Cloud CI run | [32685906128](https://github.com/batestguy/crop-value-predictor/actions/runs/32685906128) passed on `e201edf` |
+| Cloud refresh run | [32685952971](https://github.com/batestguy/crop-value-predictor/actions/runs/32685952971) passed; artifact expires 2026-09-23 |
 
 ## Known limitations recorded
 
@@ -54,9 +56,10 @@ point before changing the seed implementation.
 - [x] Current test/build evidence is recorded.
 - [x] Known seed limitations and external deployment dependency are recorded.
 - [x] Cloud compute boundary and data storage rules are documented.
+- [x] Public repository exists, `main` is pushed, and both cloud workflows pass.
 - [ ] User approval recorded.
 
 ## Review result
 
-Awaiting public-repository creation and a successful cloud validation run. Stage
-1 remains locked until this baseline gate is approved.
+Cloud bootstrap evidence is complete. Awaiting user approval; Stage 1 remains
+locked until this baseline gate is approved.

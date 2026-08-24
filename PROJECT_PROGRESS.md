@@ -8,7 +8,7 @@
 
 | Stage | Status | Evidence record | Gate condition |
 |---|---|---|---|
-| 0. Baseline and tracking setup | In progress | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
+| 0. Baseline and tracking setup | Gate review | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
 | 1. Source and feasibility audit | Not started | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | 5–8 crops, qualified markets, rights, units, and repeatable ingestion path |
 | 2. Offline decision calculator | Not started | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
 | 3. Automated data pipeline | Not started | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Reproducible snapshots, schema/quality checks, and safe last-known-good fallback |
@@ -38,7 +38,8 @@ gate outcome. A stage is never approved from code presence alone.
 
 ## Baseline evidence
 
-- Repository: one clean baseline commit, no configured Git remote.
+- Repository: public GitHub remote at `https://github.com/batestguy/crop-value-predictor`,
+  `main` tracking `origin/main`.
 - `python pipeline/validate.py`: passed; five crops and five forecast records.
 - `python -m unittest discover -s tests`: passed; two tests.
 - `npm test`: passed.
@@ -48,5 +49,7 @@ gate outcome. A stage is never approved from code presence alone.
 - Cloud policy: GitHub Actions is authoritative for data/ML computation,
   validation, tests, and builds; browser arithmetic remains the offline client
   calculation.
-- Remote bootstrap: repository creation and first cloud workflow run are in
-  progress; no remote is configured until the GitHub repository is created.
+- Cloud CI run: [32685906128](https://github.com/batestguy/crop-value-predictor/actions/runs/32685906128)
+  passed on commit `e201edf`.
+- Cloud refresh run: [32685952971](https://github.com/batestguy/crop-value-predictor/actions/runs/32685952971)
+  passed and uploaded the validation artifact with 30-day retention.
