@@ -53,3 +53,10 @@ gate outcome. A stage is never approved from code presence alone.
   passed on commit `e201edf`.
 - Cloud refresh run: [32685952971](https://github.com/batestguy/crop-value-predictor/actions/runs/32685952971)
   passed and uploaded the validation artifact with 30-day retention.
+
+## Session closeout — 2026-08-24
+
+Stage 0 cloud bootstrap and its documentation are complete for this session.
+The repository is clean at commit `d0f0c12`, the public remote and protected
+`main` branch are configured, and Stage 1 has not started. The next session
+must begin with explicit Stage 0 approval before source-audit work is accepted.
