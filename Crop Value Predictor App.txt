@@ -1,0 +1,172 @@
+# Crop Profit Predictor & Decision Assistant — Nigeria
+**Specification Version**: 1.0 (Final Draft)  
+**Date**: 2026-08-23
+
+---
+
+## 1. Project Overview
+
+### 1.1 Objective
+Build an intelligent, simple-to-use web application that:
+- Fetches current and historical agricultural market data from multiple Nigerian and international APIs.
+- Uses Machine Learning (ML) to predict future crop prices (primarily for the next planting season, 3 months ahead).
+- Enables a new farmer to conduct a detailed cost-profit analysis for up to 30 major crops.
+- Recommends the single most profitable crop to plant, ranking options via plain-English explanations, comparative tables, and visual charts.
+- Incorporates risk indicators (volatility, spoilage) where data permits.
+- Works seamlessly online/offline (hybrid), supports multiple languages, and allows downloading PDF reports.
+
+### 1.2 Target Users
+- **Primary**: New or small-scale farmers in Nigeria with limited agronomic or financial experience.
+- **Secondary**: Agricultural extension agents and cooperative leaders advising farmers.
+
+---
+
+## 2. Functional Requirements
+
+### 2.1 Data Ingestion & Management (Pluggable APIs)
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **D‑01** | The system must support pluggable data source adapters. No single API is hardcoded. Initial candidates (open for selection) include: ADIP, Farm Price API, FEWS NET, Kaggle (historical), Iya Oloja, ML4Market (Coldtivate), FAO GIEWS FPMA, and World Bank Pink Sheet. | High |
+| **D‑02** | Data fetching must be scheduled (e.g., daily or hourly). All raw data must be normalised into a unified internal schema. | High |
+| **D‑03** | **Cost Data**: Sources for input costs (fertiliser, seeds, labour, etc.) are left open. The adapter pattern must allow future integration with NBS, IFPRI, AfDB, or Kaggle Fertilizer Access datasets. | Medium |
+
+### 2.2 Crop & Geographic Configuration
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **C‑01** | Pre‑load a list of the **top 30 highest-selling crops** in Nigeria (e.g., Maize, Cassava, Yam, Tomatoes, Onions, Rice, Cocoa, Groundnuts, Sorghum, Millet, etc.). | High |
+| **C‑02** | Farmers must dynamically select any subset of these crops for comparison. | High |
+| **C‑03** | Location must support three geographic levels: **National**, **Agro‑ecological Zone** (e.g., Rainforest, Savanna), and **Localised** (State/LGA/Market town). | High |
+
+### 2.3 Cost‑Profit Inputs
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **CP‑01** | Farmers must enter production costs manually for each crop. Standard items: Land prep, Seeds, Fertilisers, Pesticides, Labour, Irrigation, Transport, Storage. | High |
+| **CP‑02** | **API-Suggested Defaults**: The system must pre-fill cost fields with current market rates if available from any connected API. If no API data exists, use the last cached value or leave blank. The farmer can override any default. | High |
+| **CP‑03** | Farmer must input the planting area (hectares) to compute total costs and revenue. | High |
+
+### 2.4 Yield Estimation
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **Y‑01** | **Hybrid Approach**: The app must provide a default yield estimate (tons/hectare) per crop based on the agro‑ecological zone. **Suggestion**: Use data from **AfroTools** or **FAOSTAT** as the source for this lookup table. | High |
+| **Y‑02** | The farmer must be able to **override** the default yield manually. | High |
+
+### 2.5 Price Prediction & Machine Learning
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **ML‑01** | Predict market price (₦ per kg/ton) for selected crops at the chosen geographic level. | High |
+| **ML‑02** | **Primary Forecast**: 3 months ahead (next planting season). **Secondary Options**: 1‑week and 1‑month forecasts. | High |
+| **ML‑03** | **Algorithms**: Use **Random Forest** (baseline) and **XGBoost** (advanced). Consider **Prophet** for seasonal decomposition. | High |
+| **ML‑04** | **Feature Engineering**: The model must include, at minimum: <br> a) Lagged prices (1,2,3 months). <br> b) Seasonal dummies (month/quarter). <br> c) **Weather data** (rainfall, temperature – sourced from OpenWeatherMap or NASA POWER). <br> d) **Exchange rate** (NGN/USD – sourced from free forex APIs). | High |
+| **ML‑05** | **Retraining**: Trigger‑based – automatically retrain whenever new price or feature data is ingested. | High |
+| **ML‑06** | Output a confidence interval (e.g., ±₦X) or error margin alongside the prediction. | Medium |
+
+### 2.6 Decision Analysis & Interpretation
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **DA‑01** | Compute: <br> `Total Revenue = Predicted Price × (Yield × Hectares)` <br> `Net Profit = Total Revenue – Total Costs` | High |
+| **DA‑02** | **Triple Interpretation Output**: <br> a) **Plain English**: A simple, actionable recommendation (e.g., *"Plant Cassava. Estimated profit is ₦250,000/ha, 35% higher than Yam, with stable prices."*). <br> b) **Ranked Table**: Top 3‑5 crops showing Price, Yield, Costs, Revenue, Net Profit, and Risk Level. <br> c) **Visual Charts**: Interactive bar charts (profit comparison) and cost-breakdown pie charts. | High |
+| **DA‑03** | The default recommendation is the crop with the **highest Net Profit**. | High |
+
+### 2.7 Risk Analysis
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **R‑01** | Compute **Price Volatility** (standard deviation of returns) for each crop if historical data permits. | Medium |
+| **R‑02** | Include **spoilage rate** and **storage life** if API/lookup data is available. | Low |
+| **R‑03** | Display a clear **Risk Indicator** (Low/Medium/High) alongside profit. Do not automatically override profit unless the farmer explicitly uses a risk filter. | Medium |
+
+### 2.8 Platform, Language, Connectivity & Reporting
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **P‑01** | **Platform**: Web dashboard (responsive) – works on smartphones and desktops. | High |
+| **P‑02** | **Offline Capability**: Hybrid model. Cache data (IndexedDB) and models. Allow full offline cost analysis and recommendations using cached data. Sync and update when internet is restored. | High |
+| **P‑03** | **Languages**: Support **English, Pidgin, Hausa, Yoruba, and Igbo**. **Implementation Suggestion**: Real-time toggle via locale JSON files or a lightweight translation service (no static compile-time generation). | Medium |
+| **P‑04** | **User Accounts**: **Not required**. The app must be fully anonymous with no server-side persistence of personal data. | High |
+| **P‑05** | **PDF Export**: Farmers must be able to download a **PDF report** containing: selected inputs, cost breakdown, predicted prices, net profit, comparison table, charts, and the final recommendation. | High |
+
+### 2.9 Error Handling
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **E‑01** | If an API fails or returns no data: Display a **non-blocking warning** to the user, but proceed using the **best available data** (cached/historical averages). | High |
+| **E‑02** | Log all API errors for monitoring. | Medium |
+
+---
+
+## 3. Non‑Functional Requirements
+
+| ID | Requirement | Priority |
+| :--- | :--- | :--- |
+| **N‑01** | **Performance**: Results within 5 seconds on a 3G connection. | High |
+| **N‑02** | **Scalability**: Support thousands of concurrent users. | Medium |
+| **N‑03** | **Maintainability**: Data adapters must be modular so new APIs can be added without changing core logic. | High |
+| **N‑04** | **Model Accuracy**: Target MAPE (Mean Absolute Percentage Error) < 20% for 3‑month forecasts. | High |
+
+---
+
+## 4. Technical Architecture
+
+### 4.1 Suggested Tech Stack
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | React.js + PWA | Interactive dashboard, offline caching via Service Worker, IndexedDB for local data. |
+| **Backend API** | Python (FastAPI) | Serve predictions, manage data sync, trigger retraining. |
+| **ML Pipeline** | Python (Pandas, NumPy, Scikit‑learn, XGBoost, Prophet) | Model training and inference. Serialisation via `joblib`. |
+| **Database** | PostgreSQL | Store unified historical data, feature tables, and model metadata (cloud). |
+| **Reporting** | ReportLab / WeasyPrint | Server-side PDF generation. |
+| **Orchestration** | Celery / Cron | Schedule API fetches and trigger retraining. |
+| **Hosting** | Cloud platform (AWS, Heroku, or local provider) | Deployment with CDN for static assets. |
+
+### 4.2 Key Python Packages (Suggested)
+- `pandas`, `numpy` – Data wrangling.
+- `scikit-learn` – Random Forest and preprocessing.
+- `xgboost` – Boosted tree models.
+- `prophet` – Time series decomposition.
+- `fastapi`, `uvicorn` – API server.
+- `requests`, `httpx` – API clients.
+- `joblib` – Model persistence.
+- `reportlab` or `weasyprint` – PDF generation.
+- `pydantic` – Data validation.
+
+### 4.3 Data Flow
+1. **Scheduler** fetches data from configured APIs (price, weather, forex).
+2. **Normaliser** writes unified data to PostgreSQL.
+3. **Trigger** initiates model retraining with new feature set.
+4. **Model** is serialised and stored.
+5. **User** visits web app → selects crops, location, inputs costs.
+6. **App** uses cached model (offline) or calls FastAPI endpoint (online).
+7. **Decision Engine** calculates Net Profit, ranks crops, generates charts and PDF.
+8. **Results** rendered in the user’s selected language.
+
+---
+
+## 5. Data API Adapters (Pluggable Options)
+
+The following APIs are identified as potential sources. The first implementation should build adapters for at least 2–3 of these, leaving the rest pluggable:
+
+| API Name | Type | Data Provided |
+| :--- | :--- | :--- |
+| **ADIP** | REST | Real-time dashboards, forecasts for rice/cassava/palm oil. |
+| **Farm Price API** | REST | Farm-gate prices for various products. |
+| **FEWS NET** | REST/CSV | Weekly staple food prices (since 2003). |
+| **Kaggle (WFP)** | CSV Dataset | Historical prices (2002–2025), markets, coordinates. |
+| **Iya Oloja** | REST | Market directory (36 states), community-driven. |
+| **ML4Market (Coldtivate)** | REST | Monthly price predictions per state. |
+| **FAO GIEWS FPMA** | REST | Monthly international/domestic prices. |
+| **OpenWeatherMap / NASA POWER** | REST | Rainfall, temperature (ML features). |
+| **Free Forex API** | REST | NGN/USD exchange rate (ML feature). |
+
+---
+
+## 6. Future Enhancements (Post‑MVP)
+- Native Android/iOS mobile app with USSD fallback.
+- Push notifications for price alerts and planting reminders.
+- Satellite / NDVI data integration to improve yield predictions.
+- Cooperative group analysis.
+- Full admin dashboard to manage crop list, yield tables, and translations.
+
+---
+
+## 7. Success Metrics
+- Prediction Accuracy: MAPE < 20% for 3‑month price forecasts.
+- User Adoption: 500+ active farmers/extension agents within 3 months of launch.
+- User Satisfaction: > 70% of users report the recommendation was helpful in a post-analysis survey.
+- Report Usage: 50% of active users download at least one PDF report.

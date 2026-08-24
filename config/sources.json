@@ -1,0 +1,10 @@
+{
+  "sources": [
+    {"source_id":"wfp-hdx","name":"WFP Food Prices via HDX HAPI","role":"market_price","cadence":"weekly/monthly","url":"https://hdx-hapi.readthedocs.io/en/latest/data_usage_guides/food_security_nutrition_and_poverty/#food-prices-market-monitor","status":"primary_candidate"},
+    {"source_id":"world-bank-rtfp","name":"World Bank Real-Time Food Prices","role":"market_price_fallback","cadence":"weekly","url":"https://microdata.worldbank.org/catalog/4503","status":"primary_continuity_candidate"},
+    {"source_id":"fews-net","name":"FEWS NET Nigeria staple prices","role":"validation","cadence":"weekly","url":"https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-2","status":"secondary_candidate"},
+    {"source_id":"faostat-qcl","name":"FAOSTAT crop production and yield","role":"yield_default","cadence":"annual","url":"https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876","status":"approved_seed"},
+    {"source_id":"nbs-nass-2023","name":"Nigeria NASS 2023","role":"cost_default","cadence":"periodic","url":"https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials","status":"approved_seed_stale"},
+    {"source_id":"nasa-power","name":"NASA POWER","role":"weather_feature","cadence":"daily","url":"https://power.larc.nasa.gov/docs/services/api/temporal/daily/","status":"candidate"}
+  ]
+}

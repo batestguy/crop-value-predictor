@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "snapshot_id": "pilot-seed-2026-08-24",
+  "yield_defaults": [
+    {"crop_id":"maize-white","location_id":"nigeria-national-median","yield_t_per_ha":2.1,"source_id":"faostat-qcl","source_url":"https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876","as_of":"2024-12-31","quality_flag":"pilot_seed"},
+    {"crop_id":"rice","location_id":"nigeria-national-median","yield_t_per_ha":2.0,"source_id":"faostat-qcl","source_url":"https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876","as_of":"2024-12-31","quality_flag":"pilot_seed"},
+    {"crop_id":"cassava","location_id":"nigeria-national-median","yield_t_per_ha":8.2,"source_id":"faostat-qcl","source_url":"https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876","as_of":"2024-12-31","quality_flag":"pilot_seed"},
+    {"crop_id":"yam","location_id":"nigeria-national-median","yield_t_per_ha":9.0,"source_id":"faostat-qcl","source_url":"https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876","as_of":"2024-12-31","quality_flag":"pilot_seed"},
+    {"crop_id":"sorghum","location_id":"nigeria-national-median","yield_t_per_ha":1.3,"source_id":"faostat-qcl","source_url":"https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876","as_of":"2024-12-31","quality_flag":"pilot_seed"}
+  ],
+  "cost_defaults": [
+    {"crop_id":"maize-white","location_id":"nigeria-national-median","basis":"NGN_per_ha","items":{"land_preparation":80000,"seed":45000,"fertilizer":120000,"pesticide":35000,"labour":90000,"irrigation":0,"transport":55000,"storage":25000},"source_id":"nbs-nass-2023","source_url":"https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials","as_of":"2023-12-31","quality_flag":"pilot_seed","stale":true},
+    {"crop_id":"rice","location_id":"nigeria-national-median","basis":"NGN_per_ha","items":{"land_preparation":95000,"seed":55000,"fertilizer":145000,"pesticide":45000,"labour":120000,"irrigation":80000,"transport":65000,"storage":30000},"source_id":"nbs-nass-2023","source_url":"https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials","as_of":"2023-12-31","quality_flag":"pilot_seed","stale":true},
+    {"crop_id":"cassava","location_id":"nigeria-national-median","basis":"NGN_per_ha","items":{"land_preparation":75000,"seed":70000,"fertilizer":85000,"pesticide":25000,"labour":110000,"irrigation":0,"transport":70000,"storage":20000},"source_id":"nbs-nass-2023","source_url":"https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials","as_of":"2023-12-31","quality_flag":"pilot_seed","stale":true},
+    {"crop_id":"yam","location_id":"nigeria-national-median","basis":"NGN_per_ha","items":{"land_preparation":100000,"seed":150000,"fertilizer":90000,"pesticide":30000,"labour":130000,"irrigation":0,"transport":85000,"storage":35000},"source_id":"nbs-nass-2023","source_url":"https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials","as_of":"2023-12-31","quality_flag":"pilot_seed","stale":true},
+    {"crop_id":"sorghum","location_id":"nigeria-national-median","basis":"NGN_per_ha","items":{"land_preparation":70000,"seed":40000,"fertilizer":95000,"pesticide":25000,"labour":80000,"irrigation":0,"transport":50000,"storage":22000},"source_id":"nbs-nass-2023","source_url":"https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials","as_of":"2023-12-31","quality_flag":"pilot_seed","stale":true}
+  ]
+}

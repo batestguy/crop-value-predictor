@@ -1,0 +1,10 @@
+{
+  "name": "Fieldmargin Crop Value Planner",
+  "short_name": "Fieldmargin",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f1e8",
+  "theme_color": "#173d32",
+  "description": "Offline-first crop value and profit decision aid for Nigeria.",
+  "icons": []
+}

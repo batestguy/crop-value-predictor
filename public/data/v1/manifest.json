@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "snapshot_id": "pilot-seed-2026-08-24",
+  "generated_at": "2026-08-24T06:00:00Z",
+  "valid_until": "2026-10-08T06:00:00Z",
+  "artifacts": ["catalog.json", "defaults.json", "forecasts.json", "quality.json"],
+  "warnings": ["Pilot seed snapshot: replace with the audited pipeline snapshot before public launch."]
+}

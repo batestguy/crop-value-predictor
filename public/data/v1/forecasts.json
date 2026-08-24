@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "snapshot_id": "pilot-seed-2026-08-24",
+  "forecasts": [
+    {"crop_id":"maize-white","location_id":"nigeria-national-median","price_type":"wholesale","currency":"NGN","unit":"kg","horizon_months":3,"target_month":"2026-11","point":825,"lower_80":690,"upper_80":970,"model_id":"seasonal-naive-v1","validation":{"origins":12,"wape":0.146,"beats_seasonal_naive":false},"source_ids":["wfp-hdx"],"last_observation_at":"2026-08-01","status":"baseline"},
+    {"crop_id":"rice","location_id":"nigeria-national-median","price_type":"wholesale","currency":"NGN","unit":"kg","horizon_months":3,"target_month":"2026-11","point":1180,"lower_80":990,"upper_80":1430,"model_id":"seasonal-naive-v1","validation":{"origins":12,"wape":0.179,"beats_seasonal_naive":false},"source_ids":["wfp-hdx"],"last_observation_at":"2026-08-01","status":"baseline"},
+    {"crop_id":"cassava","location_id":"nigeria-national-median","price_type":"farmgate","currency":"NGN","unit":"kg","horizon_months":3,"target_month":"2026-11","point":310,"lower_80":240,"upper_80":390,"model_id":"seasonal-naive-v1","validation":{"origins":10,"wape":0.201,"beats_seasonal_naive":false},"source_ids":["wfp-hdx"],"last_observation_at":"2026-08-01","status":"baseline"},
+    {"crop_id":"yam","location_id":"nigeria-national-median","price_type":"wholesale","currency":"NGN","unit":"kg","horizon_months":3,"target_month":"2026-11","point":710,"lower_80":520,"upper_80":920,"model_id":"seasonal-naive-v1","validation":{"origins":9,"wape":0.237,"beats_seasonal_naive":false},"source_ids":["wfp-hdx"],"last_observation_at":"2026-08-01","status":"baseline"},
+    {"crop_id":"sorghum","location_id":"nigeria-national-median","price_type":"wholesale","currency":"NGN","unit":"kg","horizon_months":3,"target_month":"2026-11","point":625,"lower_80":520,"upper_80":760,"model_id":"seasonal-naive-v1","validation":{"origins":12,"wape":0.158,"beats_seasonal_naive":false},"source_ids":["wfp-hdx"],"last_observation_at":"2026-08-01","status":"baseline"}
+  ]
+}
