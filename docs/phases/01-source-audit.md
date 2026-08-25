@@ -43,3 +43,13 @@ calculator-only fallback and stop automated-price claims.
 - Remote retrieval and checksum generation are implemented but not yet run in
   the authoritative cloud environment. Coverage profiling, rights decisions,
   canonical mappings, and crop qualification remain outstanding.
+
+### 2026-08-25 — first cloud retrieval
+
+- [Workflow run 32808720258](https://github.com/batestguy/crop-value-predictor/actions/runs/32808720258)
+  retrieved FEWS NET (84,427 rows through 2026-06), the FAOSTAT archive (33.9
+  MB), and the NBS PDF into an artifact with checksums.
+- The configured World Bank API returned a valid but empty JSON payload. The
+  audit adapter now treats zero-row JSON responses as failures so a stale or
+  incorrect endpoint cannot pass the gate. Resolving or explicitly deferring
+  that endpoint is the next source-audit action.
