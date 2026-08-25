@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import sys
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -86,8 +87,14 @@ def download(source: dict, raw_dir: Path) -> dict:
             "bytes": target.stat().st_size,
             "sha256": sha256_file(target),
         })
+        if target.suffix.lower() == ".json":
+            payload = json.loads(target.read_text(encoding="utf-8"))
+            if isinstance(payload, dict) and payload.get("found", payload.get("total", 1)) == 0:
+                record.update({"status": "failed", "error": "JSON API returned zero rows"})
     except (HTTPError, URLError, TimeoutError, OSError) as error:
         record.update({"status": "failed", "error": str(error)})
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        record.update({"status": "failed", "error": f"invalid response: {error}"})
     return record
 
 
@@ -112,9 +119,28 @@ def profile_csv(path: Path) -> dict:
     }
 
 
+def profile_json(path: Path) -> dict:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    rows = payload.get("data") if isinstance(payload, dict) else payload
+    if not isinstance(rows, list):
+        return {"format": "json", "rows": None, "columns": [], "note": "no row array"}
+    columns = sorted({key for row in rows if isinstance(row, dict) for key in row})
+    return {"format": "json", "rows": len(rows), "columns": columns}
+
+
+def profile_zip(path: Path) -> dict:
+    with zipfile.ZipFile(path) as archive:
+        members = archive.namelist()
+    return {"format": "zip", "rows": None, "members": members[:100], "note": "archive member profiling pending"}
+
+
 def profile_file(path: Path) -> dict:
     if path.suffix.lower() == ".csv":
         return profile_csv(path)
+    if path.suffix.lower() == ".json":
+        return profile_json(path)
+    if path.suffix.lower() == ".zip":
+        return profile_zip(path)
     return {"format": path.suffix.lstrip(".") or "binary", "rows": None, "note": "profile parser pending"}
 
 

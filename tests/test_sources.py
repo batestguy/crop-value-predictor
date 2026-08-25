@@ -1,8 +1,10 @@
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+from pipeline.source_audit import profile_json, profile_zip
 
 
 class SourceRegisterTests(unittest.TestCase):
@@ -38,6 +40,14 @@ class SourceRegisterTests(unittest.TestCase):
         self.assertEqual(units["kg"]["factor"], 1)
         self.assertEqual(units["hg/ha"]["canonical_unit"], "t/ha")
         self.assertIsNone(units["unknown"]["canonical_unit"])
+
+    def test_json_profile_counts_rows_and_columns(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "rows.json"
+            path.write_text(json.dumps({"data": [{"month": "2026-01", "beans": 1.2}]}), encoding="utf-8")
+            profile = profile_json(path)
+        self.assertEqual(profile["rows"], 1)
+        self.assertEqual(profile["columns"], ["beans", "month"])
 
 
 if __name__ == "__main__":
