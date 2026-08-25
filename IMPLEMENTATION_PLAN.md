@@ -13,8 +13,8 @@ ML platform.
 The pilot will compare **5–8 data-qualified crops**, only at markets covered by
 the selected price data and at a derived **Nigeria national median**. Farmers
 will enter costs manually, starting from dated and sourced defaults where those
-defaults are defensible. A scheduled batch pipeline will publish static JSON
-snapshots and forecasts. The progressive web app (PWA) will cache those files
+defaults are defensible. A manually dispatched launch batch will publish static
+JSON snapshots and forecasts. The progressive web app (PWA) will cache those files
 and perform the complete cost, revenue, profit, ranking, chart, and report
 calculation in the browser, including while offline.
 
@@ -32,7 +32,7 @@ fallback status.
 | Price basis | Keep farm-gate, wholesale, and retail series separate; prefer farm-gate, then wholesale, for farmer revenue |
 | Costs | Manual farmer inputs in NGN per hectare, prefilled only with dated, sourced defaults; every default remains editable |
 | Yield | Dated sourced default in tonnes per hectare, with manual override; national values are never presented as local agronomic advice |
-| Architecture | Static React/TypeScript PWA, static versioned JSON, scheduled Python pipeline, and free static hosting |
+| Architecture | Static React/TypeScript PWA, static versioned JSON, one-time remote Kaggle training orchestrated by GitHub Actions, and GitHub Pages |
 | Offline behaviour | Full calculation and recommendations from cached forecasts/defaults; no network call is required after a successful first load |
 | Language | English-first UI with all visible strings externalized into locale JSON; Pidgin, Hausa, Yoruba, and Igbo follow validation |
 | Forecasts | One- and three-month monthly forecasts; cached forecast records, not browser-cached Python models |
@@ -130,7 +130,7 @@ flowchart LR
 | Data adapters | Download and archive upstream data without exposing secrets | Python scripts; unauthenticated downloads preferred |
 | Normalizer | Canonical crop/market IDs, dates, price types, units, currency, and provenance | Pandas plus checked mapping files |
 | Forecast job | Train, backtest, select, and emit small forecast records | Scikit-learn; XGBoost only if installation and validation justify it |
-| Scheduler | Refresh data and rebuild only after a valid new snapshot | GitHub Actions on a weekly schedule and manual dispatch; public-repository Actions are free under current limits |
+| Launch release | Train and publish one approved snapshot from a fixed historical cutoff | Manual GitHub Actions workflow orchestrates a CPU Kaggle job; no automatic retraining is part of the prototype |
 | Hosting | Serve immutable app assets and JSON | Cloudflare Pages free static hosting at a `pages.dev` address; no Pages Functions |
 | PWA | Inputs, calculations, warnings, ranking, charts, localization, and report export | React + TypeScript + Vite; service worker and IndexedDB |
 | Persistence | Cache public snapshots and private user-entered scenarios locally | Cache Storage for URL assets; IndexedDB for structured snapshot/input data |
@@ -158,7 +158,7 @@ config/                 # crop mappings, units, sources, thresholds
 data/raw/               # gitignored local downloads or CI artifacts
 public/data/v1/         # deployable JSON contract
 tests/                  # unit, contract, pipeline, forecast, and browser tests
-.github/workflows/      # test, scheduled refresh, and deployment workflows
+.github/workflows/      # tests, launch training, and deployment workflows
 ```
 
 ## 5. Static JSON interfaces
@@ -379,13 +379,13 @@ correctly; the calculator works after network removal and a browser restart.
 - Normalize dates, product forms, market IDs, price types, currencies, and units.
 - Generate national medians only from comparable qualified market rows.
 - Add schema, duplicate, range, freshness, coverage, and source-drift tests.
-- Publish static JSON through a scheduled workflow while retaining the last
-  known-good snapshot when any gate fails.
+- Publish static JSON through a manually dispatched launch workflow while
+  retaining the last known-good snapshot when any gate fails.
 
-**Acceptance gate:** two consecutive scheduled dry runs produce schema-valid,
-reproducible artifacts; rerunning against the same raw inputs produces identical
-normalized content; a simulated source failure leaves the prior snapshot live
-and adds a visible stale warning; no secret or paid service is required.
+**Acceptance gate:** the launch workflow produces schema-valid output from a
+fixed cutoff; identical inputs and seed reproduce identical artifacts; a
+simulated source failure leaves the prior snapshot live and adds a visible
+stale warning; and no paid runtime service is required.
 
 ### Stage 4 — Forecasting and validation
 
@@ -457,7 +457,7 @@ market, or language at a time only when its evidence gate passes.
 
 | Original area | Required pilot change | Reason |
 |---|---|---|
-| D-01/D-02: many live adapters, daily/hourly | Begin with one primary repeatable source plus independent checks; refresh weekly or at source cadence | Source data are mostly monthly and the browser must not depend on upstream uptime |
+| D-01/D-02: many live adapters, daily/hourly | Begin with one primary repeatable source plus independent checks; train once from a fixed launch cutoff | Source data are mostly monthly and the browser must not depend on upstream uptime |
 | C-01/C-02: top 30 crops | Ship only 5–8 crops selected by the documented qualification rule | Thirty comparable, fresh, market-level histories and defaults are not established |
 | C-03: national, agro-zone, and local | Offer covered markets and a calculated national median only | Do not imply geographic precision unsupported by the source |
 | CP-02: current API cost defaults | Manual `NGN/ha` inputs with dated, sourced, editable defaults | No credible comprehensive live Nigerian input-cost API is established |
@@ -465,7 +465,7 @@ market, or language at a time only when its evidence gate passes.
 | ML-02: one week, one month, three months | Publish one- and three-month horizons; defer weekly forecasts | Qualified target series are mainly monthly |
 | ML-03: mandate Random Forest/XGBoost/Prophet | Use naive baselines first; promote a candidate only after time-series backtesting | Algorithm names do not guarantee forecast value |
 | ML-04: mandatory weather and FX | Treat exogenous variables as time-safe candidates retained only after ablation | More features can add leakage or noise |
-| ML-05: retrain after every ingestion | Retrain in batch only after a new snapshot passes QA | Prevent broken data from triggering deployment |
+| ML-05: retrain after every ingestion | Run one reviewed batch training release from the complete launch window; future reruns are manual and versioned | Prevent broken data from triggering deployment and preserve free compute for other work |
 | ML-06/N-04: interval and universal MAPE below 20% | Always publish an auditable interval and metrics; retain 20% as a goal, not a promise | Performance varies by crop, market, horizon, and price regime |
 | DA-03: maximum net profit recommendation | Keep point-profit ranking, but display uncertainty, source quality, and risk beside it | Highest point estimate is not the same as a guaranteed best choice |
 | R-02: spoilage/storage life when available | Defer until a governed crop-specific source exists | Avoid unsupported lookup values |
@@ -474,7 +474,7 @@ market, or language at a time only when its evidence gate passes.
 | P-05: server-side PDF | Generate the report entirely in the browser | Preserves offline use, anonymity, and zero server cost |
 | E-02: API error logging | Keep CI/job logs and publish sanitized health metadata | There is no always-on backend in the pilot |
 | N-02: thousands of server connections | Validate static-host limits, asset size, and cache behaviour | Static delivery removes application-server concurrency |
-| Section 4: FastAPI, PostgreSQL, Celery, cloud ML | Replace with scheduled Python jobs, versioned JSON, static PWA, and local storage | Meets the zero-cost and offline goals with fewer failure modes |
+| Section 4: FastAPI, PostgreSQL, Celery, cloud ML | Replace with GitHub-orchestrated Kaggle batch training, versioned JSON, static PWA, and local storage | Meets the zero-cost and offline goals with fewer failure modes |
 
 ## 9. Verification strategy
 
@@ -544,9 +544,9 @@ market, or language at a time only when its evidence gate passes.
   or guaranteed buyer.
 - Yield defaults are national historical reference values. Farmers must confirm
   yield and costs for their own conditions before a crop is ranked.
-- The static snapshot cadence follows the slowest critical source and will
-  normally be weekly even though most underlying prices are monthly. Hourly
-  refresh has no evidence-based value for the pilot.
+- The prototype is frozen at its reviewed launch cutoff. A future snapshot may
+  be created only through an intentional manual release workflow; there is no
+  scheduled refresh.
 - A data or model failure reduces scope or falls back transparently; it never
   invents a crop, market, conversion, price, yield, cost, or confidence claim.
 

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "status": "audit_pending",
+  "crops": [
+    {"crop_id":"maize-white","aliases":["maize (white)","maize fao","white maize"],"forms":["dry grain"],"source_status":"pending"},
+    {"crop_id":"rice","aliases":["rice (imported)","rice fao","rice"],"forms":["paddy"],"source_status":"pending"},
+    {"crop_id":"cassava","aliases":["cassava","gari"],"forms":["fresh roots"],"source_status":"pending"},
+    {"crop_id":"yam","aliases":["yam"],"forms":["fresh tuber"],"source_status":"pending"},
+    {"crop_id":"sorghum","aliases":["sorghum (white)","sorghum fao","sorghum"],"forms":["dry grain"],"source_status":"pending"}
+  ],
+  "markets": [],
+  "units": [
+    {"source_unit":"kg","canonical_unit":"kg","factor":1,"status":"accepted"},
+    {"source_unit":"hg/ha","canonical_unit":"t/ha","factor":0.0001,"status":"accepted"},
+    {"source_unit":"2.5 KG","canonical_unit":"kg","factor":0.4,"status":"needs_source_confirmation"},
+    {"source_unit":"2.6 KG","canonical_unit":"kg","factor":0.3846153846,"status":"needs_source_confirmation"},
+    {"source_unit":"2.8 KG","canonical_unit":"kg","factor":0.3571428571,"status":"needs_source_confirmation"},
+    {"source_unit":"unknown","canonical_unit":null,"factor":null,"status":"reject"}
+  ],
+  "provenance_states": ["observed", "aggregate", "imputed", "forecast"]
+}

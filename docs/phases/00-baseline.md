@@ -1,6 +1,6 @@
 # Stage 0 — Baseline and Tracking Setup
 
-**Status:** Gate review  
+**Status:** Approved
 **Started:** 2026-08-24  
 **Evidence owner:** implementation agent  
 **Approval owner:** project user
@@ -61,8 +61,19 @@ point before changing the seed implementation.
 
 ## Review result
 
-Cloud bootstrap evidence is complete. Awaiting user approval; Stage 1 remains
-locked until this baseline gate is approved.
+Cloud bootstrap evidence is complete. On 2026-08-25 the project user approved
+execution of the revised remote batch-training architecture and unlocked Stage
+1. The current seed implementation remains explicitly non-production.
+
+## Revision accepted — 2026-08-25
+
+- The prototype uses one manually dispatched Kaggle CPU training release through
+  a fixed launch cutoff.
+- GitHub Actions orchestrates and validates the remote job; local computation is
+  not gate evidence.
+- The PWA publishes static forecast JSON and performs only deterministic browser
+  arithmetic offline.
+- No automatic retraining or live prediction API is part of this release.
 
 ## Session closeout — 2026-08-24
 

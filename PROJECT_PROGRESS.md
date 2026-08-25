@@ -2,14 +2,14 @@
 
 **Plan:** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)  
 **Workflow:** sequential delivery with a user review at every acceptance gate  
-**Last updated:** 2026-08-24
+**Last updated:** 2026-08-25
 
 ## Current status
 
 | Stage | Status | Evidence record | Gate condition |
 |---|---|---|---|
-| 0. Baseline and tracking setup | Gate review | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
-| 1. Source and feasibility audit | Not started | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | 5–8 crops, qualified markets, rights, units, and repeatable ingestion path |
+| 0. Baseline and tracking setup | Approved | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
+| 1. Source and feasibility audit | In progress | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | 5–8 crops, qualified markets, rights, units, and repeatable ingestion path |
 | 2. Offline decision calculator | Not started | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
 | 3. Automated data pipeline | Not started | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Reproducible snapshots, schema/quality checks, and safe last-known-good fallback |
 | 4. Forecasting and validation | Not started | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Leakage-safe rolling validation, baseline comparison, and auditable intervals |
@@ -43,6 +43,15 @@ gate outcome. A stage is never approved from code presence alone.
 - `python pipeline/validate.py`: passed; five crops and five forecast records.
 - `python -m unittest discover -s tests`: passed; two tests.
 - `npm test`: passed.
+
+## Architecture decision — 2026-08-25
+
+The project user authorized execution of the documented prototype architecture:
+one remote, CPU-based Kaggle training release orchestrated and validated by
+GitHub Actions; static versioned forecast outputs deployed to GitHub Pages; no
+online learning, live prediction API, local training, or automatic post-launch
+rebuild. See [`batch-training-architecture.md`](./docs/batch-training-architecture.md)
+and [`source-register.md`](./docs/source-register.md).
 - `npm run build`: passed.
 - Current limitation: the React UI uses hardcoded pilot-seed data; the source
   audit and production pipeline are not yet implemented.

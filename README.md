@@ -41,6 +41,11 @@ Implementation follows the review-gated stages in
 is [`PROJECT_PROGRESS.md`](./PROJECT_PROGRESS.md), with an evidence record for
 each baseline and delivery stage under [`docs/phases/`](./docs/phases/).
 
+The prototype release architecture is documented in
+[`docs/batch-training-architecture.md`](./docs/batch-training-architecture.md),
+and the active Stage 1 source register is
+[`docs/source-register.md`](./docs/source-register.md).
+
 Cloud execution rules are documented in
 [`docs/cloud-compute.md`](./docs/cloud-compute.md). GitHub Actions is the
 authoritative environment for data processing, forecasting, validation, tests,
