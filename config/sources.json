@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "sources": [
     {
       "source_id": "world-bank-rtfp",
@@ -7,7 +7,12 @@
       "role": "market_price_primary",
       "status": "candidate",
       "url": "https://microdata.worldbank.org/catalog/4503",
-      "download_url": "https://microdata.worldbank.org/index.php/api/tables/data/FCV/NGA_2021_RTFP_v02_M",
+      "download_url": "https://microdata.worldbank.org/index.php/api/tables/data/fcv/wld_2021_rtfp_v02_m",
+      "retrieval": {
+        "mode": "nada_paginated_json",
+        "page_size": 100,
+        "filter": {"ISO3": "NGA"}
+      },
       "terms_url": "https://microdata.worldbank.org/using-our-catalog",
       "auth_mode": "none",
       "cadence": "weekly revision/monthly records",

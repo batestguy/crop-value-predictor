@@ -62,3 +62,19 @@ calculator-only fallback and stop automated-price claims.
   the evidence artifact was uploaded. This is an intentional gate failure,
   not a pipeline error: the World Bank endpoint must be repaired or formally
   deferred before qualification can proceed.
+
+### 2026-08-25 — World Bank endpoint repaired
+
+- The World Bank source now uses the documented global RTFP table
+  `wld_2021_rtfp_v02_m`, filtered with the exact `ISO3=NGA` query. The adapter
+  follows the NADA contract (`/{limit}/{offset}`), requests 100-row pages, and
+  validates a stable `found` total, complete pagination, and country purity.
+- The full retrieved snapshot is retained for reproducibility. The profile
+  reports raw `DATES` minimum/maximum, rows through the requested cutoff, rows
+  after the cutoff, and the number of in-scope markets. Only rows through the
+  cutoff may enter later qualification inputs; post-cutoff rows are descriptive
+  evidence only.
+- Retrieval metadata records page count, row count, filter, `found` total, and
+  SHA-256 checksum in `raw_manifest.json`. World Bank remains `candidate` and
+  `qualification_report.status` remains `not_run` until rights, normalization,
+  completeness, and crop qualification gates pass.
