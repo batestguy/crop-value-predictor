@@ -21,6 +21,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python pipeline/validate.py
+      - run: python pipeline/source_audit.py
       - run: python -m unittest discover -s tests
       - uses: actions/setup-node@v4
         with:

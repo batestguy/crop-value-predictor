@@ -2,13 +2,17 @@
 
 ## Authority boundary
 
-GitHub Actions is the authoritative compute environment for this project. It
-runs source downloads, normalization, data-quality checks, forecast training and
-backtesting, contract validation, automated tests, and production builds on
-clean Ubuntu runners.
+GitHub Actions is the workflow and validation authority for this project. It
+runs source downloads, normalization, data-quality checks, contract validation,
+automated tests, production builds, and release review on clean Ubuntu runners.
 
-The local workstation is used for editing, Git operations, and inspecting cloud
-results. A local build or model run is not evidence that a stage gate passed.
+The prototype's one-time training run executes remotely on Kaggle through the
+Kaggle CLI. GitHub Actions submits the job, polls it, retrieves its artifacts,
+and validates them. There is no scheduled retraining in the prototype.
+
+The local workstation is limited to editing, Git operations, and inspecting
+cloud results. A local build, data pull, or model run is not evidence that a
+stage gate passed.
 
 The PWA intentionally retains only deterministic scenario arithmetic: applying
 cached yield, cost, and forecast values to area, calculating revenue and profit,
@@ -43,8 +47,10 @@ failed pipeline never replaces the last-known-good public snapshot.
 ## Workflow rules
 
 - Pull requests and pushes run `ci.yml` with read-only repository permissions.
-- Scheduled or manually dispatched refreshes run `refresh.yml` and upload a
-  validation artifact with 30-day retention.
+- The launch training workflow is manually dispatched and accepts an explicit
+  release ID and complete-month cutoff; it does not run on a schedule.
+- Candidate model outputs are uploaded as artifacts with provenance and are
+  promoted only through reviewed Git history.
 - Source adapters and forecast generation are added only after the Stage 1
   source gate passes.
 - Candidate snapshots are reviewed and promoted through Git history; they are

@@ -1,0 +1,39 @@
+name: Stage 1 source audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      cutoff_month:
+        description: Latest complete month included in the audit (YYYY-MM)
+        required: true
+        type: string
+        default: '2026-07'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Retrieve and profile public candidate sources
+        run: >-
+          python pipeline/source_audit.py --fetch
+          --cutoff-month "${{ inputs.cutoff_month }}"
+          --output-dir audit-output
+      - name: Upload source audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-audit-${{ github.sha }}
+          path: audit-output
+          retention-days: 30
