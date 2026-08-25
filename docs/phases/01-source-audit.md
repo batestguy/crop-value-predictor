@@ -40,9 +40,9 @@ calculator-only fallback and stop automated-price claims.
   raw-file checksums, and an initial source profile artifact writer.
 - Confirmed that the source audit must distinguish observed, aggregate, imputed,
   and forecast rows and must fail closed on unknown units.
-- Remote retrieval and checksum generation are implemented but not yet run in
-  the authoritative cloud environment. Coverage profiling, rights decisions,
-  canonical mappings, and crop qualification remain outstanding.
+- Remote retrieval and checksum generation have now run in the authoritative
+  cloud environment. Coverage profiling, rights decisions, canonical mappings,
+  and crop qualification remain outstanding.
 
 ### 2026-08-25 — first cloud retrieval
 
@@ -53,3 +53,12 @@ calculator-only fallback and stop automated-price claims.
   audit adapter now treats zero-row JSON responses as failures so a stale or
   incorrect endpoint cannot pass the gate. Resolving or explicitly deferring
   that endpoint is the next source-audit action.
+
+### 2026-08-25 — fail-closed rerun
+
+- [Workflow run 32811249560](https://github.com/batestguy/crop-value-predictor/actions/runs/32811249560)
+  correctly failed the required-source step because `world-bank-rtfp` returned
+  zero rows. FEWS NET, FAOSTAT, and NBS retrievals were still attempted and
+  the evidence artifact was uploaded. This is an intentional gate failure,
+  not a pipeline error: the World Bank endpoint must be repaired or formally
+  deferred before qualification can proceed.
