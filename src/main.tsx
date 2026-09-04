@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState } from 'react'
+import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { COST_CATEGORIES, calculateScenarios, type CostCategory, type UserScenarioInput } from './calculations'
@@ -20,9 +20,11 @@ function App() {
   const [inputs, setInputs] = useState<Record<string, DraftCrop>>(initial?.inputsByCropId ?? {})
   const [activeCrop, setActiveCrop] = useState(initial?.selectedCropIds?.[0] ?? 'maize-white')
   const [notice, setNotice] = useState(restored.recovered ? 'Your saved draft could not be read, so a blank calculator was opened.' : '')
+  const skipInitialSave = useRef(restored.recovered)
   const getCrop = (id: string) => crops.find((crop) => crop[0] === id)!
   const draftFor = (id: string) => inputs[id] ?? blankCrop()
   useEffect(() => {
+    if (skipInitialSave.current) { skipInitialSave.current = false; return }
     const blank = area.trim() === '' && selected.length === 0 && Object.keys(inputs).length === 0
     if (blank) clearDraft()
     else saveDraft({ areaHa: area, selectedCropIds: selected, inputsByCropId: inputs })
