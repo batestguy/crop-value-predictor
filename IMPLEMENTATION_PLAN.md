@@ -623,7 +623,7 @@ farmer-entered expected sale prices instead of automated forecasts.
 # Verification boundary — 2026-09-04
 
 Stage 1 is `Closed — fallback accepted`: WFP/HDX produced zero qualified price
-series, and automated prices remain blocked. Stage 2 is `In progress` after
-calculator checkpoint `2a40c62`; `npm test` (4), Python tests (26), snapshot
-validation, and `git diff --check` pass. Typecheck, build, and E2E remain
-unverified because npm did not produce a lockfile or local binaries.
+series, and automated prices remain blocked. Stage 2 is at `Gate review` on
+commit `2e8802f`; clean-clone verification passed npm test (4), typecheck,
+build, six Chromium E2E scenarios, Python tests (26), snapshot validation,
+source-register validation, and `git diff --check`. It is not Approved.

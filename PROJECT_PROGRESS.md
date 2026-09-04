@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 0. Baseline and tracking setup | Approved | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
 | 1. Source and feasibility audit | Closed — fallback accepted | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | WFP/HDX technical gate failed; automated prices blocked |
-| 2. Offline decision calculator | In progress | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
+| 2. Offline decision calculator | Gate review | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
 | 3. Automated data pipeline | Not started | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Reproducible snapshots, schema/quality checks, and safe last-known-good fallback |
 | 4. Forecasting and validation | Not started | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Leakage-safe rolling validation, baseline comparison, and auditable intervals |
 | 5. Deployment and farmer readiness | Not started | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Tested install/offline flow, accessibility, low-bandwidth result, and privacy |
@@ -216,3 +216,16 @@ and Python tests (26) passed. The clone build failed because esbuild could not
 read the temporary clone path (`Access is denied` resolving `vite.config.ts`),
 so E2E and Chromium were not run. The primary workstation still has an
 uncleanable partial `node_modules`; Stage 2 remains `In progress`.
+
+## Stage 2 gate evidence — 2026-09-04
+
+Commit `2e8802f` completed the focused recovery/test fixes. A fresh detached
+clone at that commit passed `npm ci`, `npm test` (4), `npm run typecheck`,
+`npm run build`, `npm run test:e2e` (6), `python pipeline\\source_audit.py`,
+`python pipeline\\validate.py`, Python tests (26), and `git diff --check`.
+Node versions were 24.15.0/npm 11.16.0; installed packages resolve to React
+18.3.1, Vite 6.4.3, TypeScript 5.9.3, and Playwright 1.62.1. Chromium was
+installed under the validation root. The lockfile SHA-256 is
+`0c1fc59fe68d10a896933129ffada842baa4437e769b501661f6009f97eeb749`.
+Stage 2 is now `Gate review`, not Approved. The primary workstation's partial
+`node_modules` remains an operational cleanup limitation only.

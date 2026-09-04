@@ -83,6 +83,12 @@ The sequence is:
 Production data integration, source remediation, Stage 3, deployment, and
 public launch are outside this milestone.
 
+Stage 2 is currently at `Gate review` on commit `2e8802f`: clean-clone
+verification passed npm tests, typecheck, build, six Chromium E2E scenarios,
+and the Python validation suite. It is not yet Approved. The primary
+workstation's partial `node_modules` is an operational limitation and is
+excluded from the product checkout.
+
 ## Delivery progress
 
 Implementation follows the review-gated stages in

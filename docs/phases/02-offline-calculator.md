@@ -446,3 +446,17 @@ Commit `f3e0551` adds the lockfile with SHA-256
 Python tests (26) passed. `npm run build` failed in the temporary clone because
 esbuild was denied access while resolving `vite.config.ts`; E2E and Chromium
 were not run. Stage 2 remains `In progress`, pending build/browser evidence.
+
+### 2026-09-04 — Stage 2 gate review
+
+Commit `2e8802f` completed the focused recovery/test fixes. From a fresh
+detached clone with the committed lockfile, `npm ci`, `npm test` (4),
+`npm run typecheck`, `npm run build`, and `npm run test:e2e` (6 Chromium
+scenarios) passed. The suite covers incomplete suppression, ranking/reload,
+ranges and print parity, malformed/unsupported storage recovery, reset storage
+absence, and offline service-worker restart. Source-register validation,
+snapshot validation, 26 Python tests, and `git diff --check` also passed. Node
+was 24.15.0 with npm 11.16.0; Vite 6.4.3, TypeScript 5.9.3, and Playwright
+1.62.1 were installed. Stage 2 status is `Gate review`; this is not an
+approval. The primary partial `node_modules` cleanup remains a workstation
+limitation.
