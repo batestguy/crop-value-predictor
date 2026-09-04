@@ -21,7 +21,8 @@ def main() -> None:
     documents = {name: load(name) for name in FILES}
     manifest = documents["manifest.json"]
     snapshot = manifest["snapshot_id"]
-    assert manifest["schema_version"] == "1.0.0"
+    assert manifest["schema_version"] == "1.1.0"
+    assert manifest["stage_1_approved"] is False
     assert set(manifest["artifacts"]) == set(FILES[1:])
     for name, document in documents.items():
         assert document["snapshot_id"] == snapshot, f"snapshot mismatch: {name}"
@@ -32,7 +33,12 @@ def main() -> None:
     assert "nigeria-national-median" in location_ids
 
     forecast_keys = set()
-    for forecast in documents["forecasts.json"]["forecasts"]:
+    forecasts = documents["forecasts.json"]["forecasts"]
+    assert not forecasts, "calculator-only snapshot cannot contain forecasts"
+    assert not documents["defaults.json"]["yield_defaults"]
+    assert not documents["defaults.json"]["cost_defaults"]
+    assert documents["quality.json"]["pipeline"]["status"] == "calculator_only"
+    for forecast in forecasts:
         key = (forecast["crop_id"], forecast["location_id"], forecast["horizon_months"])
         assert key not in forecast_keys, f"duplicate forecast: {key}"
         forecast_keys.add(key)
@@ -40,9 +46,8 @@ def main() -> None:
         assert forecast["lower_80"] <= forecast["point"] <= forecast["upper_80"]
         assert forecast["crop_id"] in crop_ids
 
-    assert len(documents["defaults.json"]["yield_defaults"]) >= len(crop_ids)
-    assert len(documents["defaults.json"]["cost_defaults"]) >= len(crop_ids)
-    print(f"validated {snapshot}: {len(crop_ids)} crops, {len(forecast_keys)} forecast records")
+    assert all(not crop["eligible_for_recommendation"] for crop in documents["catalog.json"]["crops"])
+    print(f"validated {snapshot}: {len(crop_ids)} crops, calculator-only snapshot")
 
 
 if __name__ == "__main__":

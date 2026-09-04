@@ -1,8 +1,9 @@
 {
-  "schema_version": "1.0.0",
-  "snapshot_id": "pilot-seed-2026-08-24",
-  "generated_at": "2026-08-24T06:00:00Z",
-  "valid_until": "2026-10-08T06:00:00Z",
+  "schema_version": "1.1.0",
+  "snapshot_id": "calculator-only-2026-08-27",
+  "generated_at": "2026-08-27T06:00:00Z",
+  "valid_until": null,
+  "stage_1_approved": false,
   "artifacts": ["catalog.json", "defaults.json", "forecasts.json", "quality.json"],
-  "warnings": ["Pilot seed snapshot: replace with the audited pipeline snapshot before public launch."]
+  "warnings": ["Calculator-only snapshot: no automated prices, forecasts, or source-driven defaults are approved."]
 }

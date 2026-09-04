@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.0.0",
-  "snapshot_id": "pilot-seed-2026-08-24",
-  "pipeline": {"status":"seed","generated_at":"2026-08-24T06:00:00Z","source_count":1,"last_known_good":true},
-  "series": [{"series_id":"pilot-seed","status":"seed","message":"Replace this snapshot with the Stage 1 audited pipeline output before public launch."}]
+  "schema_version": "1.1.0",
+  "snapshot_id": "calculator-only-2026-08-27",
+  "pipeline": {"status":"calculator_only","generated_at":"2026-08-27T06:00:00Z","source_count":0,"last_known_good":false},
+  "series": [{"series_id":"calculator-only","status":"blocked","message":"Stage 1 did not qualify a production price source."}]
 }

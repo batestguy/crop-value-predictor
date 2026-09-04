@@ -1,12 +1,12 @@
 {
-  "schema_version": "1.0.0",
-  "snapshot_id": "pilot-seed-2026-08-24",
+  "schema_version": "1.1.0",
+  "snapshot_id": "calculator-only-2026-08-27",
   "crops": [
-    {"crop_id":"maize-white","name":"White maize","form":"dry grain","sale_unit":"kg","eligible_for_recommendation":true,"horizons_months":[1,3]},
-    {"crop_id":"rice","name":"Rice","form":"paddy","sale_unit":"kg","eligible_for_recommendation":true,"horizons_months":[1,3]},
-    {"crop_id":"cassava","name":"Cassava","form":"fresh roots","sale_unit":"kg","eligible_for_recommendation":true,"horizons_months":[1,3]},
-    {"crop_id":"yam","name":"Yam","form":"fresh tuber","sale_unit":"kg","eligible_for_recommendation":true,"horizons_months":[1,3]},
-    {"crop_id":"sorghum","name":"Sorghum","form":"dry grain","sale_unit":"kg","eligible_for_recommendation":true,"horizons_months":[1,3]}
+    {"crop_id":"maize-white","name":"White maize","form":"dry grain","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
+    {"crop_id":"rice","name":"Rice","form":"paddy","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
+    {"crop_id":"cassava","name":"Cassava","form":"fresh roots","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
+    {"crop_id":"yam","name":"Yam","form":"fresh tuber","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
+    {"crop_id":"sorghum","name":"Sorghum","form":"dry grain","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]}
   ],
   "locations": [
     {"location_id":"nigeria-national-median","name":"Nigeria national median","kind":"national_median","state":null,"latitude":9.08,"longitude":7.40,"covered_crop_ids":["maize-white","rice","cassava","yam","sorghum"]},

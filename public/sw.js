@@ -1,4 +1,4 @@
-const CACHE = 'fieldmargin-shell-v1'
+const CACHE = 'fieldmargin-shell-v2-calculator-only'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/data/v1/manifest.json', '/data/v1/catalog.json', '/data/v1/defaults.json', '/data/v1/forecasts.json', '/data/v1/quality.json']
 
 self.addEventListener('install', (event) => {
@@ -6,7 +6,7 @@ self.addEventListener('install', (event) => {
 })
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))).then(() => self.clients.claim()))
 })
 
 self.addEventListener('fetch', (event) => {
