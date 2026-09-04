@@ -10,9 +10,9 @@
 |---|---|---|---|
 | 0. Baseline and tracking setup | Approved | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
 | 1. Source and feasibility audit | Closed — fallback accepted | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | WFP/HDX technical gate failed; automated prices blocked |
-| 2. Offline decision calculator | Gate review | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
-| 3. Automated data pipeline | Not started | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Reproducible snapshots, schema/quality checks, and safe last-known-good fallback |
-| 4. Forecasting and validation | Not started | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Leakage-safe rolling validation, baseline comparison, and auditable intervals |
+| 2. Offline decision calculator | Approved | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
+| 3. Automated data pipeline | Blocked | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Unchanged Stage 1 source gate blocks automated data |
+| 4. Forecasting and validation | Blocked | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Unchanged Stage 1/Stage 3 dependency blocks forecasting |
 | 5. Deployment and farmer readiness | Not started | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Tested install/offline flow, accessibility, low-bandwidth result, and privacy |
 | 6. Pilot validation and expansion | Not started | [`06-pilot-validation.md`](./docs/phases/06-pilot-validation.md) | Moderated comprehension, helpfulness, forecast follow-up, and documented limits |
 
@@ -99,6 +99,16 @@ six-origin, and three-market gates. Best completeness was 83.3% but stale at
 81 days; fresh series reached only 52.8%. World Bank remained an optional
 zero-row failure. Automated prices remain blocked and the app remains
 calculator-only.
+
+## Stage 2 approval — 2026-09-04
+
+The user explicitly approved Stage 2 after the complete clean-clone gate passed.
+Approval covers complete farmer-entered calculator scenarios only. It does not
+unlock automated prices, source-driven defaults, forecasting, Stage 3, Stage 4,
+deployment, public launch, push, or workflow dispatch. The unchanged Stage 1
+source gate continues to block automated work.
+
+The next action is calculator-only pilot and deployment-readiness planning.
 
 ## Next-phase plan — Stage 2
 
@@ -227,5 +237,6 @@ Node versions were 24.15.0/npm 11.16.0; installed packages resolve to React
 18.3.1, Vite 6.4.3, TypeScript 5.9.3, and Playwright 1.62.1. Chromium was
 installed under the validation root. The lockfile SHA-256 is
 `0c1fc59fe68d10a896933129ffada842baa4437e769b501661f6009f97eeb749`.
-Stage 2 is now `Gate review`, not Approved. The primary workstation's partial
+At the time of this evidence capture, Stage 2 was `Gate review`, pending user
+approval. The primary workstation's partial
 `node_modules` remains an operational cleanup limitation only.

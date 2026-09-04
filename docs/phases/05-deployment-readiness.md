@@ -1,7 +1,8 @@
 # Stage 5 — Deployment and Farmer Readiness
 
-**Status:** Not started  
-**Dependency:** Stages 2–4 approval
+**Status:** Not started — calculator-only milestone identified
+**Dependency:** Stage 2 approval is sufficient for calculator-only readiness;
+Stages 3–4 approval remains required for any automated or forecast deployment.
 
 ## Objective
 
@@ -28,3 +29,11 @@ data leaves the device.
 
 The current service worker is a seed cache implementation. No Stage 5 gate work
 has been accepted.
+
+## Next milestone — calculator-only readiness
+
+Stage 2 approval permits planning deployment readiness for the offline,
+farmer-entered calculator only. This does not approve deployment or public
+launch, which still requires explicit authorization. Any deployment containing
+automated prices, source-driven defaults, or forecasts remains blocked until
+Stages 3–4 pass and are approved.

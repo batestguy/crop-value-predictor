@@ -74,18 +74,15 @@ will rank only complete farmer-entered area, yield, sale price, and cost inputs.
 The decision-complete execution plan is
 [`docs/phases/02-offline-calculator.md`](./docs/phases/02-offline-calculator.md),
 and the copy-ready session brief is [`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md).
-The sequence is:
-
-1. restore and validate the npm toolchain and lockfile;
-2. complete browser coverage for persistence, print parity, and offline restart;
-3. prove the production build and submit Stage 2 for gate review.
+Stage 2 is approved for calculator-only pilot and deployment-readiness
+planning. The next step is to define that calculator-only readiness work.
 
 Production data integration, source remediation, Stage 3, deployment, and
 public launch are outside this milestone.
 
-Stage 2 is currently at `Gate review` on commit `2e8802f`: clean-clone
+Stage 2 is **Approved** on commit `2e8802f`: clean-clone
 verification passed npm tests, typecheck, build, six Chromium E2E scenarios,
-and the Python validation suite. It is not yet Approved. The primary
+and the Python validation suite. The primary
 workstation's partial `node_modules` is an operational limitation and is
 excluded from the product checkout.
 
@@ -146,7 +143,8 @@ gh workflow run <workflow.yml> --repo batestguy/crop-value-predictor
 The app is calculator-only: it compares complete farmer-entered crop scenarios
 offline. WFP/HDX remediation is closed after failing the unchanged technical
 qualification gate, so automated prices and source-driven rankings are not
-published. Stage 2 is at `Gate review` (not Approved) on validated
+published. Stage 2 is **Approved** for calculator-only scenarios on validated
 implementation commit `2e8802f`, with documentation/evidence in `8ef54f5`.
 Clean-clone verification passed the npm, typecheck, build, six Chromium E2E,
-and Python validation checks.
+and Python validation checks. This approval does not unlock automated prices,
+defaults, forecasting, Stage 3/4, deployment, or public launch.

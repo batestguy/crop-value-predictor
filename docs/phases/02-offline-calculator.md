@@ -1,7 +1,8 @@
 # Stage 2 — Offline Decision Calculator
 
-**Status:** In progress — calculator-only delivery authorized
-**Decision date:** 2026-08-27
+**Status:** Approved — calculator-only delivery
+**Decision date:** 2026-09-04 (explicit user approval)
+**Fallback authorization date:** 2026-08-27
 **Dependency:** Stage 1 is Closed — fallback accepted. Production static data,
 automated price claims, and Stage 3 still require a future qualification report
 that passes the full technical and rights gate.
@@ -457,6 +458,19 @@ ranges and print parity, malformed/unsupported storage recovery, reset storage
 absence, and offline service-worker restart. Source-register validation,
 snapshot validation, 26 Python tests, and `git diff --check` also passed. Node
 was 24.15.0 with npm 11.16.0; Vite 6.4.3, TypeScript 5.9.3, and Playwright
-1.62.1 were installed. Stage 2 status is `Gate review`; this is not an
-approval. The primary partial `node_modules` cleanup remains a workstation
+1.62.1 were installed. Stage 2 status was `Gate review` pending the user's
+decision. The primary partial `node_modules` cleanup remains a workstation
 limitation.
+
+### 2026-09-04 — Stage 2 approved
+
+The user explicitly approved Stage 2 after reviewing the complete gate evidence.
+Approval relies on exact implementation commit `2e8802f`, evidence commit
+`8ef54f5`, and the clean-clone full gate recorded above. The workstation's
+partial `node_modules` tree is a tooling limitation; clean-clone reproducibility
+is the release evidence.
+
+This approval covers complete farmer-entered calculator scenarios only. It does
+not unlock automated prices, source-driven defaults, forecasting, Stage 3,
+Stage 4, deployment, public launch, push, or workflow dispatch. Automated data
+remains blocked by the unchanged Stage 1 source gate.

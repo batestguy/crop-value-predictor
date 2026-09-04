@@ -623,7 +623,13 @@ farmer-entered expected sale prices instead of automated forecasts.
 # Verification boundary — 2026-09-04
 
 Stage 1 is `Closed — fallback accepted`: WFP/HDX produced zero qualified price
-series, and automated prices remain blocked. Stage 2 is at `Gate review` on
+series, and automated prices remain blocked. Stage 2 is `Approved` for
+calculator-only scenarios on
 commit `2e8802f`; clean-clone verification passed npm test (4), typecheck,
 build, six Chromium E2E scenarios, Python tests (26), snapshot validation,
-source-register validation, and `git diff --check`. It is not Approved.
+source-register validation, and `git diff --check`. The gate outcome was
+approved by the user on 2026-09-04. Automated Stages 3–4 remain blocked by the
+unchanged Stage 1 source gate. The next action is calculator-only
+pilot/deployment-readiness planning; this does not imply that the full
+automated predictor path has passed. Deployment still requires explicit
+authorization.
