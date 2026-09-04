@@ -436,3 +436,13 @@ while resolving the space-containing path; the `npm_config_cache` retry was
 stopped after 60 seconds without producing a lockfile. No unvalidated lockfile
 was copied into the repository. Typecheck, build, Chromium installation, and
 E2E remain pending; Stage 2 is `In progress`.
+
+### 2026-09-04 — validated lockfile checkpoint
+
+Commit `f3e0551` adds the lockfile with SHA-256
+`0c1fc59fe68d10a896933129ffada842baa4437e769b501661f6009f97eeb749`.
+`npm ci` succeeded in a clean detached clone after an escalated retry for
+`ECONNRESET`; `npm ls --depth=0`, `npm test` (4), `npm run typecheck`, and
+Python tests (26) passed. `npm run build` failed in the temporary clone because
+esbuild was denied access while resolving `vite.config.ts`; E2E and Chromium
+were not run. Stage 2 remains `In progress`, pending build/browser evidence.

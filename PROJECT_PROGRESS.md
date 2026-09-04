@@ -205,3 +205,14 @@ project cache. The cache-path command failed with npm `ENOENT` because the
 space-containing path was parsed incorrectly; the `npm_config_cache` retry was
 stopped after 60 seconds without creating a lockfile. Typecheck/build/E2E stay
 blocked and Stage 2 remains `In progress`.
+
+## Final clean-clone recovery — 2026-09-04
+
+Commit `f3e0551` adds the validated `package-lock.json` (SHA-256
+`0c1fc59fe68d10a896933129ffada842baa4437e769b501661f6009f97eeb749`). In a
+clean detached clone, `npm ci` succeeded after one sandbox `ECONNRESET` retry
+with network access; `npm ls --depth=0`, `npm test` (4), `npm run typecheck`,
+and Python tests (26) passed. The clone build failed because esbuild could not
+read the temporary clone path (`Access is denied` resolving `vite.config.ts`),
+so E2E and Chromium were not run. The primary workstation still has an
+uncleanable partial `node_modules`; Stage 2 remains `In progress`.
