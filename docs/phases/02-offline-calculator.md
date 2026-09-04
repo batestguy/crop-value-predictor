@@ -425,3 +425,14 @@ remediation, or Stage 3 work was performed.
   Chromium before timing out. The project `.npmrc` was restored.
 - Reconfirmed 4 Node tests, 19 Python tests, snapshot validation, and
   `git diff --check` passing. Stage 2 remains `In progress`.
+
+### 2026-09-04 — checkpoint artifacts and lock recovery
+
+Follow-up commit `516e3d1` records the remaining CI, snapshot, service-worker,
+Playwright, persistence, and calculator-test artifacts required by the
+checkpoint. Lock recovery used unique workspace `%TEMP%\\crop-value-lock-20260904-1`
+with only `package.json`. The cache-path invocation failed with npm `ENOENT`
+while resolving the space-containing path; the `npm_config_cache` retry was
+stopped after 60 seconds without producing a lockfile. No unvalidated lockfile
+was copied into the repository. Typecheck, build, Chromium installation, and
+E2E remain pending; Stage 2 is `In progress`.

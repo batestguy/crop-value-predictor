@@ -195,3 +195,13 @@ server to a production preview on port 4173.
 
 [`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md) is now the authoritative restart
 entry point. Stage 2 remains **In progress**.
+
+## Checkpoint boundary completion — 2026-09-04
+
+Follow-up commits `adbca90` and `516e3d1` make the source-audit retrieval and
+calculator checkpoint artifacts self-contained. Lock recovery was attempted in
+`%TEMP%\\crop-value-lock-20260904-1` using only a copied `package.json` and the
+project cache. The cache-path command failed with npm `ENOENT` because the
+space-containing path was parsed incorrectly; the `npm_config_cache` retry was
+stopped after 60 seconds without creating a lockfile. Typecheck/build/E2E stay
+blocked and Stage 2 remains `In progress`.
