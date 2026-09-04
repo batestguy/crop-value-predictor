@@ -2,11 +2,19 @@
   "schema_version": "1.0.0",
   "status": "audit_pending",
   "crops": [
-    {"crop_id":"maize-white","aliases":["maize (white)","maize fao","white maize"],"forms":["dry grain"],"source_status":"pending"},
-    {"crop_id":"rice","aliases":["rice (imported)","rice fao","rice"],"forms":["paddy"],"source_status":"pending"},
-    {"crop_id":"cassava","aliases":["cassava","gari"],"forms":["fresh roots"],"source_status":"pending"},
-    {"crop_id":"yam","aliases":["yam"],"forms":["fresh tuber"],"source_status":"pending"},
-    {"crop_id":"sorghum","aliases":["sorghum (white)","sorghum fao","sorghum"],"forms":["dry grain"],"source_status":"pending"}
+    {"crop_id":"maize-grain-white","aliases":["maize grain (white)"],"forms":["dry grain"],"faostat_items":["Maize"],"source_status":"pending"},
+    {"crop_id":"maize-grain-yellow","aliases":["maize grain (yellow)"],"forms":["dry grain"],"faostat_items":["Maize"],"source_status":"pending"},
+    {"crop_id":"rice-milled","aliases":["rice (milled)"],"forms":["milled rice"],"faostat_items":["Rice"],"source_status":"pending"},
+    {"crop_id":"rice-5pct-broken","aliases":["rice (5% broken)"],"forms":["milled rice"],"faostat_items":["Rice"],"source_status":"pending"},
+    {"crop_id":"gari-white","aliases":["gari (white)"],"forms":["processed cassava"],"faostat_items":["Cassava, fresh"],"source_status":"pending"},
+    {"crop_id":"gari-yellow","aliases":["gari (yellow)"],"forms":["processed cassava"],"faostat_items":["Cassava, fresh"],"source_status":"pending"},
+    {"crop_id":"yam-fresh","aliases":["yams"],"forms":["fresh tuber"],"faostat_items":["Yams"],"source_status":"pending"},
+    {"crop_id":"sorghum-white","aliases":["sorghum (white)"],"forms":["dry grain"],"faostat_items":["Sorghum"],"source_status":"pending"},
+    {"crop_id":"sorghum-brown","aliases":["sorghum (brown)"],"forms":["dry grain"],"faostat_items":["Sorghum"],"source_status":"pending"},
+    {"crop_id":"millet-pearl","aliases":["millet (pearl)"],"forms":["dry grain"],"faostat_items":["Millet"],"source_status":"pending"},
+    {"crop_id":"cowpeas-white","aliases":["cowpeas (white)"],"forms":["dry grain"],"faostat_items":["Cow peas, dry"],"source_status":"pending"},
+    {"crop_id":"cowpeas-brown","aliases":["cowpeas (brown)"],"forms":["dry grain"],"faostat_items":["Cow peas, dry"],"source_status":"pending"},
+    {"crop_id":"groundnuts-shelled","aliases":["groundnuts (shelled)"],"forms":["dry grain"],"faostat_items":["Groundnuts, excluding shelled"],"source_status":"pending"}
   ],
   "markets": [],
   "units": [

@@ -30,11 +30,122 @@ REQUIRED_FIELDS = {
 }
 VALID_STATUSES = {"candidate", "qualified", "rejected", "deferred"}
 MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+SAFE_URL = re.compile(r"^(https://[^?\s#]+)")
+
+
+def sanitize_url(url: str) -> str:
+    """Keep only the stable origin/path; never persist signed query tokens."""
+    match = SAFE_URL.match(str(url or ""))
+    if not match:
+        raise ValueError("download URL must be an HTTPS URL")
+    return match.group(1)
+
+
+def _request_json(url: str, *, opener=urlopen, retries: int = 3, sleep: Callable[[float], None] = time.sleep) -> dict:
+    last_error = None
+    for attempt in range(retries):
+        try:
+            request = Request(url, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "application/json"})
+            with opener(request, timeout=60) as response:
+                status = getattr(response, "status", 200)
+                if status == 429 or status >= 500:
+                    raise HTTPError(url, status, "transient HTTP response", hdrs=None, fp=None)
+                payload = json.loads(response.read().decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("CKAN response is not an object")
+            return payload
+        except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError, UnicodeDecodeError, ValueError) as error:
+            last_error = error
+            status = getattr(error, "code", None)
+            transient = isinstance(error, (TimeoutError, URLError, OSError)) or status == 429 or (status is not None and status >= 500)
+            if not transient or attempt == retries - 1:
+                raise
+            sleep(min(2 ** attempt, 4))
+    raise RuntimeError(str(last_error))
+
+
+def discover_wfp_hdx(*, opener=urlopen, package_slug: str = "wfp-food-prices-for-nigeria", retrieval: dict | None = None) -> dict:
+    """Discover the unique WFP Nigeria CSV through public CKAN metadata."""
+    endpoint = "https://data.humdata.org/api/3/action/package_show?id=" + package_slug
+    payload = _request_json(endpoint, opener=opener)
+    if not payload.get("success") or not isinstance(payload.get("result"), dict):
+        raise ValueError("HDX CKAN package_show failed")
+    result = payload["result"]
+    organization = result.get("organization") or {}
+    title = str(result.get("title") or "")
+    if "nigeria" not in (title + " " + str(result.get("name") or "")).lower():
+        raise ValueError("HDX package is not Nigeria")
+    retrieval = retrieval or {}
+    expected_dataset = retrieval.get("dataset_id")
+    if expected_dataset and result.get("id") != expected_dataset: raise ValueError("HDX dataset identity drift")
+    org = result.get("organization") or {}
+    if retrieval.get("organization_id") and org.get("id") != retrieval["organization_id"]: raise ValueError("HDX organization identity drift")
+    if retrieval.get("organization_name") and str(org.get("name", "")).lower() != str(retrieval["organization_name"]).lower(): raise ValueError("HDX organization name drift")
+    resources = []
+    for r in result.get("resources", []):
+        if not isinstance(r, dict) or str(r.get("format", "")).lower() != "csv": continue
+        if retrieval.get("resource_id") and r.get("id") != retrieval["resource_id"]: continue
+        if retrieval.get("resource_name") and r.get("name") != retrieval["resource_name"]: continue
+        if retrieval.get("resource_description") and r.get("description") != retrieval["resource_description"]: continue
+        resource_filename = r.get("filename") or str(r.get("download_url") or r.get("url") or "").rstrip("/").rsplit("/", 1)[-1]
+        if retrieval.get("resource_filename") and resource_filename != retrieval["resource_filename"]: continue
+        if retrieval.get("resource_url_type") and r.get("url_type") != retrieval["resource_url_type"]: continue
+        if retrieval.get("resource_type") and r.get("resource_type") != retrieval["resource_type"]: continue
+        resources.append(r)
+    if len(resources) != 1:
+        candidates = [{"id": r.get("id"), "name": r.get("name"), "description": r.get("description"), "filename": r.get("filename") or str(r.get("download_url") or r.get("url") or "").rstrip("/").rsplit("/", 1)[-1], "url_type": r.get("url_type"), "resource_type": r.get("resource_type")} for r in result.get("resources", []) if isinstance(r, dict)]
+        raise ValueError(f"expected one exact Nigeria WFP CSV resource, found {len(resources)}; candidates={candidates}")
+    resource = resources[0]
+    url = sanitize_url(resource.get("url") or resource.get("download_url"))
+    license_id = str(result.get("license_id") or result.get("license_title") or "").strip()
+    if not license_id:
+        raise ValueError("HDX dataset has no live license identifier")
+    return {"package_slug": package_slug, "dataset_id": result.get("id"), "dataset_name": result.get("name"),
+            "title": title, "organization": organization.get("name"), "provider": organization.get("title"),
+            "license_id": license_id, "license_url": result.get("license_url"), "dataset_url": "https://data.humdata.org/dataset/" + package_slug,
+            "resource_id": resource.get("id"), "resource_name": resource.get("name"), "resource_description": resource.get("description"), "resource_filename": resource.get("filename") or str(resource.get("download_url") or resource.get("url") or "").rstrip("/").rsplit("/", 1)[-1], "url": url,
+            "format": "csv", "last_modified": resource.get("last_modified") or result.get("metadata_modified")}
+
+
+def download_http_csv(discovery: dict, target: Path, *, opener=urlopen, retries: int = 3, sleep: Callable[[float], None] = time.sleep, max_bytes: int = 250_000_000) -> dict:
+    """Download a discovered CSV atomically, rejecting HTML/empty/oversize responses."""
+    url = sanitize_url(discovery["url"]); last_error = None
+    for attempt in range(retries):
+        temporary = target.with_name(target.name + ".tmp")
+        try:
+            request = Request(url, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "text/csv"})
+            with opener(request, timeout=120) as response:
+                status = getattr(response, "status", 200)
+                if status == 429 or status >= 500:
+                    raise HTTPError(url, status, "transient HTTP response", hdrs=None, fp=None)
+                content_type = str(getattr(response, "headers", {}).get("Content-Type", "")).lower()
+                total = 0
+                with temporary.open("wb") as handle:
+                    while True:
+                        chunk = response.read(1024 * 1024)
+                        if not chunk: break
+                        total += len(chunk)
+                        if total > max_bytes: raise ValueError("CSV response exceeds maximum size")
+                        handle.write(chunk)
+            if total == 0: raise ValueError("CSV response is empty")
+            sample = temporary.read_bytes()[:512].lstrip().lower()
+            if "text/html" in content_type or sample.startswith(b"<!doctype html") or sample.startswith(b"<html"):
+                raise ValueError("CSV response is HTML")
+            temporary.replace(target)
+            return {"status": "downloaded", "path": target.name, "bytes": total, "sha256": sha256_file(target), "url": url}
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:
+            last_error = error
+            if temporary.exists(): temporary.unlink()
+            status = getattr(error, "code", None)
+            transient = isinstance(error, (TimeoutError, URLError, OSError)) or status == 429 or (status is not None and status >= 500)
+            if not transient or attempt == retries - 1: raise
+            sleep(min(2 ** attempt, 4))
+    raise RuntimeError(str(last_error))
 
 
 def load_register() -> list[dict]:
     document = json.loads(REGISTER.read_text(encoding="utf-8"))
-    assert document.get("schema_version") == "1.2.0", "unsupported source schema"
+    assert document.get("schema_version") == "1.3.0", "unsupported source schema"
     sources = document.get("sources")
     assert isinstance(sources, list) and sources, "source register is empty"
     source_ids: set[str] = set()
@@ -185,11 +296,36 @@ def download(source: dict, raw_dir: Path) -> dict:
         except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError) as error:
             record.update({"status": "failed", "error": str(error)})
         return record
+
+    if source.get("retrieval", {}).get("mode") == "hdx_ckan_wfp_csv":
+        try:
+            discovery = discover_wfp_hdx(package_slug=source["retrieval"]["package_slug"], retrieval=source["retrieval"])
+            expected = str(source["retrieval"].get("expected_provider", "")).lower()
+            observed = (str(discovery.get("organization", "")) + " " + str(discovery.get("provider", ""))).lower()
+            if expected and expected not in observed:
+                raise ValueError("HDX publisher/provider is not the expected WFP")
+            allowed = {str(value).lower() for value in source["retrieval"].get("allowed_license_ids", [])}
+            if str(discovery.get("license_id", "")).lower() not in allowed:
+                raise ValueError("HDX license is not in the configured allowed license set")
+            target = raw_dir / f"{source['source_id']}.csv"
+            record.update(download_http_csv(discovery, target))
+            record.update({"dataset_id": discovery.get("dataset_id"), "resource_id": discovery.get("resource_id"), "resource_name": discovery.get("resource_name"), "resource_description": discovery.get("resource_description"), "resource_filename": discovery.get("resource_filename") or source["retrieval"].get("resource_filename"), "license_id": discovery.get("license_id"), "last_modified": discovery.get("last_modified"), "dataset_url": discovery.get("dataset_url"), "url": discovery.get("url")})
+        except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError) as error:
+            record.update({"status": "failed", "error": str(error)})
+        return record
     request = Request(source["download_url"], headers={"User-Agent": "crop-value-predictor-stage1/1.0"})
+    temporary = target.with_name(target.name + ".tmp")
     try:
-        with urlopen(request, timeout=60) as response, target.open("wb") as handle:
+        with urlopen(request, timeout=60) as response, temporary.open("wb") as handle:
             while chunk := response.read(1024 * 1024):
                 handle.write(chunk)
+        if not temporary.stat().st_size: raise ValueError("empty response")
+        sample = temporary.read_bytes()[:512].lstrip().lower()
+        if sample.startswith(b"<!doctype html") or sample.startswith(b"<html"):
+            raise ValueError("response is HTML")
+        if target.suffix.lower() == ".zip":
+            with zipfile.ZipFile(temporary): pass
+        temporary.replace(target)
         record.update({
             "status": "downloaded",
             "path": target.name,
@@ -200,8 +336,9 @@ def download(source: dict, raw_dir: Path) -> dict:
             payload = json.loads(target.read_text(encoding="utf-8"))
             if isinstance(payload, dict) and payload.get("found", payload.get("total", 1)) == 0:
                 record.update({"status": "failed", "error": "JSON API returned zero rows"})
-    except (HTTPError, URLError, TimeoutError, OSError) as error:
+    except (HTTPError, URLError, TimeoutError, OSError, ValueError, zipfile.BadZipFile) as error:
         record.update({"status": "failed", "error": str(error)})
+        if temporary.exists(): temporary.unlink()
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         record.update({"status": "failed", "error": f"invalid response: {error}"})
     return record
@@ -237,14 +374,18 @@ def _date_value(row: dict) -> str | None:
 
 def _market_value(row: dict) -> str | None:
     for key, value in row.items():
-        if key.upper() in {"MARKET", "MARKET_ID", "MARKET_NAME", "MARKETCODE"} and value:
+        if key.lower() in {"market", "market_id", "market_name", "marketcode", "mkt_name"} and value:
             return str(value)
     return None
 
 
-def profile_json(path: Path, cutoff_month: str | None = None) -> dict:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    rows = payload.get("data") if isinstance(payload, dict) else payload
+def profile_json_rows(rows: object, cutoff_month: str | None = None) -> dict:
+    """Profile an already-decoded JSON row array.
+
+    Location counts use ``geo_id`` where it is available.  This prevents a
+    display-name collision from changing the market count and makes the World
+    Bank national aggregate an explicit, separate location.
+    """
     if not isinstance(rows, list):
         return {"format": "json", "rows": None, "columns": [], "note": "no row array"}
     columns = sorted({key for row in rows if isinstance(row, dict) for key in row})
@@ -256,13 +397,35 @@ def profile_json(path: Path, cutoff_month: str | None = None) -> dict:
     if cutoff_month:
         eligible = [row for row in rows if isinstance(row, dict) and (_date_value(row) or "")[:7] <= cutoff_month]
         after = [row for row in rows if isinstance(row, dict) and (_date_value(row) or "")[:7] > cutoff_month]
+        location_keys = {
+            str(row.get("geo_id") or _market_value(row))
+            for row in eligible if row.get("geo_id") or _market_value(row)
+        }
+        aggregate_geo_id = "gid_nga_national_average"
+        aggregate_rows = [row for row in eligible if row.get("geo_id") == aggregate_geo_id]
+        aggregate_locations = {
+            str(row.get("geo_id") or _market_value(row))
+            for row in aggregate_rows if row.get("geo_id") or _market_value(row)
+        }
+        source_markets = location_keys - aggregate_locations
         profile.update({
             "cutoff_month": cutoff_month,
             "rows_through_cutoff": len(eligible),
             "rows_after_cutoff": len(after),
-            "in_scope_market_count": len({_market_value(row) for row in eligible if _market_value(row)}),
+            "in_scope_location_count": len(location_keys),
+            "in_scope_market_count": len(source_markets),
+            "national_aggregate_count": len(aggregate_rows),
+            "national_aggregate_row_count": len(aggregate_rows),
+            "national_aggregate_location_count": len(aggregate_locations),
+            "national_aggregate_geo_id": aggregate_geo_id,
         })
     return profile
+
+
+def profile_json(path: Path, cutoff_month: str | None = None) -> dict:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    rows = payload.get("data") if isinstance(payload, dict) else payload
+    return profile_json_rows(rows, cutoff_month)
 
 
 def profile_zip(path: Path) -> dict:
