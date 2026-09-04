@@ -4,7 +4,9 @@ export const STORAGE_KEY = 'fieldmargin.saved-scenario.v1'
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isStringRecord = (value: unknown): value is Record<string, string> => isRecord(value) && Object.values(value).every((item) => typeof item === 'string')
 const isSavedCrop = (value: unknown): value is SavedScenarioV1['inputsByCropId'][string] => {
-  if (!isRecord(value) || typeof value.yieldTPerHa !== 'string' || typeof value.sellingPriceNgnPerKg !== 'string' || !isStringRecord(value.costsPerHa) || COST_CATEGORIES.some((key) => typeof value.costsPerHa[key] !== 'string')) return false
+  if (!isRecord(value) || typeof value.yieldTPerHa !== 'string' || typeof value.sellingPriceNgnPerKg !== 'string' || !isStringRecord(value.costsPerHa)) return false
+  const costs = value.costsPerHa
+  if (COST_CATEGORIES.some((key) => typeof costs[key] !== 'string')) return false
   return Object.keys(value).every((key) => ['yieldTPerHa', 'sellingPriceNgnPerKg', 'lowPriceNgnPerKg', 'highPriceNgnPerKg', 'costsPerHa'].includes(key)) &&
     (value.lowPriceNgnPerKg === undefined || typeof value.lowPriceNgnPerKg === 'string') &&
     (value.highPriceNgnPerKg === undefined || typeof value.highPriceNgnPerKg === 'string')

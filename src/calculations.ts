@@ -14,7 +14,7 @@ export function calculateScenario(input: UserScenarioInput): ScenarioResult | Sc
   if (!positive(input.areaHa)) return { cropId: id, field: 'areaHa', message: 'Area must be greater than zero.' }
   if (!positive(input.yieldTPerHa)) return { cropId: id, field: 'yieldTPerHa', message: 'Yield must be greater than zero.' }
   if (!positive(input.sellingPriceNgnPerKg)) return { cropId: id, field: 'sellingPriceNgnPerKg', message: 'Selling price must be greater than zero.' }
-  for (const category of COST_CATEGORIES) if (!nonNegative(input.costsPerHa?.[category])) return { cropId: id, field: category, message: `${category.replaceAll('_', ' ')} is required and cannot be negative.` }
+  for (const category of COST_CATEGORIES) if (!nonNegative(input.costsPerHa?.[category])) return { cropId: id, field: category, message: `${category.replace(/_/g, ' ')} is required and cannot be negative.` }
   const range = input.priceRangeNgnPerKg
   if (range && (!nonNegative(range.low) || !nonNegative(range.high) || range.low > input.sellingPriceNgnPerKg || input.sellingPriceNgnPerKg > range.high)) return { cropId: id, field: 'priceRangeNgnPerKg', message: 'Price range must satisfy 0 ≤ low ≤ point ≤ high.' }
   const costPerHa = COST_CATEGORIES.reduce((sum, category) => sum + input.costsPerHa[category], 0)
