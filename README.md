@@ -146,6 +146,7 @@ gh workflow run <workflow.yml> --repo batestguy/crop-value-predictor
 The app is calculator-only: it compares complete farmer-entered crop scenarios
 offline. WFP/HDX remediation is closed after failing the unchanged technical
 qualification gate, so automated prices and source-driven rankings are not
-published. Stage 2 remains `In progress` pending npm toolchain restoration and
-browser verification. Source and calculator checkpoints are `14d50f0` and
-`2a40c62`.
+published. Stage 2 is at `Gate review` (not Approved) on validated
+implementation commit `2e8802f`, with documentation/evidence in `8ef54f5`.
+Clean-clone verification passed the npm, typecheck, build, six Chromium E2E,
+and Python validation checks.
