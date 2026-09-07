@@ -2,7 +2,7 @@
 
 **Plan:** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)  
 **Workflow:** sequential delivery with a user review at every acceptance gate  
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-07
 
 ## Current status
 
@@ -13,7 +13,7 @@
 | 2. Offline decision calculator | Approved | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
 | 3. Automated data pipeline | Blocked | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Unchanged Stage 1 source gate blocks automated data |
 | 4. Forecasting and validation | Blocked | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Unchanged Stage 1/Stage 3 dependency blocks forecasting |
-| 5. Deployment and farmer readiness | Not started | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Tested install/offline flow, accessibility, low-bandwidth result, and privacy |
+| 5. Deployment and farmer readiness | In progress | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Tested install/offline flow, accessibility, low-bandwidth result, and privacy |
 | 6. Pilot validation and expansion | Not started | [`06-pilot-validation.md`](./docs/phases/06-pilot-validation.md) | Moderated comprehension, helpfulness, forecast follow-up, and documented limits |
 
 ## Status rules
@@ -146,15 +146,17 @@ approval is claimed.
 
 ## Next action and handoff
 
-The next phase is Stage 2 verification and gate preparation, not automated data
-integration or Stage 3. Restore npm tooling and a lockfile, add/run Chromium
-coverage for ranking suppression, ranges, reload persistence, corrupt-state
-recovery, reset, screen/print parity, and offline restart. Record the evidence
-and commit reference in [`docs/phases/02-offline-calculator.md`](./docs/phases/02-offline-calculator.md),
-then move Stage 2 to `Gate review` only when every acceptance condition passes.
+Stage 2 was approved on 2026-09-04, recorded in `7e626c0`, based on
+implementation `2e8802f` and evidence `8ef54f5`. Continue calculator-only
+readiness using [Stage 5's work packages](./docs/phases/05-deployment-readiness.md)
+and the [current handoff](./SESSION_HANDOFF.md). Review the existing uncommitted
+implementation against the approved baseline, then validate it in an isolated
+reproducible environment if the primary toolchain remains unusable.
 
-Keep Stage 1 marked `Closed — fallback accepted`; do not introduce automated
-prices, source-driven defaults, forecasting, deployment, or public launch claims.
+Planning is prepared; implementation verification is pending. Earlier recovery
+entries below are historical and do not reopen the approved Stage 2 gate.
+Stage 1 remains closed with fallback accepted; Stages 3 and 4 remain blocked.
+Deployment and public launch require separate authorization.
 
 ## Verification checkpoint — 2026-09-04
 
@@ -240,3 +242,21 @@ installed under the validation root. The lockfile SHA-256 is
 At the time of this evidence capture, Stage 2 was `Gate review`, pending user
 approval. The primary workstation's partial
 `node_modules` remains an operational cleanup limitation only.
+
+## Calculator readiness planning - 2026-09-05
+
+Prepared sequential install/cache, draft-error, usability/privacy, browser,
+and pilot-evidence work packages in
+[`docs/phases/05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md).
+Updated the current handoff and retained historical toolchain recovery evidence.
+Stage 5 is `In progress`: planning prepared; implementation verification pending.
+Existing application changes are unverified and preserved. Documentation checks
+cover relative links, status consistency, and targeted `git diff --check`;
+application tests were not rerun for this documentation-only continuation.
+No Stage 5 gate approval, deployment, or participant evidence is claimed.
+
+## Calculator readiness implementation — 2026-09-07
+
+Stage 5 calculator-only browser readiness is now implemented and verified, but remains `In progress`. The service worker uses generated immutable cache identities and scoped cleanup; PWA assets and registration support both root and `/fieldmargin/` bases; persistence recovers safely from blocked or malformed storage; and browser coverage includes update cleanup, offline restart, print parity, selection recovery, and iPhone 13 emulation. The full local suite passed: 4 calculator tests, typecheck, build, Chromium E2E, snapshot validation, and 26 Python tests. A separate scoped-base Chromium test passed. Fresh review identified and corrected the worker-activation test race and missing non-root base-path coverage.
+
+Stage 5 is not at gate review: real Android, recorded low-bandwidth performance, formal accessibility, and participant evidence remain uncollected. No deployment, public launch, push, workflow dispatch, automated prices, or forecasting was performed.

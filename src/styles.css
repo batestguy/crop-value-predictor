@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap');
-:root { font-family: 'Manrope', sans-serif; color: #173d32; background: #f5f1e8; font-synthesis: none; --ink:#173d32; --muted:#728077; --paper:#fbf9f3; --line:#deded4; --accent:#ed6d48; --sun:#f3b45b; }
+:root { font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; color: #173d32; background: #f5f1e8; font-synthesis: none; --ink:#173d32; --muted:#728077; --paper:#fbf9f3; --line:#deded4; --accent:#ed6d48; --sun:#f3b45b; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; background: radial-gradient(circle at 80% 0%, rgba(237,109,72,.11), transparent 25rem), #f5f1e8; }
 button, input, select { font: inherit; }
