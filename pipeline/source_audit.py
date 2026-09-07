@@ -571,6 +571,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fetch", action="store_true", help="retrieve configured public sources")
     parser.add_argument("--output-dir", type=Path, default=Path("audit-output"))
     parser.add_argument("--cutoff-month", default=None)
+    parser.add_argument("--source-id", action="append", default=[], help="source ID to retrieve; repeat to limit a reviewed run")
     args = parser.parse_args(argv)
     sources = load_register()
     if not args.fetch:
@@ -578,6 +579,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if not args.cutoff_month or not MONTH_RE.fullmatch(args.cutoff_month):
         parser.error("--fetch requires --cutoff-month in YYYY-MM form")
+    if args.source_id:
+        requested = set(args.source_id)
+        configured = {source["source_id"] for source in sources}
+        unknown = sorted(requested - configured)
+        if unknown: parser.error(f"unknown --source-id: {', '.join(unknown)}")
+        sources = [source for source in sources if source["source_id"] in requested]
     return run_fetch(args.output_dir, args.cutoff_month, sources)
 
 
