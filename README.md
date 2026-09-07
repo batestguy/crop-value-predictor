@@ -38,9 +38,9 @@ If the dependency install is interrupted, rerun `npm install` from the project
 root. Do not delete the user-wide npm cache or change global npm settings.
 
 The PWA caches its static shell and snapshot files through `public/sw.js`. The
-current snapshot is intentionally labeled as seed data; replace it with the
-audited pipeline output before presenting automated forecasts as production
-evidence.
+current snapshot is calculator-only. The browser loads a selling-price prefill
+only from a versioned, same-origin `price_suggestions.json` advertised by a
+Stage 1-approved manifest; it never calls an upstream market API.
 
 ## Project layout
 
@@ -64,10 +64,10 @@ python pipeline/validate.py
 python -m unittest discover -s tests -v
 ```
 
-Stage 1 is **Closed — fallback accepted**. Its technical source gate did not
-pass: the authenticated qualification report selected no production price
-series. This does not approve automated prices. The active Stage 2 milestone
-will rank only complete farmer-entered area, yield, sale price, and cost inputs.
+Stage 1 is **reopened for a zero-secret FEWS NET qualification attempt**. Until
+the five-crop technical gate, rights review, cross-check review, and explicit
+promotion approval all pass, the shipped calculator remains manual-price only.
+Suggestions are editable local prefills, never forecasts or recommendations.
 
 ## Active next move
 

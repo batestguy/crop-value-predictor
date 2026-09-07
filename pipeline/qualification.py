@@ -77,39 +77,51 @@ def _market(value: object) -> str:
 
 
 def normalize_fews(path: Path, cutoff: str, mappings: dict | None = None) -> tuple[list[dict], list[dict]]:
+    """Normalize immutable FEWS CSV or API JSON; never infer a mass unit."""
     accepted, rejected = [], []
-    with path.open(encoding="utf-8-sig", newline="") as handle:
-        for row_number, row in enumerate(csv.DictReader(handle), 2):
-            ym = month(row.get("period_date"))
+    if path.suffix.lower() == ".json":
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        rows = payload.get("data", payload.get("results", [])) if isinstance(payload, dict) else payload
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+            return [], [{"source": "fews-net", "reason": "invalid_json_row_envelope"}]
+    else:
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+    for row_number, row in enumerate(rows, 1):
+            def value(*names: str) -> object:
+                return next((row.get(name) for name in names if row.get(name) not in (None, "")), "")
+            ym = month(value("period_date", "date", "date_start"))
             transaction = _label(row.get("price_type"))
-            package_kg = convert_kg(row.get("unit", ""), row.get("common_unit", ""))
-            raw_value = str(row.get("value") or "").strip().replace(",", "")
+            package_kg = convert_kg(str(value("unit")), str(value("common_unit")))
+            raw_value = str(value("value", "price")).strip().replace(",", "")
+            market = _market(value("market", "market_name"))
+            market_id = str(value("market_id", "market_code") or market).strip()
+            product = str(value("product", "commodity", "commodity_name")).strip()
             reason = None
             if not ym or ym > cutoff: reason = "outside_cutoff_or_missing_month"
-            elif _label(row.get("data_usage_policy")) != "public": reason = "rights_not_public"
+            elif _label(value("data_usage_policy", "usage_policy", "access")) != "public": reason = "rights_not_public"
             elif transaction not in {"retail", "wholesale"}: reason = "transaction_type_not_retail_or_wholesale"
             elif package_kg is None: reason = "unknown_or_count_based_unit"
-            elif str(row.get("currency") or "").upper() != "NGN": reason = "currency_not_ngn"
-            elif not _market(row.get("market")): reason = "missing_market"
-            elif not _label(row.get("product")): reason = "missing_product"
+            elif str(value("currency")).upper() != "NGN": reason = "currency_not_ngn"
+            elif not market or not market_id: reason = "missing_market"
+            elif not _label(product): reason = "missing_product"
             elif not raw_value: reason = "missing_value"
             if reason:
-                rejected.append({"source": "fews-net", "source_row": row_number, "month": ym, "product": row.get("product"), "market": row.get("market"), "reason": reason})
+                rejected.append({"source": "fews-net", "source_row": row_number, "month": ym, "product": product, "market": market, "reason": reason})
                 continue
             try: package_value = float(raw_value)
             except ValueError:
                 rejected.append({"source": "fews-net", "source_row": row_number, "month": ym, "reason": "non_numeric_value"}); continue
             if package_value <= 0:
                 rejected.append({"source": "fews-net", "source_row": row_number, "month": ym, "reason": "non_positive_value"}); continue
-            observation = _date(row.get("period_date")) or _month_end(ym)
-            product = str(row["product"]).strip()
+            observation = _date(value("period_date", "date", "date_start")) or _month_end(ym)
             accepted.append({
                 "source": "fews-net", "canonical_crop_id": canonical_crop(product, mappings), "source_product": product,
-                "market": _market(row["market"]), "month": ym, "observation_date": observation.isoformat(),
+                "market": market, "market_id": market_id, "month": ym, "observation_date": observation.isoformat(),
                 "price_type": transaction, "transaction_type": transaction, "value": package_value / package_kg,
-                "source_package_value": package_value, "source_package_unit": row.get("unit"), "package_kg": package_kg,
+                "source_package_value": package_value, "source_package_unit": value("unit"), "package_kg": package_kg,
                 "unit": "NGN/kg", "currency": "NGN", "provenance": "observed", "rights": "public",
-                "source_row_id": row.get("id"), "source_row": row_number,
+                "source_row_id": value("id", "uuid", "record_id"), "source_row": row_number,
             })
     return accepted, rejected
 
@@ -333,14 +345,6 @@ def build_report(audit_dir: Path = DEFAULT_AUDIT, cutoff: str = "2026-07") -> di
     if manifest.get("cutoff_month") != cutoff: raise ValueError("cutoff does not match immutable manifest")
     integrity = verify_manifest(audit_dir, manifest)
     mappings = json.loads((ROOT / "config/mappings.json").read_text(encoding="utf-8"))
-    world_rows = []
-    wb_record = _downloaded_record(manifest, "world-bank-rtfp")
-    wb_path = audit_dir / "raw" / str(wb_record.get("path")) if wb_record else None
-    if wb_path and wb_path.is_file():
-        with wb_path.open(encoding="utf-8") as handle: payload = json.load(handle)
-        world_rows = payload.get("data") if isinstance(payload, dict) else payload
-    profile = _write_profile(audit_dir, manifest, cutoff, world_rows); world_evidence = summarize_world_bank(world_rows, cutoff, mappings) if world_rows else {"status": "optional_artifact_unavailable", "recommendation_eligible": False}
-    wb_profile = next((p for p in profile["profiles"] if p["source_id"] == "world-bank-rtfp"), {})
     fews_record = _downloaded_record(manifest, "fews-net")
     accepted, rejected_rows, eligible, rejected_series = [], [], [], []
     if fews_record:
@@ -356,39 +360,39 @@ def build_report(audit_dir: Path = DEFAULT_AUDIT, cutoff: str = "2026-07") -> di
         wfp_accepted, wfp_rejected_rows = normalize_wfp(audit_dir / "raw" / wfp_record["path"], cutoff, mappings, native_columns)
         wfp_snapshot = _retrieval_date(manifest, "wfp-hdx")
         wfp_eligible, wfp_rejected_series = qualify_series(wfp_accepted, cutoff, wfp_snapshot)
-    # WFP is the required price source. Optional FEWS data is validation evidence
-    # only and can never be used as a fallback when WFP is absent or fails.
-    price_accepted, price_eligible, price_rejected = wfp_accepted, wfp_eligible, wfp_rejected_series
-    price_snapshot = _retrieval_date(manifest, "wfp-hdx") if wfp_record else date.today()
-    eligible_keys = {(r["canonical_crop_id"], r.get("market_id", r["market"]), r["price_type"]) for r in price_eligible}
-    qualified_rows = [r for r in price_accepted if (r["canonical_crop_id"], r.get("market_id", r["market"]), r["price_type"]) in eligible_keys]
-    medians = national_median(qualified_rows)
+
+    # FEWS is the only primary candidate.  WFP rows are cross-check evidence;
+    # they can reject a disagreeing matching series but can never fill missing
+    # FEWS history or turn an incomplete FEWS series into an eligible one.
+    fews_keys = {(item["canonical_crop_id"], item.get("market_id", item["market"]), item["price_type"]) for item in eligible}
+    wfp_keys = {(item["canonical_crop_id"], item.get("market_id", item["market"]), item["price_type"]) for item in wfp_eligible}
+    def latest(rows: list[dict], key: tuple[str, str, str]) -> dict | None:
+        matches = [row for row in rows if (row["canonical_crop_id"], row.get("market_id", row["market"]), row["price_type"]) == key]
+        return max(matches, key=lambda row: (row.get("observation_date", ""), row.get("source_row", 0))) if matches else None
+    agreements = []
+    for key in sorted(fews_keys & wfp_keys):
+        primary, cross = latest(accepted, key), latest(wfp_accepted, key)
+        if not primary or not cross: continue
+        ratio = max(primary["value"], cross["value"]) / min(primary["value"], cross["value"])
+        agreements.append({"canonical_crop_id": key[0], "market_id": key[1], "price_type": key[2], "fews_value_ngn_per_kg": primary["value"], "wfp_value_ngn_per_kg": cross["value"], "ratio": round(ratio, 6), "status": "agree" if ratio <= 1.5 else "disagree"})
+    disagreeing = {(item["canonical_crop_id"], item["market_id"], item["price_type"]) for item in agreements if item["status"] == "disagree"}
+    publishable_series = [item for item in eligible if (item["canonical_crop_id"], item.get("market_id", item["market"]), item["price_type"]) not in disagreeing]
     crop_series = defaultdict(lambda: {"markets": set(), "series": []})
-    for series in price_eligible: crop_series[series["canonical_crop_id"]]["markets"].add(series.get("market_id", series["market"])); crop_series[series["canonical_crop_id"]]["series"].append(series)
+    for series in publishable_series: crop_series[series["canonical_crop_id"]]["markets"].add(series.get("market_id", series["market"])); crop_series[series["canonical_crop_id"]]["series"].append(series)
     ranked = []
-    for crop_id, values in crop_series.items(): ranked.append({"canonical_crop_id": crop_id, "qualified_market_count": len(values["markets"]), "qualified_series_count": len(values["series"]), "recent_completeness": min(s["recent_completeness"] for s in values["series"]), "history_length": min(s["months"] for s in values["series"]), "cross_source_agreement": 0})
-    ranked.sort(key=lambda r: (-r["qualified_market_count"], -r["recent_completeness"], -r["history_length"], -r["cross_source_agreement"], r["canonical_crop_id"]))
-    # Yield evidence is extracted independently of the price gate so a
-    # calculator-only fallback still documents the available Nigerian defaults.
-    faostat_record = _downloaded_record(manifest, "faostat-qcl")
-    faostat_path = audit_dir / "raw" / str(faostat_record.get("path")) if faostat_record else None
-    faostat = extract_faostat_yields(faostat_path, [c["crop_id"] for c in mappings.get("crops", [])], mappings) if faostat_path and faostat_path.is_file() else {"status": "optional_artifact_unavailable", "crop_summary": {}}
+    for crop_id, values in crop_series.items(): ranked.append({"canonical_crop_id": crop_id, "qualified_market_count": len(values["markets"]), "qualified_series_count": len(values["series"]), "recent_completeness": min(s["recent_completeness"] for s in values["series"]), "history_length": min(s["months"] for s in values["series"])})
+    ranked.sort(key=lambda r: (-r["qualified_market_count"], -r["recent_completeness"], -r["history_length"], r["canonical_crop_id"]))
     technical = [{**item, "status": "price_technically_qualified"} for item in ranked]
     selected = technical[:8] if len(technical) >= 5 else []
-    defaults = [item for item in technical if item["canonical_crop_id"] in faostat.get("crop_summary", {}) and mappings.get("crops", [])]
-    wfp_license = next((r.get("license_id") for r in manifest.get("records", []) if r.get("source_id") == "wfp-hdx"), None)
-    wfp_gate_reason = "missing_required_artifact" if not wfp_record else ("rights_not_allowed" if wfp_license != "cc-by-igo" else "technical_qualification_failed")
+    source_date = _retrieval_date(manifest, "fews-net") if fews_record else date.today()
     report = {
-        "schema_version": "1.1.0", "status": "gate_review" if len(selected) >= 5 else "calculator_only_fallback", "stage_1_approved": False, "stage_2_status": "in_progress_calculator_only", "cutoff_month": cutoff, "snapshot_date": price_snapshot.isoformat(), "snapshot_source": "wfp-hdx" if wfp_record else "fews-net", "freshness_rule_days": FRESHNESS_DAYS,
-        "selected_crops": selected, "ranked_technically_qualified_crops": technical, "minimum_crops_required": 5, "technical_gate_passed": len(selected) >= 5, "price_technical_gate_passed": len(selected) >= 5, "price_rights_gate_passed": bool(wfp_record and wfp_license == "cc-by-igo"), "price_source_qualified": len(selected) >= 5, "recommendation_defaults_qualified": False, "recommendation_defaults_evidence": defaults, "stage_1_decision": "explicit_review_required" if len(selected) >= 5 else "calculator_only_fallback", "eligible_series": price_eligible, "rejected_series": price_rejected,
-        "fews_row_quality": {"raw_rows": len(accepted) + len(rejected_rows), "normalized_rows": len(accepted), "qualified_rows": sum(1 for r in accepted if (r["canonical_crop_id"], r.get("market_id", r["market"]), r["price_type"]) in {(s["canonical_crop_id"], s.get("market_id", s["market"]), s["price_type"]) for s in eligible}), "qualified_series": len(eligible), "rejections": _rejection_evidence(rejected_rows), "normalization": "original NGN package value divided by explicit source-package kilograms", "transaction_types_retained_separately": ["retail", "wholesale"]},
-        "wfp_row_quality": {"raw_rows": len(wfp_accepted) + len(wfp_rejected_rows), "normalized_rows": len(wfp_accepted), "qualified_rows": len(qualified_rows), "qualified_series": len(wfp_eligible), "rejections": _rejection_evidence(wfp_rejected_rows), "normalization": "explicit source mass divided to NGN/kg; no inferred units or forms", "transaction_types_retained_separately": ["retail", "wholesale"]},
-        "wfp_eligible_series": wfp_eligible, "wfp_rejected_series": wfp_rejected_series, "wfp_gate_decision": {"required": True, "artifact_status": "downloaded" if wfp_record else "missing_or_failed", "rights_license_id": wfp_license, "decision": "pass" if not wfp_gate_reason else "fail", "reason": wfp_gate_reason},
-        "national_median_coverage": {"minimum_markets": 3, "qualified_crop_forms": len({r["canonical_crop_id"] for r in medians}), "qualified_crop_month_transaction_groups": len(medians), "records": medians},
-        "world_bank_validation_evidence": world_evidence, "world_bank_profile_evidence": {"rows": wb_profile.get("rows"), "rows_through_cutoff": wb_profile.get("rows_through_cutoff"), "rows_after_cutoff": wb_profile.get("rows_after_cutoff"), "locations": wb_profile.get("in_scope_location_count"), "source_markets": wb_profile.get("in_scope_market_count"), "national_aggregate_locations": wb_profile.get("national_aggregate_location_count"), "national_aggregate_rows": wb_profile.get("national_aggregate_row_count"), "national_aggregate_geo_id": wb_profile.get("national_aggregate_geo_id")},
-        "faostat": faostat, "nbs_costs": {"status": "deferred", "reason": "table units and redistribution rights are not reproducible", "recommendation_eligible": False},
-        "rights_decisions": {"wfp-hdx": "pass only for manifest license cc-by-igo; technical gate still required", "fews-net": "optional public rows only; never a WFP fallback", "world-bank-rtfp": "optional modeled validation evidence only; transaction type unknown", "faostat-qcl": "optional CC-BY-4.0 yield evidence", "nbs-nass-2023": "optional deferred pending reproducible units and rights"},
-        "manifest_integrity": {"status": "passed", "records": integrity}, "known_limitations": ["World Bank modeled close/OHLC data do not drive recommendations.", "FEWS redistribution terms still require explicit Stage 1 review.", "NBS costs remain deferred.", "Stage 2 remains in progress as a calculator-only fallback until Stage 1 is explicitly approved."]
+        "schema_version": "1.2.0", "status": "gate_review" if len(selected) >= 5 else "calculator_only_fallback", "stage_1_approved": False, "stage_2_status": "in_progress_calculator_only", "cutoff_month": cutoff, "snapshot_date": source_date.isoformat(), "snapshot_source": "fews-net", "freshness_rule_days": FRESHNESS_DAYS,
+        "selected_crops": selected, "ranked_technically_qualified_crops": technical, "minimum_crops_required": 5, "technical_gate_passed": len(selected) >= 5, "price_technical_gate_passed": len(selected) >= 5, "price_rights_gate_passed": False, "price_source_qualified": len(selected) >= 5, "recommendation_defaults_qualified": False, "stage_1_decision": "explicit_review_required" if len(selected) >= 5 else "calculator_only_fallback", "eligible_series": eligible, "publishable_series": publishable_series, "rejected_series": rejected_series,
+        "fews_row_quality": {"raw_rows": len(accepted) + len(rejected_rows), "normalized_rows": len(accepted), "qualified_series": len(eligible), "rejections": _rejection_evidence(rejected_rows), "normalization": "original NGN package value divided by explicit source-package kilograms", "transaction_types_retained_separately": ["retail", "wholesale"]},
+        "wfp_row_quality": {"raw_rows": len(wfp_accepted) + len(wfp_rejected_rows), "normalized_rows": len(wfp_accepted), "qualified_series": len(wfp_eligible), "rejections": _rejection_evidence(wfp_rejected_rows), "normalization": "explicit source mass divided by explicit source-package kilograms", "transaction_types_retained_separately": ["retail", "wholesale"]},
+        "cross_source_check": {"source": "wfp-hdx", "status": "checked" if wfp_record else "unavailable", "agreements": agreements, "disagreement_count": len(disagreeing), "rule": "matching qualified FEWS/WFP series must be within a 1.5 price ratio; WFP never fills FEWS history"},
+        "rights_decisions": {"fews-net": "public rows are technical evidence only; redistribution and Stage 1 review remain required", "wfp-hdx": "independent cross-check only; never a fallback or merged series"},
+        "manifest_integrity": {"status": "passed", "records": integrity}, "known_limitations": ["No yield or cost defaults are qualified.", "No browser API calls are allowed.", "Stage 6 human-comprehension pilot remains independent and in progress.", "Stage 1 requires an explicit review artifact before promotion."]
     }
     return report
 

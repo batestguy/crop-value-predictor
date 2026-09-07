@@ -1,7 +1,7 @@
 # Current session handoff
 
-Updated 2026-09-07. Resume calculator-only readiness from
-[Stage 5](./docs/phases/05-deployment-readiness.md).
+Updated 2026-09-07. Stage 5 is approved for calculator-only pilot preparation;
+resume [Stage 6](./docs/phases/06-pilot-validation.md).
 
 ## Approved baseline
 
@@ -14,21 +14,22 @@ These results do not validate subsequent uncommitted changes.
 
 ## Current work and next action
 
-Stage 5 browser readiness is implemented and locally verified against the approved baseline. The candidate implementation includes:
+Stage 5 browser readiness was approved by the user with its physical-Android
+limitation retained. The candidate implementation includes:
 `index.html`, `package.json`, `public/manifest.webmanifest`, `public/sw.js`,
 `src/main.tsx`, `src/persistence.ts`, and `src/styles.css`, plus untracked
 icons, `scripts/write-precache.mjs`, `src/vite-env.d.ts`, and `docs/pilot-protocol.md`. Preserve these changes and unrelated workstation artifacts.
 
-Passed 2026-09-07: `npm test` (4), `npm run typecheck`, `npm run build`, `npm run test:e2e`, `python pipeline/validate.py`, 26 Python tests, `git diff --check`, and a separate `/fieldmargin/` scoped-base Chromium E2E. Fresh review corrected the service-worker activation race and added scoped-base coverage. Historical npm recovery details remain in
+Passed 2026-09-07: `npm test` (4), `npm run typecheck`, `npm run build`, root Chromium E2E with axe, keyboard, Slow-4G, and no-egress evidence, `python pipeline/validate.py`, 26 Python tests, `git diff --check`, and a separate `/fieldmargin/` scoped-base Chromium E2E. The desktop-Chromium Slow-4G test records final-required-input-to-ranked-result time with a 5-second maximum; the recorded run was 194 ms. Fresh review corrected the service-worker activation race and added scoped-base coverage. Historical npm recovery details remain in
 [the progress log](./PROJECT_PROGRESS.md); they are not the current next task.
 
 ## Validation and boundaries
 
-The next evidence is real Android install/update/offline recovery, a documented network-throttling profile and first-result timing, formal accessibility checks, and participant pilot sessions. Distinguish browser emulation from physical Android results. Hosting/base URL and deployment remain open and unauthorized.
+Stage 6 materials are prepared in [`docs/pilot-session-kit.md`](./docs/pilot-session-kit.md): a verbal-consent script, privacy rules, moderator tasks, observer rubric, critical-blocker handling, aggregate gate worksheet, and calculator release card. The explicit limitation remains no real Android install/update/offline-recovery evidence. Participant access, recruitment, contact, session records, hosting/base URL, and deployment require project-team authority.
 
 Keep versioned localStorage calculator drafts separate from future automated
 snapshot architecture. Stage 1's source gate still blocks Stages 3 and 4.
 Do not infer deployment, push, remote configuration, workflow dispatch, or
 participant-contact authorization from this handoff. Leave credentials,
 workstation caches, agent configuration, and unrelated artifacts untouched.
-Stage 5 remains `In progress`, not at gate review or approved.
+Stage 5 is `Approved` for this calculator-only transition. Stage 6 is `In progress`; do not claim participant outcomes, start Stages 3/4, deploy, or start a public launch without separate authorization.

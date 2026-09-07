@@ -6,11 +6,12 @@ from pathlib import Path
 from datetime import date
 
 ROOT = Path(__file__).resolve().parents[1]
-from pipeline.source_audit import download_nada_paginated, profile_json, profile_zip, discover_wfp_hdx, download_http_csv, sanitize_url
+from pipeline.source_audit import download_nada_paginated, download_fews_paginated, profile_json, profile_zip, discover_wfp_hdx, download_http_csv, sanitize_url
 from pipeline.qualification import (
     convert_kg, qualify_series, canonical_crop, national_median,
     normalize_fews, verify_manifest, build_report,
 )
+from pipeline.promote_price_suggestions import promote
 from pipeline.qualification import normalize_wfp
 
 
@@ -27,10 +28,12 @@ class _Response:
 
 
 class SourceRegisterTests(unittest.TestCase):
-    def test_wfp_is_required_and_optional_validation_roles_are_explicit(self):
+    def test_fews_is_primary_and_wfp_is_cross_check_only(self):
         sources = json.loads((ROOT / "config" / "sources.json").read_text(encoding="utf-8"))["sources"]
         by_id = {s["source_id"]: s for s in sources}
-        self.assertTrue(by_id["wfp-hdx"]["required_for_gate"])
+        self.assertTrue(by_id["fews-net"]["required_for_gate"])
+        self.assertEqual(by_id["fews-net"]["retrieval"]["mode"], "fews_paginated_json")
+        self.assertFalse(by_id["wfp-hdx"]["required_for_gate"])
         self.assertFalse(by_id["world-bank-rtfp"]["required_for_gate"])
         self.assertFalse(by_id["faostat-qcl"]["required_for_gate"])
         self.assertEqual(by_id["wfp-hdx"]["retrieval"]["excluded_resources"][0]["name"], "Nigeria - Markets")
@@ -45,13 +48,13 @@ class SourceRegisterTests(unittest.TestCase):
         eligible, rejected = qualify_series(rows, "2026-08", date(2026, 8, 25))
         self.assertEqual(len(eligible), 15)
         self.assertFalse(rejected)
-    def test_required_wfp_missing_is_fail_closed_without_fews_fallback(self):
+    def test_required_fews_missing_is_fail_closed_without_wfp_fallback(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); (root / "raw").mkdir()
             (root / "raw_manifest.json").write_text(json.dumps({"cutoff_month": "2026-07", "records": []}), encoding="utf-8")
             report = build_report(root, "2026-07")
         self.assertFalse(report["price_source_qualified"])
-        self.assertEqual(report["wfp_gate_decision"]["reason"], "missing_required_artifact")
+        self.assertEqual(report["snapshot_source"], "fews-net")
         self.assertEqual(report["eligible_series"], [])
 
     def test_optional_artifacts_absent_do_not_make_price_defaults_qualified(self):
@@ -242,6 +245,76 @@ class SourceRegisterTests(unittest.TestCase):
             result = download_nada_paginated({"download_url": "https://example.test/table", "retrieval": {"page_size": 100, "filter": {"ISO3": "NGA"}}}, Path(folder) / "x.json", opener=calls, sleep=lambda _: None)
         self.assertEqual(result["rows"], 1)
         self.assertEqual(calls.call_count, 2)
+
+    def test_fews_pagination_consolidates_nigeria_rows(self):
+        pages = {0: {"count": 3, "data": [{"country_code": "NG"}, {"country_code": "NG"}]}, 2: {"count": 3, "data": [{"country_code": "NG"}]}}
+        def opener(request, timeout):
+            offset = int(request.full_url.split("offset=")[1].split("&", 1)[0])
+            return _Response(pages[offset])
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "fews.json"
+            result = download_fews_paginated({"download_url": "https://example.test/fews", "retrieval": {"country_code": "NG", "page_size": 2}}, target, opener=opener, sleep=lambda _: None)
+            payload = json.loads(target.read_text(encoding="utf-8"))
+        self.assertEqual((result["pages"], result["rows"], payload["count"]), (2, 3, 3))
+
+    def test_malformed_or_unapproved_promotion_preserves_last_known_good_snapshot(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); audit = root / "audit"; data = root / "data"; (audit / "raw").mkdir(parents=True); data.mkdir()
+            report = {"technical_gate_passed": False, "selected_crops": [], "cross_source_check": {"disagreement_count": 0}}
+            report_path = audit / "qualification_report.json"; report_path.write_text(json.dumps(report), encoding="utf-8")
+            import hashlib
+            approval = {"stage_1_approved": True, "rights_approved": True, "allow_price_suggestions": True, "reviewer": "reviewer", "reviewed_at": "2026-08-25T00:00:00Z", "qualification_report_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest()}
+            approval_path = root / "approval.json"; approval_path.write_text(json.dumps(approval), encoding="utf-8")
+            original = {"snapshot_id": "last-known-good", "stage_1_approved": False, "artifacts": []}
+            (data / "manifest.json").write_text(json.dumps(original), encoding="utf-8")
+            with self.assertRaises(ValueError): promote(audit, approval_path, data)
+            self.assertEqual(json.loads((data / "manifest.json").read_text(encoding="utf-8")), original)
+
+    def test_cross_source_disagreement_rejects_matching_fews_series_without_merging(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); raw = root / "raw"; raw.mkdir()
+            fews_rows, wfp_rows = [], []
+            for crop in ["maize-grain-white", "rice-milled", "gari-white", "yam-fresh", "sorghum-white"]:
+                for offset in range(36):
+                    year, month_number = divmod(2023 * 12 + 7 + offset, 12)
+                    observed = f"{year:04d}-{month_number + 1:02d}-15"
+                    fews_rows.append({"period_date": observed, "data_usage_policy": "Public", "price_type": "Retail", "unit": "kg", "currency": "NGN", "market": "Market A", "market_id": "m1", "product": crop, "value": 100, "id": f"f-{crop}-{offset}"})
+                    wfp_rows.append(f"{observed},m1,Market A,{crop},{crop},kg,1000,Retail,NGN,actual")
+            fews_path = raw / "fews-net.json"; fews_path.write_text(json.dumps({"count": len(fews_rows), "data": fews_rows}), encoding="utf-8")
+            wfp_path = raw / "wfp-hdx.csv"; wfp_path.write_text("date,market_id,market,commodity_id,commodity,unit,price,pricetype,currency,priceflag\n" + "\n".join(wfp_rows) + "\n", encoding="utf-8")
+            def record(source_id, path): return {"source_id": source_id, "status": "downloaded", "path": path.name, "bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "retrieved_at": "2026-08-25T00:00:00Z"}
+            (root / "raw_manifest.json").write_text(json.dumps({"cutoff_month": "2026-07", "records": [record("fews-net", fews_path), record("wfp-hdx", wfp_path)]}), encoding="utf-8")
+            report = build_report(root, "2026-07")
+        self.assertEqual(report["wfp_row_quality"]["qualified_series"], 5)
+        self.assertEqual(report["cross_source_check"]["disagreement_count"], 5)
+        self.assertEqual(report["publishable_series"], [])
+        self.assertFalse(report["technical_gate_passed"])
+
+    def test_reviewed_promotion_emits_shared_snapshot_and_approved_references(self):
+        import hashlib
+        crops = ["maize-grain-white", "rice-milled", "gari-white", "yam-fresh", "sorghum-white"]
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); audit = root / "audit"; raw = audit / "raw"; data = root / "data"; raw.mkdir(parents=True); data.mkdir()
+            rows = []
+            for crop in crops:
+                for offset in range(36):
+                    year, month_number = divmod(2023 * 12 + 7 + offset, 12)
+                    rows.append({"period_date": f"{year:04d}-{month_number + 1:02d}-15", "data_usage_policy": "Public", "price_type": "Retail", "unit": "kg", "currency": "NGN", "market": "Market A", "market_id": "m1", "product": crop, "value": 100, "id": f"{crop}-{offset}"})
+            raw_path = raw / "fews-net.json"; raw_path.write_text(json.dumps({"count": len(rows), "data": rows}), encoding="utf-8")
+            record = {"source_id": "fews-net", "status": "downloaded", "path": raw_path.name, "bytes": raw_path.stat().st_size, "sha256": hashlib.sha256(raw_path.read_bytes()).hexdigest(), "retrieved_at": "2026-08-25T00:00:00Z"}
+            (audit / "raw_manifest.json").write_text(json.dumps({"cutoff_month": "2026-07", "records": [record]}), encoding="utf-8")
+            report = build_report(audit, "2026-07"); report_path = audit / "qualification_report.json"; report_path.write_text(json.dumps(report), encoding="utf-8")
+            documents = {"manifest.json": {"snapshot_id": "old", "stage_1_approved": False, "artifacts": ["catalog.json", "defaults.json", "forecasts.json", "quality.json"]}, "catalog.json": {"snapshot_id": "old", "crops": [{"crop_id": crop} for crop in crops]}, "defaults.json": {"snapshot_id": "old"}, "forecasts.json": {"snapshot_id": "old"}, "quality.json": {"snapshot_id": "old", "pipeline": {}}}
+            for name, document in documents.items(): (data / name).write_text(json.dumps(document), encoding="utf-8")
+            approval = {"stage_1_approved": True, "rights_approved": True, "allow_price_suggestions": True, "reviewer": "reviewer", "reviewed_at": "2026-08-25T00:00:00Z", "qualification_report_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest()}
+            approval_path = root / "approval.json"; approval_path.write_text(json.dumps(approval), encoding="utf-8")
+            snapshot_id = promote(audit, approval_path, data)
+            manifest = json.loads((data / "manifest.json").read_text(encoding="utf-8")); suggestions = json.loads((data / "price_suggestions.json").read_text(encoding="utf-8")); markets = json.loads((data / "approved_markets.json").read_text(encoding="utf-8"))
+        self.assertTrue(manifest["stage_1_approved"])
+        self.assertEqual({manifest["snapshot_id"], suggestions["snapshot_id"], markets["snapshot_id"]}, {snapshot_id})
+        self.assertEqual(len(suggestions["suggestions"]), 5)
+        self.assertEqual(suggestions["suggestions"][0]["market_id"], markets["markets"][0]["market_id"])
 
 
 if __name__ == "__main__":

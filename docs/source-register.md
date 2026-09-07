@@ -11,9 +11,9 @@ No source is promoted to a production claim from this table alone.
 
 | Source | Intended role | Current evidence | Access path | Open qualification checks |
 |---|---|---|---|---|
-| [World Bank RTFP](https://microdata.worldbank.org/catalog/4503) | Primary monthly market-price continuity | Nigeria catalog reports 73 markets, 2007 onward, open-data publication, and explicitly distinguishes direct and ML-estimated values | Global NADA table `wld_2021_rtfp_v02_m`, queried with `ISO3=NGA` in 100-row pages | Confirm product/form mapping, unit conversions, observed vs imputed flags, and redistribution attribution |
-| [FEWS NET Nigeria prices](https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-2) | Independent price validation | Nigeria weekly files are published in CSV, JSON, and XLSX; FEWS NET describes historical staple-price coverage | Public file download | Confirm file URLs, terms, market/product coverage, cadence conversion to monthly, and allowed public caching |
-| [WFP/HDX HAPI](https://hdx-hapi.readthedocs.io/en/latest/data_usage_guides/food_security_nutrition_and_poverty/#food-prices-market-monitor) | Primary observed-price candidate | HAPI documents market-price endpoints and structured filters including market, commodity, unit, price flag, and price type | API requires an app identifier | Confirm identifier policy, Nigeria coverage, rate limits, terms, and a no-secret batch adapter |
+| [World Bank RTFP](https://microdata.worldbank.org/catalog/4503) | Optional modeled context only | Direct/ML-estimated values lack the transaction comparability required for a selling-price prefill | Global NADA table, queried with `ISO3=NGA` in pages | Never use for price suggestions or fill gaps in another source |
+| [FEWS NET Nigeria prices](https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-2) | Primary zero-secret price candidate | Public FEWS API candidate with Nigeria filtering, explicit units and retail/wholesale price types | Public paginated JSON API, `country_code=NG` | Confirm coverage, completeness, freshness, terms, and permission to cache a reviewed static snapshot |
+| [WFP/HDX](https://data.humdata.org/dataset/wfp-food-prices-for-nigeria) | Independent cross-check only | Public CKAN resource with explicit market, commodity, unit, price flag, and price type | Public HDX CSV discovery/download; HAPI/app-ID access is out of scope | Compare only matching qualified FEWS series; never merge WFP rows to fill FEWS history |
 | [FAOSTAT QCL](https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876) | National yield defaults | FAO documents annual crop production/yield data, yield in hg/ha, 1961–2024 coverage, and CC-BY-4.0 licensing | Public catalog/download | Confirm Nigeria crop rows, revision date, conversion to t/ha, citation, and non-local-advice warning |
 | [NBS NASS 2022/23](https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials) | Dated cost and farm-gate defaults | NBS publishes NASS materials including crop prices, farm-gate prices, and fertilizer/pesticide input prices | Public catalog resources | Confirm usable tables, units, rights, extraction reproducibility, and stale-default labeling |
 | [NASA POWER](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) | Deferred weather feature candidate | Public daily weather API | Not part of the Stage 1 gate | Revisit only during leakage-safe forecast ablation |
@@ -22,8 +22,9 @@ No source is promoted to a production claim from this table alone.
 
 The remote audit must establish at least 36 monthly observations, at least 80%
 completeness over the latest 36-month window, no duplicate canonical keys,
-freshness within 75 days for current claims, three or more comparable markets
-for national medians, explicit units and price types, and redistribution rights.
+freshness within 75 days for current claims, explicit units and price types,
+five qualified crop forms, and redistribution rights. Each source qualifies on
+its own: incomplete WFP/HDX data can never complete a FEWS NET series.
 
 Rows retain provenance such as `observed`, `aggregate`, `imputed`, or `forecast`.
 Unknown bag, basket, bunch, or count units fail closed; they are not silently
@@ -55,6 +56,21 @@ python pipeline/source_audit.py --fetch --cutoff-month YYYY-MM --output-dir audi
 It writes `raw_manifest.json`, `source_profile.json`, and raw files under
 `audit-output/raw/`. Required-source failures fail the workflow; skipped
 optional candidates remain visible in the artifact for review.
+
+## Promotion boundary
+
+Retrieval and technical qualification do not publish anything. A reviewer must
+create an approval JSON that binds explicit Stage 1, rights, and
+price-suggestion decisions to the SHA-256 of `qualification_report.json`; then
+run:
+
+```bash
+python pipeline/promote_price_suggestions.py --audit-dir audit-output --approval stage1-approval.json
+```
+
+The promoter writes validated same-origin `approved_markets.json` and
+`price_suggestions.json` before it writes the new manifest. Any failed, stale,
+malformed, unmatched, or unapproved input leaves the current snapshot intact.
 
 The World Bank adapter requests `/100/{offset}?ISO3=NGA` until the server's
 stable `found` total is complete. It fails closed on zero rows, malformed JSON,

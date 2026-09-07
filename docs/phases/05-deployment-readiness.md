@@ -1,6 +1,6 @@
 # Stage 5 — Deployment and Farmer Readiness
 
-**Status:** In progress — browser readiness evidence collected 2026-09-07
+**Status:** Approved — user accepted browser-evidence package 2026-09-07
 
 **Baseline:** Stage 2 approved for the farmer-entered calculator at commit
 `2e8802f`. Stage 3 and Stage 4 remain blocked by the unchanged Stage 1 source
@@ -81,16 +81,21 @@ mark Stage 5 `Gate review` or `Approved` from code presence or planning alone.
 |---|---|---|
 | 2026-09-05 | Planning prepared; implementation verification pending. | No Stage 5 gate claim. Dirty implementation remains unverified on the primary workstation. |
 | 2026-09-07 | Implemented and reviewed calculator-only PWA readiness. The generated precache now uses an immutable, base-scoped hash; failed precache installation removes only its candidate cache, and activation removes only superseded Fieldmargin caches. Manifest, service-worker registration, and preview support both `/` and `/fieldmargin/`. Draft recovery now handles blocked storage, failed clears, empty selections, and retired crop IDs. | Automated browser evidence passed for desktop Chromium and iPhone 13 emulation. No physical-device, participant, deployment, or Stage 5 gate claim. |
+| 2026-09-07 | Added the browser evidence package: critical-only axe assertions for initial, completed, persistence-error, and mobile states; keyboard-only completion; a desktop Chromium Slow 4G measurement; and post-load no-third-party-request coverage through print/report. | Stage 5 is `Gate review`, awaiting the user's gate decision with the physical-Android exception stated below. |
+| 2026-09-07 | User directed the project to proceed to the next stage. | Stage 5 approved for the calculator-only moderated-pilot preparation; the physical-Android limitation remains recorded. |
 
 ## Verification evidence — 2026-09-07
 
-- Passed: `npm test` (4 calculator tests), `npm run typecheck`, `npm run build`, `npm run test:e2e` (desktop plus iPhone 13-emulation coverage), `python pipeline/validate.py`, `python -m unittest discover -s tests -v` (26 tests), and `git diff --check`.
+- Passed: `npm test` (4 calculator tests), `npm run typecheck`, `npm run build`, `npm run test:e2e` (15 passed Chromium scenarios and one scoped-base scenario skipped outside its dedicated run), `python pipeline/validate.py`, `python -m unittest discover -s tests -v` (26 tests), and `git diff --check`.
 - Passed separately: `E2E_BASE_PATH=/fieldmargin/ E2E_PORT=4186 npm run test:e2e -- --grep "supports a /fieldmargin/"`. It confirms base-scoped manifest paths, active service-worker control, and an offline reload. Root-path coverage verifies cache cleanup only after the replacement worker activates and confirms unrelated caches are retained.
 - A fresh Terra review found and the executor corrected two material E2E gaps: the prior activation race in cache-cleanup coverage and missing non-root base-path coverage. The reviewer found no remaining material cache, persistence, or no-egress issue in the changed surfaces.
-- Browser evidence is Chromium desktop and iPhone 13 emulation only. The in-app-browser runtime was unavailable in this environment, so no separate interactive-browser screenshot was captured. Static review found no third-party runtime requests or user-data egress.
+- Formal axe evidence fails on any critical violation in the initial calculator, complete ranked result, blocked-storage persistence-error, and iPhone 13-emulation states. Keyboard-only entry completes a two-crop comparison and enables the print action.
+- The recorded performance target is final required input to visible ranked result. On desktop Chromium `151.0.7922.34` (`1280×720` CSS px), the CDP `Slow 4G (emulated)` profile used 150 ms latency, 1.6 Mbps download, and 768 Kbps upload. The recorded elapsed time was 194 ms; the test attaches this evidence and requires no more than 5,000 ms.
+- After the initial same-origin app load, the completed calculator and print/report flow are asserted to make no third-party requests. The test replaces only the browser print dialog for observation; it still checks the generated printable report.
+- Browser evidence is Chromium desktop and iPhone 13 emulation only. It is not physical Android validation. No hosted deployment, participant session, or Stage 6 work is claimed.
 
-The following gate evidence remains outstanding: real Android install/update and offline recovery, a recorded throttling profile with a measured first-result time of at most five seconds, a formal accessibility audit, and participant pilot evidence. These limits keep Stage 5 `In progress`.
+The physical-device limitation remains: no real Android install/update/offline-recovery evidence exists. Participant pilot evidence, hosting, and deployment remain outside this completed browser-evidence stage. The approval is limited to proceeding with calculator-only Stage 6 preparation and must not be represented as physical-device validation.
 
 ## Next action
 
-Obtain the outstanding real-device, throttling/performance, and accessibility evidence before Stage 5 gate review. Hosting, deployment, and public launch remain separately unauthorized.
+Begin Stage 6's calculator-only moderated-pilot preparation. A real-Android evidence package may be requested separately; hosting, deployment, public launch, and participant contact require their own project-team authorization.

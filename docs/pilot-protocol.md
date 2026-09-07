@@ -4,6 +4,11 @@ This protocol evaluates comprehension and usability of the approved,
 farmer-entered calculator. It does not evaluate forecast accuracy or approve
 automated prices, deployment, Stage 3, or Stage 4.
 
+Use the copy-ready facilitator script, observation form, and aggregate
+analysis rules in [`pilot-session-kit.md`](./pilot-session-kit.md). The project
+team keeps participant-level records in its controlled storage; this repository
+receives anonymized aggregates only.
+
 ## Sample and consent
 
 Recruit 10 farmers and 3 extension agents who use Android phones or a desktop

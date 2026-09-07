@@ -13,8 +13,8 @@
 | 2. Offline decision calculator | Approved | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
 | 3. Automated data pipeline | Blocked | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Unchanged Stage 1 source gate blocks automated data |
 | 4. Forecasting and validation | Blocked | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Unchanged Stage 1/Stage 3 dependency blocks forecasting |
-| 5. Deployment and farmer readiness | In progress | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Tested install/offline flow, accessibility, low-bandwidth result, and privacy |
-| 6. Pilot validation and expansion | Not started | [`06-pilot-validation.md`](./docs/phases/06-pilot-validation.md) | Moderated comprehension, helpfulness, forecast follow-up, and documented limits |
+| 5. Deployment and farmer readiness | Approved | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Approved to begin calculator-only pilot preparation; physical Android remains an explicit limitation |
+| 6. Pilot validation and expansion | In progress | [`06-pilot-validation.md`](./docs/phases/06-pilot-validation.md) | Consent-safe pilot materials prepared; participant access and results remain pending |
 
 ## Status rules
 
@@ -257,6 +257,12 @@ No Stage 5 gate approval, deployment, or participant evidence is claimed.
 
 ## Calculator readiness implementation — 2026-09-07
 
-Stage 5 calculator-only browser readiness is now implemented and verified, but remains `In progress`. The service worker uses generated immutable cache identities and scoped cleanup; PWA assets and registration support both root and `/fieldmargin/` bases; persistence recovers safely from blocked or malformed storage; and browser coverage includes update cleanup, offline restart, print parity, selection recovery, and iPhone 13 emulation. The full local suite passed: 4 calculator tests, typecheck, build, Chromium E2E, snapshot validation, and 26 Python tests. A separate scoped-base Chromium test passed. Fresh review identified and corrected the worker-activation test race and missing non-root base-path coverage.
+Stage 5 calculator-only browser readiness is now at `Gate review`. The service worker uses generated immutable cache identities and scoped cleanup; PWA assets and registration support both root and `/fieldmargin/` bases; persistence recovers safely from blocked or malformed storage; and browser coverage includes update cleanup, offline restart, print parity, selection recovery, axe critical-violation assertions, keyboard completion, desktop-Chromium Slow-4G final-input-to-result timing, and no-third-party post-load print/report flow. The full local suite passed: 4 calculator tests, typecheck, build, Chromium E2E, snapshot validation, and 26 Python tests. A separate scoped-base Chromium test passed. Fresh review identified and corrected the worker-activation test race and missing non-root base-path coverage.
 
-Stage 5 is not at gate review: real Android, recorded low-bandwidth performance, formal accessibility, and participant evidence remain uncollected. No deployment, public launch, push, workflow dispatch, automated prices, or forecasting was performed.
+Physical Android install/update/offline recovery and participant evidence remain uncollected; browser emulation is not a substitute. No deployment, public launch, push, workflow dispatch, automated prices, forecasting, or Stage 6 work was performed.
+
+## Stage 5 approval and Stage 6 start — 2026-09-07
+
+The user approved Stage 5's calculator-only browser-evidence package and directed the project to proceed. This approval accepts the documented physical-Android limitation only for beginning Stage 6 preparation; it is not a claim of physical-device validation, deployment approval, or public launch.
+
+Stage 6 is `In progress`. The consent-safe moderator script, task rubric, aggregate-analysis worksheet, and calculator release card are in [`docs/pilot-session-kit.md`](./docs/pilot-session-kit.md). Participant recruitment, contact, session records, and storage remain project-team controlled external work. Stages 3 and 4 remain blocked, so no automated-price or forecast evidence is created or implied.

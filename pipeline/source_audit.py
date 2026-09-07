@@ -19,6 +19,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -275,6 +276,86 @@ def download_nada_paginated(
     }
 
 
+def download_fews_paginated(
+    source: dict,
+    target: Path,
+    *,
+    opener=urlopen,
+    sleep: Callable[[float], None] = time.sleep,
+    retries: int = 3,
+) -> dict:
+    """Download the public FEWS API in checked Nigeria-only pages.
+
+    FEWS response envelopes have varied between deployments, so the adapter
+    accepts ``data`` or ``results`` rows and ``count``/``found``/``total``.
+    It still fails closed if a stable total or complete pagination cannot be
+    proved.  The browser never invokes this adapter.
+    """
+    retrieval = source.get("retrieval", {})
+    if retrieval.get("country_code") != "NG":
+        raise ValueError("FEWS adapter requires country_code=NG")
+    page_size = int(retrieval.get("page_size", 500))
+    if page_size < 1 or page_size > 10_000:
+        raise ValueError("FEWS page size is outside the safe range")
+    offset_key = str(retrieval.get("offset_parameter", "offset"))
+    limit_key = str(retrieval.get("limit_parameter", "limit"))
+    query_base = {"country_code": "NG", limit_key: page_size}
+    if retrieval.get("format_parameter"):
+        query_base[str(retrieval["format_parameter"])] = str(retrieval.get("format_value", "json"))
+    rows: list[dict] = []
+    total: int | None = None
+    offset = 0
+    pages = 0
+    while total is None or len(rows) < total:
+        query = {**query_base, offset_key: offset}
+        url = f"{source['download_url']}?{urlencode(query)}"
+        payload = None
+        last_error: Exception | None = None
+        for attempt in range(retries):
+            try:
+                request = Request(url, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "application/json"})
+                with opener(request, timeout=60) as response:
+                    status = getattr(response, "status", 200)
+                    if status == 429 or status >= 500:
+                        raise HTTPError(url, status, "transient HTTP response", hdrs=None, fp=None)
+                    payload = json.loads(response.read().decode("utf-8"))
+                break
+            except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
+                last_error = error
+                status = getattr(error, "code", None)
+                transient = isinstance(error, (TimeoutError, URLError, OSError)) or status == 429 or (status is not None and status >= 500)
+                if not transient or attempt == retries - 1:
+                    break
+                sleep(min(2 ** attempt, 4))
+        if not isinstance(payload, dict):
+            raise RuntimeError(f"FEWS page retrieval failed after {retries} attempts: {last_error}")
+        reported_total = next((payload.get(key) for key in ("count", "found", "total") if isinstance(payload.get(key), int)), None)
+        page_rows = payload.get("data", payload.get("results"))
+        if not isinstance(page_rows, list) or not all(isinstance(row, dict) for row in page_rows):
+            raise ValueError("FEWS response does not contain an object row array")
+        if reported_total is None or reported_total < 1:
+            raise ValueError("FEWS response has no positive integer total")
+        if total is None:
+            total = reported_total
+        elif total != reported_total:
+            raise ValueError("FEWS total changed during pagination")
+        if not page_rows:
+            raise ValueError("FEWS returned an empty page before all rows were collected")
+        if any(str(row.get("country_code", row.get("country", "NG"))).upper() not in {"NG", "NGA", "NIGERIA"} for row in page_rows):
+            raise ValueError("FEWS response contains a row outside Nigeria")
+        rows.extend(page_rows)
+        pages += 1
+        if len(rows) > total:
+            raise ValueError("FEWS returned more rows than its reported total")
+        offset += len(page_rows)
+    if total is None or len(rows) != total:
+        raise ValueError("FEWS pagination ended before all rows were collected")
+    temporary = target.with_name(target.name + ".tmp")
+    temporary.write_text(json.dumps({"count": total, "data": rows}, separators=(",", ":")) + "\n", encoding="utf-8")
+    temporary.replace(target)
+    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country_code": "NG"}, "requested_page_size": page_size}
+
+
 def download(source: dict, raw_dir: Path) -> dict:
     started = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     record = {
@@ -293,6 +374,14 @@ def download(source: dict, raw_dir: Path) -> dict:
     if source.get("retrieval", {}).get("mode") == "nada_paginated_json":
         try:
             record.update(download_nada_paginated(source, target))
+        except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError) as error:
+            record.update({"status": "failed", "error": str(error)})
+        return record
+
+    if source.get("retrieval", {}).get("mode") == "fews_paginated_json":
+        target = raw_dir / f"{source['source_id']}.json"
+        try:
+            record.update(download_fews_paginated(source, target))
         except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError) as error:
             record.update({"status": "failed", "error": str(error)})
         return record
