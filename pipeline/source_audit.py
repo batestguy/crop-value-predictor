@@ -178,6 +178,8 @@ def load_register() -> list[dict]:
             assert retrieval.get("response_total_field") == "count", source_id
             assert retrieval.get("response_rows_field") == "results", source_id
             assert retrieval.get("row_country_fields") == ["country_code", "country"], source_id
+            assert isinstance(retrieval.get("request_timeout_seconds"), int) and 1 <= retrieval["request_timeout_seconds"] <= 120, source_id
+            assert isinstance(retrieval.get("retries"), int) and 1 <= retrieval["retries"] <= 3, source_id
     return sources
 
 
@@ -315,6 +317,12 @@ def download_fews_paginated(
     page_size = int(retrieval.get("page_size", 500))
     if page_size < 1 or page_size > 10_000:
         raise ValueError("FEWS page size is outside the safe range")
+    request_timeout_seconds = int(retrieval.get("request_timeout_seconds", 30))
+    retries = int(retrieval.get("retries", retries))
+    if not 1 <= request_timeout_seconds <= 120:
+        raise ValueError("FEWS request timeout must be between 1 and 120 seconds")
+    if not 1 <= retries <= 3:
+        raise ValueError("FEWS retries must be between 1 and 3")
     offset_key = "offset"
     query_base = {"country": "NG", "page_size": page_size}
     for query_key, retrieval_key in (("start_date", "canary_start_date"), ("end_date", "canary_end_date")):
@@ -332,7 +340,7 @@ def download_fews_paginated(
         for attempt in range(retries):
             try:
                 request = Request(url, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "application/json"})
-                with opener(request, timeout=60) as response:
+                with opener(request, timeout=request_timeout_seconds) as response:
                     status = getattr(response, "status", 200)
                     if status == 429 or status >= 500:
                         raise HTTPError(url, status, "transient HTTP response", hdrs=None, fp=None)
@@ -374,7 +382,7 @@ def download_fews_paginated(
     temporary = target.with_name(target.name + ".tmp")
     temporary.write_text(json.dumps({"count": total, "results": rows}, separators=(",", ":")) + "\n", encoding="utf-8")
     temporary.replace(target)
-    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country": "NG"}, "requested_page_size": page_size}
+    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country": "NG"}, "requested_page_size": page_size, "request_timeout_seconds": request_timeout_seconds, "retries": retries}
 
 
 def download(source: dict, raw_dir: Path) -> dict:
@@ -570,17 +578,22 @@ def run_fetch(output_dir: Path, cutoff_month: str, sources: list[dict]) -> int:
             profiles.append({"source_id": record["source_id"], **profile_file(raw_dir / record["path"], cutoff_month)})
     (output_dir / "raw_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (output_dir / "source_profile.json").write_text(json.dumps({"profiles": profiles}, indent=2) + "\n", encoding="utf-8")
-    (output_dir / "qualification_report.json").write_text(json.dumps({
-        "status": "not_run",
-        "cutoff_month": cutoff_month,
-        "reason": "retrieval and shallow profiling complete; canonical normalization and rights review remain pending",
-        "eligible_series": [],
-        "rejected_series": [],
-    }, indent=2) + "\n", encoding="utf-8")
     required_failures = [
         record["source_id"] for record, source in zip(records, sources)
         if source["required_for_gate"] and record["status"] != "downloaded"
     ]
+    retrieval_failed = bool(required_failures)
+    (output_dir / "qualification_report.json").write_text(json.dumps({
+        "status": "calculator_only_fallback" if retrieval_failed else "not_run",
+        "cutoff_month": cutoff_month,
+        "reason": "required source retrieval failed; preserve the last approved snapshot and keep selling-price entry manual" if retrieval_failed else "retrieval and shallow profiling complete; canonical normalization and rights review remain pending",
+        "stage_1_approved": False,
+        "stage_1_decision": "calculator_only_fallback" if retrieval_failed else "explicit_review_required",
+        "required_retrieval_failures": required_failures,
+        "promotion_permitted": False,
+        "eligible_series": [],
+        "rejected_series": [],
+    }, indent=2) + "\n", encoding="utf-8")
     if required_failures:
         print(f"required source retrieval failed: {', '.join(required_failures)}", file=sys.stderr)
         return 1
@@ -597,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--canary-start", help="optional FEWS v3 start_date YYYY-MM-DD")
     parser.add_argument("--canary-end", help="optional FEWS v3 end_date YYYY-MM-DD")
     parser.add_argument("--canary-page-size", type=int, default=25, help="bounded FEWS canary page size (1-100)")
+    parser.add_argument("--canary-timeout-seconds", type=int, default=10, help="bounded FEWS canary request timeout (1-30 seconds)")
     args = parser.parse_args(argv)
     sources = load_register()
     if args.fews_canary and not args.fetch:
@@ -607,12 +621,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.fews_canary:
         if not 1 <= args.canary_page_size <= 100:
             parser.error("--canary-page-size must be between 1 and 100")
+        if not 1 <= args.canary_timeout_seconds <= 30:
+            parser.error("--canary-timeout-seconds must be between 1 and 30")
         for name, value in (("--canary-start", args.canary_start), ("--canary-end", args.canary_end)):
             if value and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
                 parser.error(f"{name} must be YYYY-MM-DD")
         sources = [source for source in sources if source["source_id"] == "fews-net"]
         source = dict(sources[0]); source["retrieval"] = dict(source["retrieval"])
         source["retrieval"]["page_size"] = args.canary_page_size
+        source["retrieval"]["request_timeout_seconds"] = args.canary_timeout_seconds
+        source["retrieval"]["retries"] = 1
         # Date filters are part of the canary request contract only; normal
         # audited retrieval remains governed by its immutable source register.
         if args.canary_start: source["retrieval"]["canary_start_date"] = args.canary_start

@@ -50,6 +50,8 @@
         "page_size_parameter": "page_size",
         "offset_parameter": "offset",
         "page_size": 500,
+        "request_timeout_seconds": 30,
+        "retries": 3,
         "response_total_field": "count",
         "response_rows_field": "results",
         "row_country_fields": ["country_code", "country"],

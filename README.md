@@ -68,6 +68,8 @@ Stage 1 is **reopened for a zero-secret FEWS NET qualification attempt**. Until
 the five-crop technical gate, rights review, cross-check review, and explicit
 promotion approval all pass, the shipped calculator remains manual-price only.
 Suggestions are editable local prefills, never forecasts or recommendations.
+The operational response to failed, stale, malformed, or unqualified upstream
+data is documented in the [upstream fallback runbook](./docs/upstream-fallback-runbook.md).
 
 ## Active next move
 

@@ -1,12 +1,12 @@
 import json
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from pathlib import Path
 from datetime import date
 
 ROOT = Path(__file__).resolve().parents[1]
-from pipeline.source_audit import download_nada_paginated, download_fews_paginated, profile_json, profile_zip, discover_wfp_hdx, download_http_csv, sanitize_url
+from pipeline.source_audit import download_nada_paginated, download_fews_paginated, profile_json, profile_zip, discover_wfp_hdx, download_http_csv, run_fetch, sanitize_url
 from pipeline.qualification import (
     convert_kg, qualify_series, canonical_crop, national_median,
     normalize_fews, verify_manifest, build_report,
@@ -250,15 +250,31 @@ class SourceRegisterTests(unittest.TestCase):
 
     def test_fews_pagination_consolidates_documented_v3_results(self):
         pages = {0: {"count": 3, "results": [{"country_code": "NG"}, {"country_code": "NG"}]}, 2: {"count": 3, "results": [{"country_code": "NG"}]}}
+        timeouts = []
         def opener(request, timeout):
+            timeouts.append(timeout)
             offset = int(request.full_url.split("offset=")[1].split("&", 1)[0])
             return _Response(pages[offset])
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "fews.json"
-            result = download_fews_paginated({"download_url": "https://example.test/fews.json", "retrieval": {"mode": "fews_v3_paginated_json", "country_parameter": "country", "country_code": "NG", "page_size_parameter": "page_size", "offset_parameter": "offset", "response_total_field": "count", "response_rows_field": "results", "row_country_fields": ["country_code", "country"], "page_size": 2}}, target, opener=opener, sleep=lambda _: None)
+            result = download_fews_paginated({"download_url": "https://example.test/fews.json", "retrieval": {"mode": "fews_v3_paginated_json", "country_parameter": "country", "country_code": "NG", "page_size_parameter": "page_size", "offset_parameter": "offset", "response_total_field": "count", "response_rows_field": "results", "row_country_fields": ["country_code", "country"], "page_size": 2, "request_timeout_seconds": 7, "retries": 1}}, target, opener=opener, sleep=lambda _: None)
             payload = json.loads(target.read_text(encoding="utf-8"))
         self.assertEqual((result["pages"], result["rows"], payload["count"]), (2, 3, 3))
         self.assertEqual(len(payload["results"]), 3)
+        self.assertEqual(timeouts, [7, 7])
+
+    def test_required_retrieval_failure_writes_manual_only_fallback_record(self):
+        sources = [{"source_id": "fews-net", "required_for_gate": True, "download_url": "https://example.test/fews.json", "formats": ["json"]}]
+        with tempfile.TemporaryDirectory() as folder:
+            with patch("pipeline.source_audit.download", return_value={"source_id": "fews-net", "status": "failed", "error": "timed out"}):
+                result = run_fetch(Path(folder), "2026-08", sources)
+            report = json.loads((Path(folder) / "qualification_report.json").read_text(encoding="utf-8"))
+            manifest = json.loads((Path(folder) / "raw_manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(result, 1)
+        self.assertEqual(manifest["records"][0]["status"], "failed")
+        self.assertEqual(report["status"], "calculator_only_fallback")
+        self.assertEqual(report["required_retrieval_failures"], ["fews-net"])
+        self.assertFalse(report["promotion_permitted"])
 
     def test_malformed_or_unapproved_promotion_preserves_last_known_good_snapshot(self):
         with tempfile.TemporaryDirectory() as folder:
