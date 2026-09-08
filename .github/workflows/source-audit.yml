@@ -7,7 +7,7 @@ on:
         description: Latest complete month included in the audit (YYYY-MM)
         required: true
         type: string
-        default: '2026-07'
+        default: '2026-08'
 
 permissions:
   contents: read
@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Retrieve and profile public candidate sources
@@ -30,9 +30,16 @@ jobs:
           python pipeline/source_audit.py --fetch
           --cutoff-month "${{ inputs.cutoff_month }}"
           --output-dir audit-output
+      - name: Run canonical qualification
+        if: always()
+        run: >-
+          if [ -f audit-output/raw_manifest.json ]; then
+          python pipeline/qualification.py --audit-dir audit-output
+          --cutoff-month "${{ inputs.cutoff_month }}";
+          else echo "No manifest produced; qualification not run"; fi
       - name: Upload source audit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: source-audit-${{ github.sha }}
           path: audit-output

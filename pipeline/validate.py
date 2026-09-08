@@ -21,8 +21,9 @@ def main() -> None:
     documents = {name: load(name) for name in FILES}
     manifest = documents["manifest.json"]
     snapshot = manifest["snapshot_id"]
-    assert manifest["schema_version"] == "1.0.0"
-    assert set(manifest["artifacts"]) == set(FILES[1:])
+    assert manifest["schema_version"] in {"1.1.0", "1.2.0"}
+    if not manifest["stage_1_approved"]:
+        assert set(manifest["artifacts"]) == set(FILES[1:])
     for name, document in documents.items():
         assert document["snapshot_id"] == snapshot, f"snapshot mismatch: {name}"
 
@@ -32,7 +33,12 @@ def main() -> None:
     assert "nigeria-national-median" in location_ids
 
     forecast_keys = set()
-    for forecast in documents["forecasts.json"]["forecasts"]:
+    forecasts = documents["forecasts.json"]["forecasts"]
+    assert not forecasts, "calculator-only snapshot cannot contain forecasts"
+    assert not documents["defaults.json"]["yield_defaults"]
+    assert not documents["defaults.json"]["cost_defaults"]
+    assert documents["quality.json"]["pipeline"]["status"] == "calculator_only"
+    for forecast in forecasts:
         key = (forecast["crop_id"], forecast["location_id"], forecast["horizon_months"])
         assert key not in forecast_keys, f"duplicate forecast: {key}"
         forecast_keys.add(key)
@@ -40,9 +46,28 @@ def main() -> None:
         assert forecast["lower_80"] <= forecast["point"] <= forecast["upper_80"]
         assert forecast["crop_id"] in crop_ids
 
-    assert len(documents["defaults.json"]["yield_defaults"]) >= len(crop_ids)
-    assert len(documents["defaults.json"]["cost_defaults"]) >= len(crop_ids)
-    print(f"validated {snapshot}: {len(crop_ids)} crops, {len(forecast_keys)} forecast records")
+    assert all(not crop["eligible_for_recommendation"] for crop in documents["catalog.json"]["crops"])
+    if manifest["stage_1_approved"]:
+        assert "price_suggestions.json" in manifest["artifacts"] and "approved_markets.json" in manifest["artifacts"]
+        suggestions = load("price_suggestions.json")
+        markets = load("approved_markets.json")
+        assert suggestions["schema_version"] == "1.1.0" and suggestions["snapshot_id"] == snapshot
+        assert markets["schema_version"] == "1.0.0" and markets["snapshot_id"] == snapshot
+        approved_markets = {item["market_id"] for item in markets["markets"]}
+        suggestion_ids = set()
+        for item in suggestions["suggestions"]:
+            assert item["suggestion_id"] not in suggestion_ids, "duplicate suggestion ID"
+            suggestion_ids.add(item["suggestion_id"])
+            assert item["crop_id"] in crop_ids and item["canonical_market_id"] in approved_markets
+            assert item["market_id"] == item["canonical_market_id"]
+            assert item["crop_form_id"] and item["mapping_version"] == suggestions["mapping_version"]
+            assert item["price_type"] in {"retail", "wholesale"} and item["value_ngn_per_kg"] > 0
+            assert item["freshness"]["age_days"] <= item["freshness"]["limit_days"]
+            assert item["source"]["source_id"] == "fews-net" and item["source"]["raw_artifact_sha256"]
+            assert item["source"].get("commodity_label")
+    else:
+        assert "price_suggestions.json" not in manifest["artifacts"]
+    print(f"validated {snapshot}: {len(crop_ids)} crops, calculator-only snapshot")
 
 
 if __name__ == "__main__":
