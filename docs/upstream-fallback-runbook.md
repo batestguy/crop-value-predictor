@@ -110,3 +110,7 @@ Run it only through **Actions → FEWS v3 canary (evidence only) → Run workflo
 Download the artifact and apply the triage table above. The workflow does not
 run qualification or promotion and never writes `public/data/v1`; its artifact
 is evidence, not a release candidate.
+
+Canary run `34174958605` returned no positive count with `country=NG`. The
+corrective canary now uses documented `country_code=NG`, but remains
+evidence-only until the ordinary review checkpoints pass.

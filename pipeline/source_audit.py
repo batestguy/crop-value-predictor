@@ -171,7 +171,7 @@ def load_register() -> list[dict]:
         if source.get("retrieval", {}).get("mode") == "fews_v3_paginated_json":
             retrieval = source["retrieval"]
             assert source["download_url"].endswith(".json"), source_id
-            assert retrieval.get("country_parameter") == "country", source_id
+            assert retrieval.get("country_parameter") == "country_code", source_id
             assert retrieval.get("country_code") == "NG", source_id
             assert retrieval.get("page_size_parameter") == "page_size", source_id
             assert retrieval.get("offset_parameter") == "offset", source_id
@@ -299,7 +299,7 @@ def download_fews_paginated(
     """Download documented FEWS Data Explorer v3 pages, fail-closed.
 
     The configured contract is deliberately narrow: a ``.json`` endpoint,
-    ``country=NG`` plus ``page_size``/``offset`` query parameters, and a
+    ``country_code=NG`` plus ``page_size``/``offset`` query parameters, and a
     ``count``/``results`` response.  Alternate envelopes are not silently
     accepted because they could change geography or pagination semantics.
     """
@@ -308,8 +308,8 @@ def download_fews_paginated(
         raise ValueError("FEWS adapter requires the documented v3 retrieval mode")
     if not str(source.get("download_url", "")).endswith(".json"):
         raise ValueError("FEWS adapter requires a .json endpoint")
-    if retrieval.get("country_parameter", "country") != "country" or retrieval.get("country_code") != "NG":
-        raise ValueError("FEWS adapter requires country=NG")
+    if retrieval.get("country_parameter", "country_code") != "country_code" or retrieval.get("country_code") != "NG":
+        raise ValueError("FEWS adapter requires country_code=NG")
     if retrieval.get("page_size_parameter", "page_size") != "page_size" or retrieval.get("offset_parameter", "offset") != "offset":
         raise ValueError("FEWS adapter requires page_size and offset pagination")
     if retrieval.get("response_total_field", "count") != "count" or retrieval.get("response_rows_field", "results") != "results":
@@ -324,7 +324,7 @@ def download_fews_paginated(
     if not 1 <= retries <= 3:
         raise ValueError("FEWS retries must be between 1 and 3")
     offset_key = "offset"
-    query_base = {"country": "NG", "page_size": page_size}
+    query_base = {"country_code": "NG", "page_size": page_size}
     for query_key, retrieval_key in (("start_date", "canary_start_date"), ("end_date", "canary_end_date")):
         if retrieval.get(retrieval_key):
             query_base[query_key] = str(retrieval[retrieval_key])
@@ -382,7 +382,7 @@ def download_fews_paginated(
     temporary = target.with_name(target.name + ".tmp")
     temporary.write_text(json.dumps({"count": total, "results": rows}, separators=(",", ":")) + "\n", encoding="utf-8")
     temporary.replace(target)
-    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country": "NG"}, "requested_page_size": page_size, "request_timeout_seconds": request_timeout_seconds, "retries": retries}
+    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country_code": "NG"}, "requested_page_size": page_size, "request_timeout_seconds": request_timeout_seconds, "retries": retries}
 
 
 def download(source: dict, raw_dir: Path) -> dict:

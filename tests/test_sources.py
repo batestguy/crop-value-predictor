@@ -259,18 +259,21 @@ class SourceRegisterTests(unittest.TestCase):
 
     def test_fews_pagination_consolidates_documented_v3_results(self):
         pages = {0: {"count": 3, "results": [{"country_code": "NG"}, {"country_code": "NG"}]}, 2: {"count": 3, "results": [{"country_code": "NG"}]}}
-        timeouts = []
+        timeouts, urls = [], []
         def opener(request, timeout):
             timeouts.append(timeout)
+            urls.append(request.full_url)
             offset = int(request.full_url.split("offset=")[1].split("&", 1)[0])
             return _Response(pages[offset])
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "fews.json"
-            result = download_fews_paginated({"download_url": "https://example.test/fews.json", "retrieval": {"mode": "fews_v3_paginated_json", "country_parameter": "country", "country_code": "NG", "page_size_parameter": "page_size", "offset_parameter": "offset", "response_total_field": "count", "response_rows_field": "results", "row_country_fields": ["country_code", "country"], "page_size": 2, "request_timeout_seconds": 7, "retries": 1}}, target, opener=opener, sleep=lambda _: None)
+            result = download_fews_paginated({"download_url": "https://example.test/fews.json", "retrieval": {"mode": "fews_v3_paginated_json", "country_parameter": "country_code", "country_code": "NG", "page_size_parameter": "page_size", "offset_parameter": "offset", "response_total_field": "count", "response_rows_field": "results", "row_country_fields": ["country_code", "country"], "page_size": 2, "request_timeout_seconds": 7, "retries": 1}}, target, opener=opener, sleep=lambda _: None)
             payload = json.loads(target.read_text(encoding="utf-8"))
         self.assertEqual((result["pages"], result["rows"], payload["count"]), (2, 3, 3))
         self.assertEqual(len(payload["results"]), 3)
         self.assertEqual(timeouts, [7, 7])
+        self.assertTrue(all("country_code=NG" in url and "country=NG" not in url for url in urls))
+        self.assertEqual(result["filter"], {"country_code": "NG"})
 
     def test_required_retrieval_failure_writes_manual_only_fallback_record(self):
         sources = [{"source_id": "fews-net", "required_for_gate": True, "download_url": "https://example.test/fews.json", "formats": ["json"]}]

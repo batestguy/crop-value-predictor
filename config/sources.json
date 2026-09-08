@@ -45,7 +45,7 @@
       "evidence_urls": ["https://help.fews.net/fde/v3/fews-net-api"],
       "retrieval": {
         "mode": "fews_v3_paginated_json",
-        "country_parameter": "country",
+        "country_parameter": "country_code",
         "country_code": "NG",
         "page_size_parameter": "page_size",
         "offset_parameter": "offset",
@@ -55,7 +55,7 @@
         "response_total_field": "count",
         "response_rows_field": "results",
         "row_country_fields": ["country_code", "country"],
-        "query_contract": "FEWS Data Explorer v3 .json endpoint with country=NG, page_size, and offset"
+        "query_contract": "FEWS Data Explorer v3 .json endpoint with country_code=NG, page_size, and offset"
       }
     },
     {

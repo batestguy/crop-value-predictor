@@ -30,6 +30,12 @@ Rows retain provenance such as `observed`, `aggregate`, `imputed`, or `forecast`
 Unknown bag, basket, bunch, or count units fail closed; they are not silently
 converted to kilograms.
 
+### FEWS canary correction
+
+Evidence-only canary run `34174958605` used `country=NG` and returned no
+positive count. The FEWS v3 adapter now uses documented `country_code=NG`.
+This corrective canary remains evidence-only and cannot qualify or promote data.
+
 ## Evidence links
 
 - World Bank’s catalog identifies the dataset as compiled from direct and
