@@ -23,11 +23,12 @@ python pipeline/validate.py
 The repository uses the project-scoped cache configured in `.npmrc`:
 
 ```text
-D:\Crop Value Predictor App\.npm-cache-repair
+.npm-cache
 ```
 
-This avoids intermittent Windows `EPERM` errors when npm writes temporary
-files in the user-profile cache. Confirm the active cache with:
+This portable, project-scoped path avoids intermittent Windows `EPERM` errors
+when npm writes temporary files in the user-profile cache and works in GitHub
+Actions. Confirm the active cache with:
 
 ```powershell
 npm config get cache
