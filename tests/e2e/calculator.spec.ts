@@ -62,7 +62,8 @@ test('suppresses ranking until two complete scenarios exist', async ({ page }) =
 
 test('uses an approved same-origin suggestion as an editable, persisted prefill', async ({ page }) => {
   const snapshotId = 'price-suggestions-test-2026-08-25'
-  const snapshot = { schema_version: '1.0.0', snapshot_id: snapshotId, suggestions: [{ suggestion_id: 'fews:maize:kano:retail:2026-07-15', crop_id: 'maize-white', market_id: 'kano', market_name: 'Kano', price_type: 'retail', observation_date: '2026-07-15', value_ngn_per_kg: 650, source: { source_id: 'fews-net', attribution: 'FEWS NET test attribution', raw_artifact_sha256: 'a'.repeat(64) }, freshness: { snapshot_date: '2026-08-25', age_days: 41, limit_days: 75 }, provenance: { source_row: 1, normalized_from_unit: 'kg' } }] }
+  const snapshot = { schema_version: '1.1.0', snapshot_id: snapshotId, mapping_version: '1.0.0', suggestions: [{ suggestion_id: 'fews:maize:kano:retail:2026-07-15', crop_id: 'maize-white', crop_form_id: 'maize-grain-white', mapping_version: '1.0.0', canonical_market_id: 'kano', market_id: 'kano', market_name: 'Kano', price_type: 'retail', observation_date: '2026-07-15', value_ngn_per_kg: 650, source: { source_id: 'fews-net', attribution: 'FEWS NET test attribution', raw_artifact_sha256: 'a'.repeat(64), commodity_id: 'maize-white', commodity_label: 'Maize grain (white)' }, freshness: { snapshot_date: '2026-08-25', age_days: 41, limit_days: 75 }, provenance: { source_row: 1, normalized_from_unit: 'kg' } }] }
+  snapshot.suggestions.push({ ...snapshot.suggestions[0], suggestion_id: 'fews:maize:kano:wholesale:2026-07-15', price_type: 'wholesale', value_ngn_per_kg: 600 })
   await page.addInitScript(({ id, priceSnapshot }) => {
     const nativeFetch = window.fetch.bind(window)
     window.fetch = async (input, init) => {
@@ -74,7 +75,9 @@ test('uses an approved same-origin suggestion as an editable, persisted prefill'
   }, { id: snapshotId, priceSnapshot: snapshot })
   await page.goto('/')
   await expect(page.getByLabel('Covered market')).toBeEnabled()
-  await page.getByLabel('Covered market').selectOption('kano')
+  await page.getByLabel('Covered market').selectOption('fews:maize:kano:wholesale:2026-07-15')
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('600')
+  await page.getByLabel('Covered market').selectOption('fews:maize:kano:retail:2026-07-15')
   await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('650')
   await expect(page.getByText('Sourced suggestion · Kano · retail')).toBeVisible()
   await page.getByLabel('Selling price NGN per kg').fill('700')

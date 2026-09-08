@@ -36,8 +36,8 @@ def read_json(path: Path) -> dict:
     return value
 
 
-def _validate_approval(approval: dict, report_path: Path, report: dict) -> None:
-    required = {"stage_1_approved", "rights_approved", "allow_price_suggestions", "reviewer", "reviewed_at", "qualification_report_sha256"}
+def _validate_approval(approval: dict, report_path: Path, report: dict, mappings: dict) -> None:
+    required = {"stage_1_approved", "rights_approved", "allow_price_suggestions", "reviewer", "reviewed_at", "qualification_report_sha256", "mapping_version", "mapping_sha256", "mapping_reviewed"}
     if not required.issubset(approval):
         raise ValueError("approval is missing an explicit review field")
     if approval["stage_1_approved"] is not True or approval["rights_approved"] is not True or approval["allow_price_suggestions"] is not True:
@@ -46,10 +46,19 @@ def _validate_approval(approval: dict, report_path: Path, report: dict) -> None:
         raise ValueError("approval reviewer and reviewed_at are required")
     if approval["qualification_report_sha256"] != sha256(report_path):
         raise ValueError("approval is not bound to this qualification report")
+    contract = mappings.get("release_mapping_contract", {})
+    if contract.get("review_required_in_approval") is not True or approval["mapping_reviewed"] is not True:
+        raise ValueError("reviewed crop/form and market mapping approval is required")
+    if approval["mapping_version"] != contract.get("mapping_version"):
+        raise ValueError("approval mapping version does not match the release contract")
+    if approval["mapping_sha256"] != sha256(ROOT / "config" / "mappings.json"):
+        raise ValueError("approval is not bound to this mappings registry")
     if not report.get("technical_gate_passed") or len(report.get("selected_crops", [])) < 5:
         raise ValueError("Stage 1 technical five-crop gate did not pass")
     if report.get("cross_source_check", {}).get("disagreement_count", 0):
         raise ValueError("cross-source disagreement prevents promotion")
+    if report.get("cross_source_check", {}).get("status") != "comparable":
+        raise ValueError("cross-source evidence is not comparable through reviewed market crosswalks")
 
 
 def build_price_suggestions(audit_dir: Path, report: dict, catalog: dict) -> list[dict]:
@@ -60,29 +69,36 @@ def build_price_suggestions(audit_dir: Path, report: dict, catalog: dict) -> lis
     mappings = read_json(ROOT / "config" / "mappings.json")
     accepted, _ = normalize_fews(audit_dir / "raw" / fews["path"], report["cutoff_month"], mappings)
     eligible, _ = qualify_series(accepted, report["cutoff_month"], _retrieval_date(manifest, "fews-net"))
-    selected = {(item["canonical_crop_id"], item.get("market_id", item["market"]), item["price_type"]) for item in report.get("publishable_series", [])}
-    eligible_keys = {(item["canonical_crop_id"], item.get("market_id", item["market"]), item["price_type"]) for item in eligible}
+    selected = {(item["canonical_crop_id"], item.get("canonical_market_id"), item["price_type"]) for item in report.get("publishable_series", [])}
+    eligible_keys = {(item["canonical_crop_id"], item.get("canonical_market_id"), item["price_type"]) for item in eligible}
     if not selected or not selected.issubset(eligible_keys):
         raise ValueError("report references missing or no-longer-qualified primary series")
     crop_ids = {crop["crop_id"] for crop in catalog.get("crops", [])}
+    contract = mappings.get("release_mapping_contract", {})
+    mapping_version = contract.get("mapping_version")
+    app_mappings = {item.get("crop_form_id"): item for item in mappings.get("app_crop_mappings", [])}
     latest: dict[tuple[str, str, str], dict] = {}
     for row in accepted:
-        key = (row["canonical_crop_id"], row.get("market_id", row["market"]), row["price_type"])
+        key = (row["canonical_crop_id"], row.get("canonical_market_id"), row["price_type"])
         if key in selected and (key not in latest or (row["observation_date"], row["source_row"]) > (latest[key]["observation_date"], latest[key]["source_row"])):
             latest[key] = row
     snapshot_date = _retrieval_date(manifest, "fews-net")
     result = []
     for key, row in sorted(latest.items()):
-        if row["canonical_crop_id"] not in crop_ids:
-            raise ValueError(f"unapproved public crop reference: {row['canonical_crop_id']}")
+        crop_mapping = app_mappings.get(row["canonical_crop_id"])
+        if not crop_mapping or crop_mapping.get("app_crop_id") not in crop_ids:
+            raise ValueError(f"unreviewed or incompatible crop/form mapping: {row['canonical_crop_id']}")
+        if not row.get("canonical_market_id"):
+            raise ValueError("unreviewed source market crosswalk reached promotion")
         observation = date.fromisoformat(row["observation_date"])
         age = (snapshot_date - observation).days
         if age < 0 or age > 75:
             raise ValueError("stale price row reached promotion")
         result.append({
-            "suggestion_id": f"fews-net:{row['canonical_crop_id']}:{row.get('market_id', row['market'])}:{row['price_type']}:{row['observation_date']}",
-            "crop_id": row["canonical_crop_id"], "market_id": row.get("market_id", row["market"]), "market_name": row["market"], "price_type": row["price_type"], "observation_date": row["observation_date"], "value_ngn_per_kg": row["value"],
-            "source": {"source_id": "fews-net", "attribution": "FEWS NET Nigeria staple food price data.", "raw_artifact_sha256": fews["sha256"]},
+            "suggestion_id": f"fews-net:{row['canonical_crop_id']}:{row['canonical_market_id']}:{row['price_type']}:{row['observation_date']}",
+            "crop_id": crop_mapping["app_crop_id"], "crop_form_id": row["canonical_crop_id"], "mapping_version": mapping_version,
+            "canonical_market_id": row["canonical_market_id"], "market_id": row["canonical_market_id"], "market_name": row["market"], "price_type": row["price_type"], "observation_date": row["observation_date"], "value_ngn_per_kg": row["value"],
+            "source": {"source_id": "fews-net", "attribution": "FEWS NET Nigeria staple food price data.", "raw_artifact_sha256": fews["sha256"], "commodity_id": row.get("source_commodity_id", ""), "commodity_label": row.get("source_commodity_label", row["source_product"])},
             "freshness": {"snapshot_date": snapshot_date.isoformat(), "age_days": age, "limit_days": 75},
             "provenance": {"source_row_id": str(row.get("source_row_id") or ""), "source_row": row["source_row"], "normalized_from_unit": str(row["source_package_unit"])},
         })
@@ -94,12 +110,13 @@ def build_price_suggestions(audit_dir: Path, report: dict, catalog: dict) -> lis
 def promote(audit_dir: Path, approval_path: Path, data_dir: Path = DEFAULT_DATA) -> str:
     report_path = audit_dir / "qualification_report.json"
     report, approval = read_json(report_path), read_json(approval_path)
-    _validate_approval(approval, report_path, report)
+    mappings = read_json(ROOT / "config" / "mappings.json")
+    _validate_approval(approval, report_path, report, mappings)
     current_manifest, catalog = read_json(data_dir / "manifest.json"), read_json(data_dir / "catalog.json")
     suggestions = build_price_suggestions(audit_dir, report, catalog)
     snapshot_id = f"price-suggestions-{report['snapshot_date']}"
-    price_document = {"schema_version": "1.0.0", "snapshot_id": snapshot_id, "suggestions": suggestions}
-    markets = {item["market_id"]: {"market_id": item["market_id"], "market_name": item["market_name"], "covered_crop_ids": []} for item in suggestions}
+    price_document = {"schema_version": "1.1.0", "snapshot_id": snapshot_id, "mapping_version": mappings["release_mapping_contract"]["mapping_version"], "suggestions": suggestions}
+    markets = {item["canonical_market_id"]: {"market_id": item["canonical_market_id"], "canonical_market_id": item["canonical_market_id"], "market_name": item["market_name"], "covered_crop_ids": []} for item in suggestions}
     for item in suggestions:
         if item["crop_id"] not in markets[item["market_id"]]["covered_crop_ids"]:
             markets[item["market_id"]]["covered_crop_ids"].append(item["crop_id"])

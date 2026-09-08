@@ -1,6 +1,25 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "status": "audit_pending",
+  "release_mapping_contract": {
+    "mapping_version": "1.0.0",
+    "review_required_in_approval": true,
+    "contract": "Only an explicitly reviewed source crop form to app crop mapping and source-market crosswalk may be promoted. Unmapped forms or markets are rejected.",
+    "prohibited_inferred_mappings": [
+      "rice-milled -> rice (paddy)",
+      "gari-white -> cassava (fresh roots)",
+      "gari-yellow -> cassava (fresh roots)"
+    ]
+  },
+  "app_crop_mappings": [
+    {"crop_form_id":"maize-grain-white","app_crop_id":"maize-white","source_form":"dry grain","app_form":"dry grain"},
+    {"crop_form_id":"yam-fresh","app_crop_id":"yam","source_form":"fresh tuber","app_form":"fresh tuber"},
+    {"crop_form_id":"sorghum-white","app_crop_id":"sorghum","source_form":"dry grain","app_form":"dry grain"}
+  ],
+  "market_registry": {
+    "registry_version": "1.0.0",
+    "markets": []
+  },
   "crops": [
     {"crop_id":"maize-grain-white","aliases":["maize grain (white)"],"forms":["dry grain"],"faostat_items":["Maize"],"source_status":"pending"},
     {"crop_id":"maize-grain-yellow","aliases":["maize grain (yellow)"],"forms":["dry grain"],"faostat_items":["Maize"],"source_status":"pending"},

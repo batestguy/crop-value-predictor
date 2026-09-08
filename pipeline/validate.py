@@ -21,9 +21,9 @@ def main() -> None:
     documents = {name: load(name) for name in FILES}
     manifest = documents["manifest.json"]
     snapshot = manifest["snapshot_id"]
-    assert manifest["schema_version"] == "1.1.0"
-    assert manifest["stage_1_approved"] is False
-    assert set(manifest["artifacts"]) == set(FILES[1:])
+    assert manifest["schema_version"] in {"1.1.0", "1.2.0"}
+    if not manifest["stage_1_approved"]:
+        assert set(manifest["artifacts"]) == set(FILES[1:])
     for name, document in documents.items():
         assert document["snapshot_id"] == snapshot, f"snapshot mismatch: {name}"
 
@@ -51,17 +51,20 @@ def main() -> None:
         assert "price_suggestions.json" in manifest["artifacts"] and "approved_markets.json" in manifest["artifacts"]
         suggestions = load("price_suggestions.json")
         markets = load("approved_markets.json")
-        assert suggestions["schema_version"] == "1.0.0" and suggestions["snapshot_id"] == snapshot
+        assert suggestions["schema_version"] == "1.1.0" and suggestions["snapshot_id"] == snapshot
         assert markets["schema_version"] == "1.0.0" and markets["snapshot_id"] == snapshot
         approved_markets = {item["market_id"] for item in markets["markets"]}
         suggestion_ids = set()
         for item in suggestions["suggestions"]:
             assert item["suggestion_id"] not in suggestion_ids, "duplicate suggestion ID"
             suggestion_ids.add(item["suggestion_id"])
-            assert item["crop_id"] in crop_ids and item["market_id"] in approved_markets
+            assert item["crop_id"] in crop_ids and item["canonical_market_id"] in approved_markets
+            assert item["market_id"] == item["canonical_market_id"]
+            assert item["crop_form_id"] and item["mapping_version"] == suggestions["mapping_version"]
             assert item["price_type"] in {"retail", "wholesale"} and item["value_ngn_per_kg"] > 0
             assert item["freshness"]["age_days"] <= item["freshness"]["limit_days"]
             assert item["source"]["source_id"] == "fews-net" and item["source"]["raw_artifact_sha256"]
+            assert item["source"].get("commodity_label")
     else:
         assert "price_suggestions.json" not in manifest["artifacts"]
     print(f"validated {snapshot}: {len(crop_ids)} crops, calculator-only snapshot")

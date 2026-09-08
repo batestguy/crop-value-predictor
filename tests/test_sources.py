@@ -32,7 +32,9 @@ class SourceRegisterTests(unittest.TestCase):
         sources = json.loads((ROOT / "config" / "sources.json").read_text(encoding="utf-8"))["sources"]
         by_id = {s["source_id"]: s for s in sources}
         self.assertTrue(by_id["fews-net"]["required_for_gate"])
-        self.assertEqual(by_id["fews-net"]["retrieval"]["mode"], "fews_paginated_json")
+        self.assertEqual(by_id["fews-net"]["retrieval"]["mode"], "fews_v3_paginated_json")
+        self.assertTrue(by_id["fews-net"]["download_url"].endswith(".json"))
+        self.assertEqual(by_id["fews-net"]["retrieval"]["page_size_parameter"], "page_size")
         self.assertFalse(by_id["wfp-hdx"]["required_for_gate"])
         self.assertFalse(by_id["world-bank-rtfp"]["required_for_gate"])
         self.assertFalse(by_id["faostat-qcl"]["required_for_gate"])
@@ -246,16 +248,17 @@ class SourceRegisterTests(unittest.TestCase):
         self.assertEqual(result["rows"], 1)
         self.assertEqual(calls.call_count, 2)
 
-    def test_fews_pagination_consolidates_nigeria_rows(self):
-        pages = {0: {"count": 3, "data": [{"country_code": "NG"}, {"country_code": "NG"}]}, 2: {"count": 3, "data": [{"country_code": "NG"}]}}
+    def test_fews_pagination_consolidates_documented_v3_results(self):
+        pages = {0: {"count": 3, "results": [{"country_code": "NG"}, {"country_code": "NG"}]}, 2: {"count": 3, "results": [{"country_code": "NG"}]}}
         def opener(request, timeout):
             offset = int(request.full_url.split("offset=")[1].split("&", 1)[0])
             return _Response(pages[offset])
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "fews.json"
-            result = download_fews_paginated({"download_url": "https://example.test/fews", "retrieval": {"country_code": "NG", "page_size": 2}}, target, opener=opener, sleep=lambda _: None)
+            result = download_fews_paginated({"download_url": "https://example.test/fews.json", "retrieval": {"mode": "fews_v3_paginated_json", "country_parameter": "country", "country_code": "NG", "page_size_parameter": "page_size", "offset_parameter": "offset", "response_total_field": "count", "response_rows_field": "results", "row_country_fields": ["country_code", "country"], "page_size": 2}}, target, opener=opener, sleep=lambda _: None)
             payload = json.loads(target.read_text(encoding="utf-8"))
         self.assertEqual((result["pages"], result["rows"], payload["count"]), (2, 3, 3))
+        self.assertEqual(len(payload["results"]), 3)
 
     def test_malformed_or_unapproved_promotion_preserves_last_known_good_snapshot(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -270,7 +273,7 @@ class SourceRegisterTests(unittest.TestCase):
             with self.assertRaises(ValueError): promote(audit, approval_path, data)
             self.assertEqual(json.loads((data / "manifest.json").read_text(encoding="utf-8")), original)
 
-    def test_cross_source_disagreement_rejects_matching_fews_series_without_merging(self):
+    def test_cross_source_without_market_crosswalk_is_not_comparable(self):
         import hashlib
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); raw = root / "raw"; raw.mkdir()
@@ -287,11 +290,12 @@ class SourceRegisterTests(unittest.TestCase):
             (root / "raw_manifest.json").write_text(json.dumps({"cutoff_month": "2026-07", "records": [record("fews-net", fews_path), record("wfp-hdx", wfp_path)]}), encoding="utf-8")
             report = build_report(root, "2026-07")
         self.assertEqual(report["wfp_row_quality"]["qualified_series"], 5)
-        self.assertEqual(report["cross_source_check"]["disagreement_count"], 5)
+        self.assertEqual(report["cross_source_check"]["status"], "not_comparable")
+        self.assertEqual(report["cross_source_check"]["disagreement_count"], 0)
         self.assertEqual(report["publishable_series"], [])
         self.assertFalse(report["technical_gate_passed"])
 
-    def test_reviewed_promotion_emits_shared_snapshot_and_approved_references(self):
+    def test_promotion_rejects_unreviewed_crop_forms_and_market_crosswalks(self):
         import hashlib
         crops = ["maize-grain-white", "rice-milled", "gari-white", "yam-fresh", "sorghum-white"]
         with tempfile.TemporaryDirectory() as folder:
@@ -309,12 +313,10 @@ class SourceRegisterTests(unittest.TestCase):
             for name, document in documents.items(): (data / name).write_text(json.dumps(document), encoding="utf-8")
             approval = {"stage_1_approved": True, "rights_approved": True, "allow_price_suggestions": True, "reviewer": "reviewer", "reviewed_at": "2026-08-25T00:00:00Z", "qualification_report_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest()}
             approval_path = root / "approval.json"; approval_path.write_text(json.dumps(approval), encoding="utf-8")
-            snapshot_id = promote(audit, approval_path, data)
-            manifest = json.loads((data / "manifest.json").read_text(encoding="utf-8")); suggestions = json.loads((data / "price_suggestions.json").read_text(encoding="utf-8")); markets = json.loads((data / "approved_markets.json").read_text(encoding="utf-8"))
-        self.assertTrue(manifest["stage_1_approved"])
-        self.assertEqual({manifest["snapshot_id"], suggestions["snapshot_id"], markets["snapshot_id"]}, {snapshot_id})
-        self.assertEqual(len(suggestions["suggestions"]), 5)
-        self.assertEqual(suggestions["suggestions"][0]["market_id"], markets["markets"][0]["market_id"])
+            original_manifest = (data / "manifest.json").read_text(encoding="utf-8")
+            with self.assertRaises(ValueError):
+                promote(audit, approval_path, data)
+            self.assertEqual((data / "manifest.json").read_text(encoding="utf-8"), original_manifest)
 
 
 if __name__ == "__main__":

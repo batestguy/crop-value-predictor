@@ -168,6 +168,16 @@ def load_register() -> list[dict]:
             retrieval = source["retrieval"]
             assert retrieval.get("page_size") == 100, source_id
             assert retrieval.get("filter") == {"ISO3": "NGA"}, source_id
+        if source.get("retrieval", {}).get("mode") == "fews_v3_paginated_json":
+            retrieval = source["retrieval"]
+            assert source["download_url"].endswith(".json"), source_id
+            assert retrieval.get("country_parameter") == "country", source_id
+            assert retrieval.get("country_code") == "NG", source_id
+            assert retrieval.get("page_size_parameter") == "page_size", source_id
+            assert retrieval.get("offset_parameter") == "offset", source_id
+            assert retrieval.get("response_total_field") == "count", source_id
+            assert retrieval.get("response_rows_field") == "results", source_id
+            assert retrieval.get("row_country_fields") == ["country_code", "country"], source_id
     return sources
 
 
@@ -284,24 +294,32 @@ def download_fews_paginated(
     sleep: Callable[[float], None] = time.sleep,
     retries: int = 3,
 ) -> dict:
-    """Download the public FEWS API in checked Nigeria-only pages.
+    """Download documented FEWS Data Explorer v3 pages, fail-closed.
 
-    FEWS response envelopes have varied between deployments, so the adapter
-    accepts ``data`` or ``results`` rows and ``count``/``found``/``total``.
-    It still fails closed if a stable total or complete pagination cannot be
-    proved.  The browser never invokes this adapter.
+    The configured contract is deliberately narrow: a ``.json`` endpoint,
+    ``country=NG`` plus ``page_size``/``offset`` query parameters, and a
+    ``count``/``results`` response.  Alternate envelopes are not silently
+    accepted because they could change geography or pagination semantics.
     """
     retrieval = source.get("retrieval", {})
-    if retrieval.get("country_code") != "NG":
-        raise ValueError("FEWS adapter requires country_code=NG")
+    if retrieval.get("mode") not in {None, "fews_v3_paginated_json"}:
+        raise ValueError("FEWS adapter requires the documented v3 retrieval mode")
+    if not str(source.get("download_url", "")).endswith(".json"):
+        raise ValueError("FEWS adapter requires a .json endpoint")
+    if retrieval.get("country_parameter", "country") != "country" or retrieval.get("country_code") != "NG":
+        raise ValueError("FEWS adapter requires country=NG")
+    if retrieval.get("page_size_parameter", "page_size") != "page_size" or retrieval.get("offset_parameter", "offset") != "offset":
+        raise ValueError("FEWS adapter requires page_size and offset pagination")
+    if retrieval.get("response_total_field", "count") != "count" or retrieval.get("response_rows_field", "results") != "results":
+        raise ValueError("FEWS adapter requires count/results response fields")
     page_size = int(retrieval.get("page_size", 500))
     if page_size < 1 or page_size > 10_000:
         raise ValueError("FEWS page size is outside the safe range")
-    offset_key = str(retrieval.get("offset_parameter", "offset"))
-    limit_key = str(retrieval.get("limit_parameter", "limit"))
-    query_base = {"country_code": "NG", limit_key: page_size}
-    if retrieval.get("format_parameter"):
-        query_base[str(retrieval["format_parameter"])] = str(retrieval.get("format_value", "json"))
+    offset_key = "offset"
+    query_base = {"country": "NG", "page_size": page_size}
+    for query_key, retrieval_key in (("start_date", "canary_start_date"), ("end_date", "canary_end_date")):
+        if retrieval.get(retrieval_key):
+            query_base[query_key] = str(retrieval[retrieval_key])
     rows: list[dict] = []
     total: int | None = None
     offset = 0
@@ -329,8 +347,8 @@ def download_fews_paginated(
                 sleep(min(2 ** attempt, 4))
         if not isinstance(payload, dict):
             raise RuntimeError(f"FEWS page retrieval failed after {retries} attempts: {last_error}")
-        reported_total = next((payload.get(key) for key in ("count", "found", "total") if isinstance(payload.get(key), int)), None)
-        page_rows = payload.get("data", payload.get("results"))
+        reported_total = payload.get("count")
+        page_rows = payload.get("results")
         if not isinstance(page_rows, list) or not all(isinstance(row, dict) for row in page_rows):
             raise ValueError("FEWS response does not contain an object row array")
         if reported_total is None or reported_total < 1:
@@ -341,7 +359,10 @@ def download_fews_paginated(
             raise ValueError("FEWS total changed during pagination")
         if not page_rows:
             raise ValueError("FEWS returned an empty page before all rows were collected")
-        if any(str(row.get("country_code", row.get("country", "NG"))).upper() not in {"NG", "NGA", "NIGERIA"} for row in page_rows):
+        country_fields = retrieval.get("row_country_fields", ["country_code", "country"])
+        if not isinstance(country_fields, list) or country_fields != ["country_code", "country"]:
+            raise ValueError("FEWS row geography fields are not configured exactly")
+        if any(not any(str(row.get(field, "")).upper() in {"NG", "NGA", "NIGERIA"} for field in country_fields) for row in page_rows):
             raise ValueError("FEWS response contains a row outside Nigeria")
         rows.extend(page_rows)
         pages += 1
@@ -351,9 +372,9 @@ def download_fews_paginated(
     if total is None or len(rows) != total:
         raise ValueError("FEWS pagination ended before all rows were collected")
     temporary = target.with_name(target.name + ".tmp")
-    temporary.write_text(json.dumps({"count": total, "data": rows}, separators=(",", ":")) + "\n", encoding="utf-8")
+    temporary.write_text(json.dumps({"count": total, "results": rows}, separators=(",", ":")) + "\n", encoding="utf-8")
     temporary.replace(target)
-    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country_code": "NG"}, "requested_page_size": page_size}
+    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country": "NG"}, "requested_page_size": page_size}
 
 
 def download(source: dict, raw_dir: Path) -> dict:
@@ -378,7 +399,7 @@ def download(source: dict, raw_dir: Path) -> dict:
             record.update({"status": "failed", "error": str(error)})
         return record
 
-    if source.get("retrieval", {}).get("mode") == "fews_paginated_json":
+    if source.get("retrieval", {}).get("mode") == "fews_v3_paginated_json":
         target = raw_dir / f"{source['source_id']}.json"
         try:
             record.update(download_fews_paginated(source, target))
@@ -572,11 +593,31 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("audit-output"))
     parser.add_argument("--cutoff-month", default=None)
     parser.add_argument("--source-id", action="append", default=[], help="source ID to retrieve; repeat to limit a reviewed run")
+    parser.add_argument("--fews-canary", action="store_true", help="fetch one bounded FEWS v3 canary page (requires --fetch)")
+    parser.add_argument("--canary-start", help="optional FEWS v3 start_date YYYY-MM-DD")
+    parser.add_argument("--canary-end", help="optional FEWS v3 end_date YYYY-MM-DD")
+    parser.add_argument("--canary-page-size", type=int, default=25, help="bounded FEWS canary page size (1-100)")
     args = parser.parse_args(argv)
     sources = load_register()
+    if args.fews_canary and not args.fetch:
+        parser.error("--fews-canary requires --fetch")
     if not args.fetch:
         print(f"validated source register: {len(sources)} candidates")
         return 0
+    if args.fews_canary:
+        if not 1 <= args.canary_page_size <= 100:
+            parser.error("--canary-page-size must be between 1 and 100")
+        for name, value in (("--canary-start", args.canary_start), ("--canary-end", args.canary_end)):
+            if value and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                parser.error(f"{name} must be YYYY-MM-DD")
+        sources = [source for source in sources if source["source_id"] == "fews-net"]
+        source = dict(sources[0]); source["retrieval"] = dict(source["retrieval"])
+        source["retrieval"]["page_size"] = args.canary_page_size
+        # Date filters are part of the canary request contract only; normal
+        # audited retrieval remains governed by its immutable source register.
+        if args.canary_start: source["retrieval"]["canary_start_date"] = args.canary_start
+        if args.canary_end: source["retrieval"]["canary_end_date"] = args.canary_end
+        sources = [source]
     if not args.cutoff_month or not MONTH_RE.fullmatch(args.cutoff_month):
         parser.error("--fetch requires --cutoff-month in YYYY-MM form")
     if args.source_id:
