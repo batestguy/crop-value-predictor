@@ -542,7 +542,9 @@ def profile_json_rows(rows: object, cutoff_month: str | None = None) -> dict:
 
 def profile_json(path: Path, cutoff_month: str | None = None) -> dict:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    rows = payload.get("data") if isinstance(payload, dict) else payload
+    # FEWS v3 pages use ``results`` while the legacy and NADA adapters use
+    # ``data``. Do not treat a valid v3 artifact as an empty profile.
+    rows = payload.get("results", payload.get("data")) if isinstance(payload, dict) else payload
     return profile_json_rows(rows, cutoff_month)
 
 

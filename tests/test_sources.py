@@ -129,6 +129,15 @@ class SourceRegisterTests(unittest.TestCase):
         self.assertEqual(profile["rows"], 1)
         self.assertEqual(profile["columns"], ["beans", "month"])
 
+    def test_json_profile_supports_fews_v3_results_envelope(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "fews.json"
+            path.write_text(json.dumps({"count": 1, "results": [{"period_date": "2026-08-01", "market": "Kano"}]}), encoding="utf-8")
+            profile = profile_json(path, "2026-08")
+        self.assertEqual(profile["rows"], 1)
+        self.assertEqual(profile["date_max"], "2026-08-01")
+        self.assertEqual(profile["in_scope_market_count"], 1)
+
     def test_json_profile_recognizes_mkt_name_and_excludes_national_aggregate(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "rows.json"
@@ -333,6 +342,49 @@ class SourceRegisterTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 promote(audit, approval_path, data)
             self.assertEqual((data / "manifest.json").read_text(encoding="utf-8"), original_manifest)
+
+    def test_reviewed_crosswalk_qualifies_and_promotes_canonical_market(self):
+        import hashlib
+        import pipeline.qualification as qualification_module
+        import pipeline.promote_price_suggestions as promotion_module
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); audit = root / "audit"; raw = audit / "raw"; data = root / "data"; config = root / "config"
+            raw.mkdir(parents=True); data.mkdir(); config.mkdir()
+            crop_forms = [f"form-{index}" for index in range(5)]
+            mappings = {
+                "release_mapping_contract": {"mapping_version": "test-1", "review_required_in_approval": True},
+                "crops": [{"crop_id": form, "aliases": [f"Crop {index}"]} for index, form in enumerate(crop_forms)],
+                "app_crop_mappings": [{"crop_form_id": form, "app_crop_id": f"app-{index}"} for index, form in enumerate(crop_forms)],
+                "market_registry": {"registry_version": "test-1", "markets": [{"canonical_market_id": "market-kano", "source_identities": [{"source_id": "fews-net", "source_market_id": "fews-kano"}, {"source_id": "wfp-hdx", "source_market_id": "wfp-kano"}]}]},
+            }
+            sources = {"sources": [{"source_id": "wfp-hdx", "retrieval": {"native_columns": {"date": "date", "market_id": "market_id", "market": "market", "commodity_id": "commodity_id", "commodity": "commodity", "unit": "unit", "price": "price", "price_type": "pricetype", "currency": "currency", "flag": "priceflag"}}}]}
+            (config / "mappings.json").write_text(json.dumps(mappings), encoding="utf-8")
+            (config / "sources.json").write_text(json.dumps(sources), encoding="utf-8")
+            fews_rows, wfp_rows = [], []
+            for index in range(5):
+                for offset in range(36):
+                    year, month_number = divmod(2023 * 12 + 7 + offset, 12)
+                    observed = f"{year:04d}-{month_number + 1:02d}-15"
+                    fews_rows.append({"period_date": observed, "data_usage_policy": "Public", "price_type": "Retail", "unit": "kg", "currency": "NGN", "market": "Kano", "market_id": "fews-kano", "product": f"Crop {index}", "product_id": f"f{index}", "value": 100, "id": f"f-{index}-{offset}"})
+                    wfp_rows.append(f"{observed},wfp-kano,Kano,w{index},Crop {index},kg,100,Retail,NGN,actual")
+            fews_path = raw / "fews-net.json"; fews_path.write_text(json.dumps({"count": len(fews_rows), "results": fews_rows}), encoding="utf-8")
+            wfp_path = raw / "wfp-hdx.csv"; wfp_path.write_text("date,market_id,market,commodity_id,commodity,unit,price,pricetype,currency,priceflag\n" + "\n".join(wfp_rows) + "\n", encoding="utf-8")
+            def record(source_id, path): return {"source_id": source_id, "status": "downloaded", "path": path.name, "bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "retrieved_at": "2026-08-25T00:00:00Z"}
+            (audit / "raw_manifest.json").write_text(json.dumps({"cutoff_month": "2026-07", "records": [record("fews-net", fews_path), record("wfp-hdx", wfp_path)]}), encoding="utf-8")
+            documents = {"manifest.json": {"snapshot_id": "old", "stage_1_approved": False, "artifacts": ["catalog.json", "defaults.json", "forecasts.json", "quality.json"]}, "catalog.json": {"snapshot_id": "old", "crops": [{"crop_id": f"app-{index}"} for index in range(5)]}, "defaults.json": {"snapshot_id": "old"}, "forecasts.json": {"snapshot_id": "old"}, "quality.json": {"snapshot_id": "old", "pipeline": {}}}
+            for name, document in documents.items(): (data / name).write_text(json.dumps(document), encoding="utf-8")
+            with patch.object(qualification_module, "ROOT", root), patch.object(promotion_module, "ROOT", root):
+                report = build_report(audit, "2026-07")
+                self.assertEqual(report["cross_source_check"]["status"], "comparable")
+                self.assertEqual(len(report["publishable_series"]), 5)
+                self.assertTrue(all(row["canonical_market_id"] == "market-kano" for row in report["publishable_series"]))
+                report_path = audit / "qualification_report.json"; report_path.write_text(json.dumps(report), encoding="utf-8")
+                approval = {"stage_1_approved": True, "rights_approved": True, "allow_price_suggestions": True, "reviewer": "reviewer", "reviewed_at": "2026-08-25T00:00:00Z", "qualification_report_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(), "mapping_version": "test-1", "mapping_sha256": hashlib.sha256((config / "mappings.json").read_bytes()).hexdigest(), "mapping_reviewed": True}
+                approval_path = root / "approval.json"; approval_path.write_text(json.dumps(approval), encoding="utf-8")
+                promote(audit, approval_path, data)
+            suggestions = json.loads((data / "price_suggestions.json").read_text(encoding="utf-8"))["suggestions"]
+        self.assertEqual(len(suggestions), 5)
+        self.assertTrue(all(item["canonical_market_id"] == "market-kano" for item in suggestions))
 
 
 if __name__ == "__main__":

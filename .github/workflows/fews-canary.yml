@@ -42,13 +42,18 @@ jobs:
           python-version: '3.12'
       - name: Retrieve bounded FEWS v3 evidence
         shell: bash
+        env:
+          CUTOFF_MONTH: ${{ inputs.cutoff_month }}
+          CANARY_START: ${{ inputs.start_date }}
+          CANARY_END: ${{ inputs.end_date }}
+          CANARY_PAGE_SIZE: ${{ inputs.page_size }}
         run: |
           set -o pipefail
           python pipeline/source_audit.py --fetch --fews-canary \
-            --cutoff-month "${{ inputs.cutoff_month }}" \
-            --canary-start "${{ inputs.start_date }}" \
-            --canary-end "${{ inputs.end_date }}" \
-            --canary-page-size "${{ inputs.page_size }}" \
+            --cutoff-month "$CUTOFF_MONTH" \
+            --canary-start "$CANARY_START" \
+            --canary-end "$CANARY_END" \
+            --canary-page-size "$CANARY_PAGE_SIZE" \
             --canary-timeout-seconds 10 \
             --output-dir audit-output-fews-canary \
             2>&1 | tee fews-canary.log

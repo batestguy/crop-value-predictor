@@ -253,7 +253,11 @@ def national_median(rows: list[dict], minimum_markets: int = 3) -> list[dict]:
 
 def qualify_series(rows: list[dict], cutoff: str, today: date | None = None) -> tuple[list[dict], list[dict]]:
     snapshot = today or date.today(); groups = defaultdict(list)
-    for row in rows: groups[(row["canonical_crop_id"], row.get("market_id") or row["market"], row["price_type"])].append(row)
+    # Keep source IDs distinct when no crosswalk exists, but group reviewed
+    # aliases under their canonical market so that identity reaches release.
+    for row in rows:
+        market_key = row.get("canonical_market_id") or row.get("market_id") or row["market"]
+        groups[(row["canonical_crop_id"], market_key, row["price_type"])].append(row)
     expected = {shift_month(cutoff, -i) for i in range(RECENT_WINDOW)}; eligible, rejected = [], []
     for key, values in sorted(groups.items()):
         reasons = []; canonical_keys = [(v["canonical_crop_id"], v.get("source_commodity_id") or v["canonical_crop_id"], v.get("market_id") or v["market"], v["month"], v["price_type"]) for v in values]
@@ -268,7 +272,7 @@ def qualify_series(rows: list[dict], cutoff: str, today: date | None = None) -> 
         elif freshness < 0: reasons.append("latest_observation_after_snapshot")
         origins = sum(all(shift_month(origin, h) in months for h in range(3)) for origin in sorted(months) if shift_month(origin, 2) <= cutoff)
         if origins < 6: reasons.append("forecast_origin_windows_under_6")
-        record = {"canonical_crop_id": key[0], "market": values[0].get("market", key[1]), "market_id": values[0].get("market_id", key[1]), "price_type": key[2], "months": len(months), "recent_completeness": round(completeness, 6), "latest_month": max(months) if months else None, "latest_observation_date": latest_date.isoformat() if latest_date else None, "snapshot_date": snapshot.isoformat(), "freshness_days": freshness, "freshness_limit_days": FRESHNESS_DAYS, "forecast_origin_windows": origins, "duplicate_count": duplicates, "status": "eligible" if not reasons else "rejected"}
+        record = {"canonical_crop_id": key[0], "market": values[0].get("market", key[1]), "market_id": values[0].get("market_id", key[1]), "canonical_market_id": values[0].get("canonical_market_id"), "price_type": key[2], "months": len(months), "recent_completeness": round(completeness, 6), "latest_month": max(months) if months else None, "latest_observation_date": latest_date.isoformat() if latest_date else None, "snapshot_date": snapshot.isoformat(), "freshness_days": freshness, "freshness_limit_days": FRESHNESS_DAYS, "forecast_origin_windows": origins, "duplicate_count": duplicates, "status": "eligible" if not reasons else "rejected"}
         if reasons: record["rejection_reasons"] = reasons; rejected.append(record)
         else: eligible.append(record)
     return eligible, rejected
