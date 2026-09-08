@@ -97,3 +97,16 @@ The test `test_malformed_or_unapproved_promotion_preserves_last_known_good_snaps
 in `tests/test_sources.py` specifically proves that a rejected promotion leaves
 the prior manifest unchanged. This runbook intentionally contains no network
 command: retrieval should occur only in its separately authorized audit run.
+
+## FEWS canary workflow
+
+`.github/workflows/fews-canary.yml` is a manual, zero-secret FEWS v3 evidence
+check. It accepts a cutoff month, a bounded start/end date range, and a page
+size (default: `2026-08`, `2026-08-01`, `2026-08-31`, and `25`). It always uses
+a 10-second request timeout, has a five-minute job limit, and uploads its
+`audit-output-fews-canary` directory and command log even when retrieval fails.
+
+Run it only through **Actions → FEWS v3 canary (evidence only) → Run workflow**.
+Download the artifact and apply the triage table above. The workflow does not
+run qualification or promotion and never writes `public/data/v1`; its artifact
+is evidence, not a release candidate.
