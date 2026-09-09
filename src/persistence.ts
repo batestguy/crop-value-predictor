@@ -1,6 +1,7 @@
 import { COST_CATEGORIES, type CostCategory } from './calculations'
+import type { PriceType } from './priceSuggestions'
 export type PriceOrigin = 'sourced_suggestion' | 'user_entered'
-export type SavedPriceSuggestion = { snapshotId: string; suggestionId: string; marketId: string; marketName: string; priceType: 'retail' | 'wholesale'; observationDate: string; sourceAttribution: string }
+export type SavedPriceSuggestion = { snapshotId: string; suggestionId: string; marketId: string; marketName: string; priceType: PriceType; observationDate: string; sourceAttribution: string }
 export type SavedScenarioV1 = { schemaVersion: 1; savedAt: string; areaHa: string; selectedCropIds: string[]; inputsByCropId: Record<string, { yieldTPerHa: string; sellingPriceNgnPerKg: string; lowPriceNgnPerKg?: string; highPriceNgnPerKg?: string; costsPerHa: Record<CostCategory, string>; marketId?: string; priceOrigin?: PriceOrigin; priceSuggestion?: SavedPriceSuggestion }> }
 export const STORAGE_KEY = 'fieldmargin.saved-scenario.v1'
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -10,7 +11,7 @@ const isSavedCrop = (value: unknown): value is SavedScenarioV1['inputsByCropId']
   const costs = value.costsPerHa
   if (COST_CATEGORIES.some((key) => typeof costs[key] !== 'string')) return false
   const suggestion = value.priceSuggestion
-  const validSuggestion = suggestion === undefined || (isRecord(suggestion) && typeof suggestion.snapshotId === 'string' && typeof suggestion.suggestionId === 'string' && typeof suggestion.marketId === 'string' && typeof suggestion.marketName === 'string' && (suggestion.priceType === 'retail' || suggestion.priceType === 'wholesale') && typeof suggestion.observationDate === 'string' && typeof suggestion.sourceAttribution === 'string')
+  const validSuggestion = suggestion === undefined || (isRecord(suggestion) && typeof suggestion.snapshotId === 'string' && typeof suggestion.suggestionId === 'string' && typeof suggestion.marketId === 'string' && typeof suggestion.marketName === 'string' && (suggestion.priceType === 'retail' || suggestion.priceType === 'wholesale' || suggestion.priceType === 'modeled_estimate') && typeof suggestion.observationDate === 'string' && typeof suggestion.sourceAttribution === 'string')
   return Object.keys(value).every((key) => ['yieldTPerHa', 'sellingPriceNgnPerKg', 'lowPriceNgnPerKg', 'highPriceNgnPerKg', 'costsPerHa', 'marketId', 'priceOrigin', 'priceSuggestion'].includes(key)) &&
     (value.lowPriceNgnPerKg === undefined || typeof value.lowPriceNgnPerKg === 'string') &&
     (value.highPriceNgnPerKg === undefined || typeof value.highPriceNgnPerKg === 'string') &&

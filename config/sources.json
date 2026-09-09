@@ -7,13 +7,16 @@
       "role": "market_price_validation_modeled",
       "status": "candidate",
       "url": "https://microdata.worldbank.org/catalog/4503",
-      "download_url": "https://microdata.worldbank.org/index.php/api/tables/data/fcv/wld_2021_rtfp_v02_m",
+      "download_url": "https://microdata.worldbank.org/api/downloads/NGA_2021_RTFP_v02_M/files?type=data",
       "retrieval": {
-        "mode": "nada_paginated_json",
-        "page_size": 100,
-        "filter": {"ISO3": "NGA"}
+        "mode": "world_bank_bulk_zip",
+        "study_idno": "NGA_2021_RTFP_v02_M",
+        "expected_filename_prefix": "NGA_RTFP_mkt_",
+        "accepted_extensions": [".zip"],
+        "country_field": "ISO3",
+        "country_value": "NGA"
       },
-      "terms_url": "https://microdata.worldbank.org/using-our-catalog",
+      "terms_url": "https://datacatalog.worldbank.org/search/dataset/0060190/nigeria-monthly-food-price-estimates-by-product-and-market",
       "auth_mode": "none",
       "cadence": "weekly revision/monthly records",
       "formats": ["json"],
@@ -21,9 +24,9 @@
       "units": ["kg", "2.5 KG", "2.6 KG", "2.8 KG", "0.5 KG"],
       "coverage": {"country": "NGA", "markets_expected": 73, "start": "2007-01"},
       "attribution": "Andrée, B. P. J. (2021), Monthly food price estimates by product and market, World Bank Microdata Library, NGA_2021_RTFP_v02_M.",
-      "redistribution_decision": "pending_open_data_review",
+      "redistribution_decision": "modeled_lane_open_data_review_required",
       "required_for_gate": false,
-      "evidence_urls": ["https://microdata.worldbank.org/catalog/4503/data-api"]
+      "evidence_urls": ["https://microdata.worldbank.org/catalog/4503/data-api", "https://microdata.worldbank.org/catalog/4503/data-dictionary/NGA_2021_RTFP_MKT?file_name=NGA_RTFP_mkt_2007_2026-08-24.csv"]
     },
     {
       "source_id": "fews-net",
@@ -31,7 +34,7 @@
       "role": "market_price_primary_candidate",
       "status": "candidate",
       "url": "https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-2",
-      "download_url": "https://fdw.fews.net/api/marketpricefacts.json",
+      "download_url": "https://fdw.fews.net/api/marketpricefacts/",
       "terms_url": "https://help.fews.net/fde/v3/export-data",
       "auth_mode": "public_without_authentication",
       "cadence": "weekly aggregated to monthly",
@@ -45,17 +48,26 @@
       "evidence_urls": ["https://help.fews.net/fde/v3/fews-net-api"],
       "retrieval": {
         "mode": "fews_v3_paginated_json",
-        "country_parameter": "country_code",
-        "country_code": "NG",
+        "country_parameter": "country",
+        "country_value": "NG",
+        "query_parameters": {
+          "dataset": "FEWS_NET_Staple_Food_Price_Data",
+          "fields": "website"
+        },
         "page_size_parameter": "page_size",
         "offset_parameter": "offset",
         "page_size": 500,
+        "history_months": 60,
+        "page_delay_seconds": 0.25,
+        "transient_statuses": [403, 429, 500, 502, 503, 504],
         "request_timeout_seconds": 30,
         "retries": 3,
         "response_total_field": "count",
         "response_rows_field": "results",
+        "format_parameter": "format",
+        "format": "json",
         "row_country_fields": ["country_code", "country"],
-        "query_contract": "FEWS Data Explorer v3 .json endpoint with country_code=NG, page_size, and offset"
+        "query_contract": "FEWS Data Explorer v3 marketpricefacts endpoint with dataset=FEWS_NET_Staple_Food_Price_Data, country=NG, format=json, page_size, and offset"
       }
     },
     {

@@ -1,4 +1,10 @@
-# Calculator-only moderated pilot session kit
+# Calculator-only moderated pilot session kit — superseded for current Stage 6
+
+> **Deferred future work.** This kit is retained for a future, separately
+> authorized human-validation milestone. It is not active Stage 6 evidence and
+> its participant thresholds do not apply to the literature-informed gate. See
+> [Stage 6](./phases/06-pilot-validation.md) and
+> [academic evidence review](./academic-evidence-review.md).
 
 ## Scope and handling
 

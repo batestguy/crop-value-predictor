@@ -1,7 +1,7 @@
 # Stage 1 — Source and Feasibility Audit
 
-**Status:** Closed — fallback accepted; WFP/HDX remediation failed technical gate on 2026-09-04
-**Dependency:** Stage 0 approved on 2026-08-25
+**Status:** In progress — web-first remediation run opened 2026-09-09
+**Dependency:** Stage 0 approved on 2026-08-25; prior failed audits remain immutable evidence
 
 ## Objective
 
@@ -22,6 +22,34 @@ are defensible for the public pilot.
 The initial register is [`../source-register.md`](../source-register.md). The
 remote execution path and one-time launch cutoff are documented in
 [`../batch-training-architecture.md`](../batch-training-architecture.md).
+
+## Current remediation contract — 2026-09-09
+
+The active remediation is a fresh, date-specific audit. It does not modify or
+stitch together the failed FEWS and WFP/HDX snapshots recorded below.
+
+- Retrieve FEWS NET and WFP/HDX using the latest complete-month cutoff and
+  record retrieval dates, source URLs, upstream identifiers, and SHA-256
+  checksums in a new immutable audit directory.
+- Bound the FEWS request to the latest 60 complete months through the cutoff;
+  this exceeds the 36-month gate and preserves six rolling forecast origins
+  without requesting an unnecessary full-history payload.
+- Keep FEWS as the primary observed-price candidate. WFP/HDX remains an
+  independent cross-check and cannot fill missing FEWS history or make an
+  incomplete FEWS series eligible.
+- Re-run the unchanged 36-month history, 80% recent-completeness, 75-day
+  freshness, three-market national-median, six-forecast-origin, unit,
+  transaction-type, mapping, and rights gates.
+- Review source eligibility, extraction accuracy, rights interpretation, and
+  claim wording in two independent passes before the result reaches Gate
+  review.
+- A passing technical report still requires explicit Stage 1 approval before
+  any automated price artifact is promoted. A failed report preserves the
+  calculator-only web fallback.
+
+The active product target is the static React/TypeScript web PWA. Android
+installation, update, and offline-recovery evidence are not Stage 1 or web
+release requirements.
 
 ## Acceptance gate
 
@@ -150,6 +178,73 @@ calculator-only fallback and stop automated-price claims.
   remediation effort must produce a new immutable audit and independently pass
   every technical and rights gate before automated-price work can resume.
 
+### 2026-09-09 — alternatives screened
+
+- The alternative assessment in [`../stage1-source-alternatives.md`](../stage1-source-alternatives.md)
+  compares FEWS NET, FAO FPMA, World Bank RTFP, NBS, NEPC, and WFP/HDX without
+  changing the existing Stage 1 thresholds.
+- No observed-price alternative passed the unchanged gate. FAO FPMA exposes
+  explicit Nigeria retail/wholesale series, but the strongest current recent
+  completeness screen is 69.4%; NBS-backed series are current only through May
+  2026 in the live catalog and fail the 75-day freshness rule on 2026-09-09.
+- The current World Bank Nigeria bulk file passed an exploratory numerical screen
+  when its documented monthly close estimates were normalized to source-aligned
+  forms. Because transaction type is unknown and the values are modeled, this is
+  evidence for a possible separate modeled-estimate lane, not approval of the
+  existing observed-price lane.
+- Stage 1 therefore remains `calculator_only_fallback`; no automated price or
+  forecast promotion is authorized by this screening note.
+
 - Regenerated qualification report SHA-256: `f17e661076a9d8e642cc10ea732364d52fe60168d005eb195414f7de0e11e9d8`.
   The report and raw snapshot remain local/ignored audit evidence; automated
   prices remain blocked.
+
+### 2026-09-09 — web-first remediation reopened
+
+- Reopened Stage 1 for a fresh FEWS/WFP qualification attempt using the
+  unchanged technical and rights gates.
+- The existing React/Vite PWA is the primary web product. Android hardware is
+  removed from the active release requirement; mobile-browser behavior remains
+  in scope.
+- The audit command is prepared to write the new immutable evidence package to
+  `audit-output-remediation-2026-09-09`. Stage 1 remains unapproved until the
+  qualification report, rights review, two review passes, and explicit user
+  gate decision are complete.
+
+### 2026-09-09 — remediation retrieval outcome
+
+- The first fresh audit recorded FEWS HTTP 403, World Bank zero rows, a current
+  WFP/HDX download of 10,801,660 bytes with SHA-256
+  `10bfee3dbd4c1798ec4ea57b9611b025ddb3391147c238ab048185a24eb88d62`, a
+  successful FAOSTAT archive, and an NBS connection timeout. Its report was
+  `calculator_only_fallback` with zero eligible series.
+- FEWS’s official API documentation and Nigeria download page were checked.
+  The adapter now uses the documented trailing-slash endpoint with
+  `dataset=FEWS_NET_Staple_Food_Price_Data`, `country=NG`, `fields=website`,
+  and `format=json`, while retaining strict pagination and country checks.
+- Fresh retries using the repaired contract still failed closed because the
+  public endpoint returned 403/timeouts during the full retrieval. The v3
+  qualification report remains `calculator_only_fallback`, with
+  `stage_1_approved: false` and promotion prohibited. No public data artifact
+  changed and no automated price claim was unlocked.
+- The adapter now bounds normal FEWS retrieval to 60 months and applies a
+  configured inter-page delay plus bounded retries for transient 403, 429, and
+  5xx responses. A fresh bounded FEWS-only run still received repeated 403
+  responses, so this is an upstream access blocker rather than a qualification
+  result.
+
+### 2026-09-09 — modeled context artifact (separate lane)
+
+The current World Bank bulk-discovery adapter now retrieves the official open
+Nigeria RTFP ZIP and validates its single CSV member, `ISO3=NGA` purity, and
+`price_date` field. A separate modeled-estimate builder produced
+`public/data/v1/modeled_price_suggestions.json` from the 2026-08 file: 438
+source-market suggestions across six source-aligned forms and 73 markets.
+Every record is labelled `modeled_estimate`, retains the raw-artifact hash and
+modeled-month-close provenance, and carries a warning that it is not an
+observed retail, wholesale, or farmer selling price.
+
+This artifact is enabled only as editable context. It has a separate snapshot
+ID and manifest flag; `stage_1_approved` remains false, observed
+`price_suggestions.json` remains unavailable, and no forecast or public
+observed-price claim is unlocked.

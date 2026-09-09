@@ -9,10 +9,16 @@ and the initial canonical mapping scaffold in
 [`../config/mappings.json`](../config/mappings.json).
 No source is promoted to a production claim from this table alone.
 
+The current alternatives assessment is recorded in
+[`stage1-source-alternatives.md`](stage1-source-alternatives.md). It confirms
+that the World Bank route can satisfy the numerical history screen only as a
+separately labelled modeled-estimate lane; it does not pass the existing
+observed-price release gate.
+
 | Source | Intended role | Current evidence | Access path | Open qualification checks |
 |---|---|---|---|---|
 | [World Bank RTFP](https://microdata.worldbank.org/catalog/4503) | Optional modeled context only | Direct/ML-estimated values lack the transaction comparability required for a selling-price prefill | Global NADA table, queried with `ISO3=NGA` in pages | Never use for price suggestions or fill gaps in another source |
-| [FEWS NET Nigeria prices](https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-2) | Primary zero-secret price candidate | Public FEWS API candidate with Nigeria filtering, explicit units and retail/wholesale price types | Public paginated JSON API, `country_code=NG` | Confirm coverage, completeness, freshness, terms, and permission to cache a reviewed static snapshot |
+| [FEWS NET Nigeria prices](https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-2) | Primary zero-secret price candidate | Public FEWS API candidate with Nigeria filtering, explicit units and retail/wholesale price types | Public paginated JSON API, `dataset=FEWS_NET_Staple_Food_Price_Data`, `country=NG`, `format=json` | Confirm coverage, completeness, freshness, terms, and permission to cache a reviewed static snapshot |
 | [WFP/HDX](https://data.humdata.org/dataset/wfp-food-prices-for-nigeria) | Independent cross-check only | Public CKAN resource with explicit market, commodity, unit, price flag, and price type | Public HDX CSV discovery/download; HAPI/app-ID access is out of scope | Compare only matching qualified FEWS series; never merge WFP rows to fill FEWS history |
 | [FAOSTAT QCL](https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876) | National yield defaults | FAO documents annual crop production/yield data, yield in hg/ha, 1961–2024 coverage, and CC-BY-4.0 licensing | Public catalog/download | Confirm Nigeria crop rows, revision date, conversion to t/ha, citation, and non-local-advice warning |
 | [NBS NASS 2022/23](https://microdata.nigerianstat.gov.ng/index.php/catalog/173/related-materials) | Dated cost and farm-gate defaults | NBS publishes NASS materials including crop prices, farm-gate prices, and fertilizer/pesticide input prices | Public catalog resources | Confirm usable tables, units, rights, extraction reproducibility, and stale-default labeling |
@@ -30,11 +36,13 @@ Rows retain provenance such as `observed`, `aggregate`, `imputed`, or `forecast`
 Unknown bag, basket, bunch, or count units fail closed; they are not silently
 converted to kilograms.
 
-### FEWS canary correction
+### FEWS endpoint correction
 
-Evidence-only canary run `34174958605` used `country=NG` and returned no
-positive count. The FEWS v3 adapter now uses documented `country_code=NG`.
-This corrective canary remains evidence-only and cannot qualify or promote data.
+The FEWS v3 adapter now follows the official Nigeria download contract:
+`dataset=FEWS_NET_Staple_Food_Price_Data`, `country=NG`, `fields=website`, and
+`format=json` on the documented `marketpricefacts/` endpoint. This correction is
+still evidence-only; it cannot qualify or promote data until a complete audit
+passes the unchanged gates.
 
 ## Evidence links
 

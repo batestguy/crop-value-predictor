@@ -1,9 +1,9 @@
 # Agent automation: Stage 1 cloud artifact verification
 
-> **Historical/supporting procedure.** Stage 1 was closed on 2026-08-27 with
-> the calculator-only fallback accepted. Do not use this document as the active
-> session resume path unless source remediation is explicitly reopened. The
-> active handoff is [`../AGENT_RESUME_INSTRUCTIONS.md`](../AGENT_RESUME_INSTRUCTIONS.md).
+> **Supporting procedure.** The prior Stage 1 fallback remains immutable and
+> source remediation was reopened on 2026-09-09. Use the current session
+> handoff for the active milestone; this document describes artifact recovery
+> and fail-closed qualification only.
 
 This is the repeatable procedure for resuming Stage 1. It verifies the exact
 GitHub Actions run and artifact recorded in `AGENT_RESUME_INSTRUCTIONS.md`,
@@ -63,7 +63,7 @@ automated price claims are permitted.
 ## Agent stop rules
 
 - Do not use this audit to introduce automated prices or production data.
-- Calculator-only Stage 2 work may proceed under its reviewed 2026-08-27 plan.
+- Calculator-only web work may proceed under its reviewed plan.
 - Do not write qualification artifacts to `public/data`.
 - Do not commit the token, credentials, or raw audit files.
 - If access fails, record the exact error and request the downloaded artifact
@@ -86,9 +86,9 @@ On 2026-08-26, the authenticated artifact regeneration verified:
 - Qualification: `calculator_only_fallback`, zero selected crops, zero
   eligible series; best FEWS recent completeness is 69.4%.
 
-The resulting decision is `calculator_only_fallback`: artifact access and
-manifest verification succeeded, but the technical crop gate did not reach
-five selected crops. Rights and transaction-type review also remain pending.
-The fallback outcome was reviewed and accepted on 2026-08-27. Agents may work
-on the strict farmer-input calculator, but must not publish automated price
-claims or begin Stage 3 from this result.
+The resulting historical decision is `calculator_only_fallback`: artifact
+access and manifest verification succeeded, but the technical crop gate did
+not reach five selected crops. Rights and transaction-type review also remain
+pending. The 2026-09-09 remediation attempts likewise failed closed on FEWS
+retrieval; agents may work on the strict farmer-input web calculator, but must
+not publish automated price claims or begin Stage 3 from any fallback result.

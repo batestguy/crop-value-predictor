@@ -8,6 +8,7 @@ checksums, and a machine-readable manifest, but never changes ``public/data``.
 from __future__ import annotations
 
 import argparse
+import calendar
 import csv
 import hashlib
 import json
@@ -168,16 +169,32 @@ def load_register() -> list[dict]:
             retrieval = source["retrieval"]
             assert retrieval.get("page_size") == 100, source_id
             assert retrieval.get("filter") == {"ISO3": "NGA"}, source_id
+        if source.get("retrieval", {}).get("mode") == "world_bank_bulk_zip":
+            retrieval = source["retrieval"]
+            assert retrieval.get("study_idno") == "NGA_2021_RTFP_v02_M", source_id
+            assert retrieval.get("expected_filename_prefix") == "NGA_RTFP_mkt_", source_id
+            assert retrieval.get("accepted_extensions") == [".zip"], source_id
+            assert retrieval.get("country_field") == "ISO3", source_id
+            assert retrieval.get("country_value") == "NGA", source_id
         if source.get("retrieval", {}).get("mode") == "fews_v3_paginated_json":
             retrieval = source["retrieval"]
-            assert source["download_url"].endswith(".json"), source_id
-            assert retrieval.get("country_parameter") == "country_code", source_id
-            assert retrieval.get("country_code") == "NG", source_id
+            endpoint = source["download_url"].rstrip("/")
+            assert source["download_url"].endswith(".json") or endpoint.endswith("/marketpricefacts"), source_id
+            assert retrieval.get("country_parameter") in {"country_code", "country"}, source_id
+            if retrieval.get("country_parameter") == "country":
+                assert retrieval.get("country_value") == "NG", source_id
+            else:
+                assert retrieval.get("country_code") == "NG", source_id
             assert retrieval.get("page_size_parameter") == "page_size", source_id
             assert retrieval.get("offset_parameter") == "offset", source_id
             assert retrieval.get("response_total_field") == "count", source_id
             assert retrieval.get("response_rows_field") == "results", source_id
+            assert retrieval.get("format_parameter") == "format", source_id
+            assert retrieval.get("format") == "json", source_id
             assert retrieval.get("row_country_fields") == ["country_code", "country"], source_id
+            assert isinstance(retrieval.get("history_months"), int) and retrieval["history_months"] >= 36, source_id
+            assert isinstance(retrieval.get("page_delay_seconds"), (int, float)) and 0 <= retrieval["page_delay_seconds"] <= 10, source_id
+            assert isinstance(retrieval.get("transient_statuses"), list) and all(isinstance(status, int) for status in retrieval["transient_statuses"]), source_id
             assert isinstance(retrieval.get("request_timeout_seconds"), int) and 1 <= retrieval["request_timeout_seconds"] <= 120, source_id
             assert isinstance(retrieval.get("retries"), int) and 1 <= retrieval["retries"] <= 3, source_id
     return sources
@@ -189,6 +206,12 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def shift_month(ym: str, delta: int) -> str:
+    year, month = map(int, ym.split("-"))
+    index = year * 12 + month - 1 + delta
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"
 
 
 def _json_rows(payload: object) -> list[dict]:
@@ -288,28 +311,127 @@ def download_nada_paginated(
     }
 
 
+def discover_world_bank_bulk(
+    source: dict,
+    *,
+    opener: Callable = urlopen,
+) -> dict:
+    """Discover the current open Nigeria RTFP bulk file from the catalog API."""
+    retrieval = source.get("retrieval", {})
+    if retrieval.get("mode") != "world_bank_bulk_zip":
+        raise ValueError("World Bank adapter requires the bulk ZIP retrieval mode")
+    study_idno = str(retrieval.get("study_idno", "")).strip()
+    prefix = str(retrieval.get("expected_filename_prefix", "")).strip()
+    extensions = {str(item).lower() for item in retrieval.get("accepted_extensions", [])}
+    if not study_idno or not prefix or not extensions:
+        raise ValueError("World Bank bulk discovery contract is incomplete")
+    request = Request(source["download_url"], headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "application/json"})
+    with opener(request, timeout=60) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    if not isinstance(payload, dict) or payload.get("status") != "success" or not isinstance(payload.get("files"), list):
+        raise ValueError("World Bank bulk discovery returned an invalid response")
+    candidates = []
+    for item in payload["files"]:
+        if not isinstance(item, dict):
+            continue
+        filename = str(item.get("filename", "")).strip()
+        download_url = str((item.get("links") or {}).get("download", "")).strip()
+        if not filename.startswith(prefix) or Path(filename).suffix.lower() not in extensions:
+            continue
+        if str(item.get("study_idno", study_idno)) != study_idno or item.get("data_access_type") != "open":
+            continue
+        if not download_url.startswith("https://"):
+            continue
+        candidates.append(item)
+    if not candidates:
+        raise ValueError("expected at least one current open World Bank RTFP bulk file")
+    item = max(candidates, key=lambda value: (str(value.get("dcdate", "")), str(value.get("changed", "")), str(value.get("resource_id", ""))))
+    return {
+        "url": str(item["links"]["download"]),
+        "resource_id": item.get("resource_id"),
+        "filename": item.get("filename"),
+        "title": item.get("title"),
+        "version_date": item.get("dcdate"),
+        "last_modified": item.get("changed"),
+        "data_access_type": item.get("data_access_type"),
+        "catalog_url": source["url"],
+    }
+
+
+def download_world_bank_bulk(
+    source: dict,
+    target: Path,
+    *,
+    opener: Callable = urlopen,
+) -> dict:
+    """Retrieve and validate the current open World Bank Nigeria RTFP ZIP."""
+    discovery = discover_world_bank_bulk(source, opener=opener)
+    temporary = target.with_name(target.name + ".tmp")
+    request = Request(discovery["url"], headers={"User-Agent": "crop-value-predictor-stage1/1.0"})
+    with opener(request, timeout=120) as response, temporary.open("wb") as handle:
+        while chunk := response.read(1024 * 1024):
+            handle.write(chunk)
+    if not temporary.stat().st_size:
+        temporary.unlink()
+        raise ValueError("World Bank bulk response is empty")
+    rows = 0
+    date_values: list[str] = []
+    with zipfile.ZipFile(temporary) as archive:
+        members = [name for name in archive.namelist() if name.lower().endswith(".csv") and not name.endswith("/")]
+        if len(members) != 1:
+            raise ValueError(f"World Bank bulk ZIP must contain one CSV, found {len(members)}")
+        with archive.open(members[0]) as binary:
+            reader = csv.DictReader(line.decode("utf-8-sig") for line in binary)
+            if "ISO3" not in (reader.fieldnames or []) or "price_date" not in (reader.fieldnames or []):
+                raise ValueError("World Bank bulk CSV is missing ISO3 or price_date")
+            for row in reader:
+                if row.get("ISO3") != "NGA":
+                    raise ValueError("World Bank bulk CSV contains a non-Nigeria row")
+                rows += 1
+                if row.get("price_date"):
+                    date_values.append(str(row["price_date"])[:10])
+    if not rows:
+        temporary.unlink()
+        raise ValueError("World Bank bulk CSV contains zero Nigeria rows")
+    temporary.replace(target)
+    return {
+        "status": "downloaded", "path": target.name, "bytes": target.stat().st_size,
+        "sha256": sha256_file(target), "rows": rows, "csv_members": members,
+        "date_min": min(date_values) if date_values else None, "date_max": max(date_values) if date_values else None,
+        "url": discovery["url"], "catalog_url": discovery["catalog_url"],
+        "resource_id": discovery["resource_id"], "resource_filename": discovery["filename"],
+        "version_date": discovery["version_date"], "last_modified": discovery["last_modified"],
+        "data_access_type": discovery["data_access_type"],
+    }
+
+
 def download_fews_paginated(
     source: dict,
     target: Path,
     *,
+    cutoff_month: str | None = None,
     opener=urlopen,
     sleep: Callable[[float], None] = time.sleep,
     retries: int = 3,
 ) -> dict:
     """Download documented FEWS Data Explorer v3 pages, fail-closed.
 
-    The configured contract is deliberately narrow: a ``.json`` endpoint,
-    ``country_code=NG`` plus ``page_size``/``offset`` query parameters, and a
-    ``count``/``results`` response.  Alternate envelopes are not silently
-    accepted because they could change geography or pagination semantics.
+    The configured contract is deliberately narrow: the documented
+    ``marketpricefacts`` endpoint, an exact Nigeria filter, explicit JSON
+    format, ``page_size``/``offset`` pagination, and a ``count``/``results``
+    response. Alternate envelopes are not silently accepted because they could
+    change geography or pagination semantics.
     """
     retrieval = source.get("retrieval", {})
     if retrieval.get("mode") not in {None, "fews_v3_paginated_json"}:
         raise ValueError("FEWS adapter requires the documented v3 retrieval mode")
-    if not str(source.get("download_url", "")).endswith(".json"):
-        raise ValueError("FEWS adapter requires a .json endpoint")
-    if retrieval.get("country_parameter", "country_code") != "country_code" or retrieval.get("country_code") != "NG":
-        raise ValueError("FEWS adapter requires country_code=NG")
+    endpoint = str(source.get("download_url", ""))
+    if not endpoint.endswith(".json") and not endpoint.rstrip("/").endswith("/marketpricefacts"):
+        raise ValueError("FEWS adapter requires the documented marketpricefacts endpoint")
+    country_parameter = retrieval.get("country_parameter", "country_code")
+    country_value = retrieval.get("country_value", retrieval.get("country_code", "NG"))
+    if country_parameter not in {"country_code", "country"} or country_value != "NG":
+        raise ValueError("FEWS adapter requires an exact Nigeria country filter")
     if retrieval.get("page_size_parameter", "page_size") != "page_size" or retrieval.get("offset_parameter", "offset") != "offset":
         raise ValueError("FEWS adapter requires page_size and offset pagination")
     if retrieval.get("response_total_field", "count") != "count" or retrieval.get("response_rows_field", "results") != "results":
@@ -319,12 +441,31 @@ def download_fews_paginated(
         raise ValueError("FEWS page size is outside the safe range")
     request_timeout_seconds = int(retrieval.get("request_timeout_seconds", 30))
     retries = int(retrieval.get("retries", retries))
+    transient_statuses = {int(status) for status in retrieval.get("transient_statuses", [429, 500, 502, 503, 504])}
+    page_delay_seconds = float(retrieval.get("page_delay_seconds", 0))
+    if page_delay_seconds < 0 or page_delay_seconds > 10:
+        raise ValueError("FEWS page delay is outside the safe range")
     if not 1 <= request_timeout_seconds <= 120:
         raise ValueError("FEWS request timeout must be between 1 and 120 seconds")
     if not 1 <= retries <= 3:
         raise ValueError("FEWS retries must be between 1 and 3")
     offset_key = "offset"
-    query_base = {"country_code": "NG", "page_size": page_size}
+    query_base = {str(country_parameter): str(country_value), "page_size": page_size}
+    for key, value in (retrieval.get("query_parameters") or {}).items():
+        query_base[str(key)] = str(value)
+    format_parameter = retrieval.get("format_parameter")
+    if format_parameter:
+        if retrieval.get("format") != "json":
+            raise ValueError("FEWS adapter requires JSON format")
+        query_base[str(format_parameter)] = "json"
+    history_months = retrieval.get("history_months")
+    if history_months and cutoff_month and not retrieval.get("canary_start_date"):
+        history_months = int(history_months)
+        if history_months < 36:
+            raise ValueError("FEWS history window must cover at least 36 months")
+        query_base["start_date"] = f"{shift_month(cutoff_month, 1 - history_months)}-01"
+        end_day = calendar.monthrange(*map(int, cutoff_month.split("-")))[1]
+        query_base["end_date"] = f"{cutoff_month}-{end_day:02d}"
     for query_key, retrieval_key in (("start_date", "canary_start_date"), ("end_date", "canary_end_date")):
         if retrieval.get(retrieval_key):
             query_base[query_key] = str(retrieval[retrieval_key])
@@ -334,7 +475,8 @@ def download_fews_paginated(
     pages = 0
     while total is None or len(rows) < total:
         query = {**query_base, offset_key: offset}
-        url = f"{source['download_url']}?{urlencode(query)}"
+        separator = "&" if "?" in source["download_url"] else "?"
+        url = f"{source['download_url']}{separator}{urlencode(query)}"
         payload = None
         last_error: Exception | None = None
         for attempt in range(retries):
@@ -342,14 +484,14 @@ def download_fews_paginated(
                 request = Request(url, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "application/json"})
                 with opener(request, timeout=request_timeout_seconds) as response:
                     status = getattr(response, "status", 200)
-                    if status == 429 or status >= 500:
+                    if status in transient_statuses:
                         raise HTTPError(url, status, "transient HTTP response", hdrs=None, fp=None)
                     payload = json.loads(response.read().decode("utf-8"))
                 break
             except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
                 last_error = error
                 status = getattr(error, "code", None)
-                transient = isinstance(error, (TimeoutError, URLError, OSError)) or status == 429 or (status is not None and status >= 500)
+                transient = isinstance(error, (TimeoutError, URLError, OSError)) or status in transient_statuses
                 if not transient or attempt == retries - 1:
                     break
                 sleep(min(2 ** attempt, 4))
@@ -377,15 +519,17 @@ def download_fews_paginated(
         if len(rows) > total:
             raise ValueError("FEWS returned more rows than its reported total")
         offset += len(page_rows)
+        if page_delay_seconds and len(rows) < total:
+            sleep(page_delay_seconds)
     if total is None or len(rows) != total:
         raise ValueError("FEWS pagination ended before all rows were collected")
     temporary = target.with_name(target.name + ".tmp")
     temporary.write_text(json.dumps({"count": total, "results": rows}, separators=(",", ":")) + "\n", encoding="utf-8")
     temporary.replace(target)
-    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country_code": "NG"}, "requested_page_size": page_size, "request_timeout_seconds": request_timeout_seconds, "retries": retries}
+    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {str(country_parameter): str(country_value)}, "requested_page_size": page_size, "request_timeout_seconds": request_timeout_seconds, "retries": retries}
 
 
-def download(source: dict, raw_dir: Path) -> dict:
+def download(source: dict, raw_dir: Path, cutoff_month: str | None = None) -> dict:
     started = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     record = {
         "source_id": source["source_id"],
@@ -407,10 +551,18 @@ def download(source: dict, raw_dir: Path) -> dict:
             record.update({"status": "failed", "error": str(error)})
         return record
 
+    if source.get("retrieval", {}).get("mode") == "world_bank_bulk_zip":
+        target = raw_dir / f"{source['source_id']}.zip"
+        try:
+            record.update(download_world_bank_bulk(source, target))
+        except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError, zipfile.BadZipFile, json.JSONDecodeError) as error:
+            record.update({"status": "failed", "error": str(error)})
+        return record
+
     if source.get("retrieval", {}).get("mode") == "fews_v3_paginated_json":
         target = raw_dir / f"{source['source_id']}.json"
         try:
-            record.update(download_fews_paginated(source, target))
+            record.update(download_fews_paginated(source, target, cutoff_month=cutoff_month))
         except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError) as error:
             record.update({"status": "failed", "error": str(error)})
         return record
@@ -565,9 +717,10 @@ def profile_file(path: Path, cutoff_month: str | None = None) -> dict:
 
 
 def run_fetch(output_dir: Path, cutoff_month: str, sources: list[dict]) -> int:
+    output_dir.mkdir(parents=True, exist_ok=True)
     raw_dir = output_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    records = [download(source, raw_dir) for source in sources]
+    records = [download(source, raw_dir, cutoff_month=cutoff_month) for source in sources]
     manifest = {
         "schema_version": "1.0.0",
         "cutoff_month": cutoff_month,

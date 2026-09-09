@@ -1,4 +1,6 @@
 import json
+import io
+import zipfile
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -6,7 +8,7 @@ from pathlib import Path
 from datetime import date
 
 ROOT = Path(__file__).resolve().parents[1]
-from pipeline.source_audit import download_nada_paginated, download_fews_paginated, profile_json, profile_zip, discover_wfp_hdx, download_http_csv, run_fetch, sanitize_url
+from pipeline.source_audit import download_nada_paginated, download_fews_paginated, profile_json, profile_zip, discover_wfp_hdx, discover_world_bank_bulk, download_world_bank_bulk, download_http_csv, run_fetch, sanitize_url
 from pipeline.qualification import (
     convert_kg, qualify_series, canonical_crop, national_median,
     normalize_fews, verify_manifest, build_report,
@@ -27,18 +29,57 @@ class _Response:
         return json.dumps(self.payload).encode()
 
 
+class _BytesResponse:
+    def __init__(self, payload):
+        self.payload = payload
+        self.status = 200
+    def __enter__(self):
+        return self
+    def __exit__(self, *_):
+        return False
+    def read(self, *_):
+        payload, self.payload = self.payload, b""
+        return payload
+
+
 class SourceRegisterTests(unittest.TestCase):
     def test_fews_is_primary_and_wfp_is_cross_check_only(self):
         sources = json.loads((ROOT / "config" / "sources.json").read_text(encoding="utf-8"))["sources"]
         by_id = {s["source_id"]: s for s in sources}
         self.assertTrue(by_id["fews-net"]["required_for_gate"])
         self.assertEqual(by_id["fews-net"]["retrieval"]["mode"], "fews_v3_paginated_json")
-        self.assertTrue(by_id["fews-net"]["download_url"].endswith(".json"))
+        self.assertTrue(by_id["fews-net"]["download_url"].rstrip("/").endswith("/marketpricefacts"))
+        self.assertEqual(by_id["fews-net"]["retrieval"]["format"], "json")
+        self.assertEqual(by_id["fews-net"]["retrieval"]["country_parameter"], "country")
+        self.assertEqual(by_id["fews-net"]["retrieval"]["query_parameters"]["dataset"], "FEWS_NET_Staple_Food_Price_Data")
         self.assertEqual(by_id["fews-net"]["retrieval"]["page_size_parameter"], "page_size")
         self.assertFalse(by_id["wfp-hdx"]["required_for_gate"])
         self.assertFalse(by_id["world-bank-rtfp"]["required_for_gate"])
         self.assertFalse(by_id["faostat-qcl"]["required_for_gate"])
         self.assertEqual(by_id["wfp-hdx"]["retrieval"]["excluded_resources"][0]["name"], "Nigeria - Markets")
+
+    def test_world_bank_bulk_discovery_chooses_latest_open_candidate(self):
+        source = {"source_id": "world-bank-rtfp", "url": "https://catalog.test/4503", "download_url": "https://catalog.test/files", "retrieval": {"mode": "world_bank_bulk_zip", "study_idno": "NGA_2021_RTFP_v02_M", "expected_filename_prefix": "NGA_RTFP_mkt_", "accepted_extensions": [".zip"]}}
+        payload = {"status": "success", "files": [
+            {"filename": "NGA_RTFP_mkt_2026-07-24.zip", "study_idno": "NGA_2021_RTFP_v02_M", "data_access_type": "open", "dcdate": "2026-07-24", "changed": "2026-07-24", "resource_id": 1, "links": {"download": "https://files.test/old.zip"}},
+            {"filename": "NGA_RTFP_mkt_2026-08-24.zip", "study_idno": "NGA_2021_RTFP_v02_M", "data_access_type": "open", "dcdate": "2026-08-24", "changed": "2026-08-24", "resource_id": 2, "links": {"download": "https://files.test/new.zip"}},
+            {"filename": "NGA_RTFP_mkt_private.zip", "study_idno": "NGA_2021_RTFP_v02_M", "data_access_type": "restricted", "dcdate": "2027-01-01", "links": {"download": "https://files.test/private.zip"}},
+        ]}
+        result = discover_world_bank_bulk(source, opener=lambda request, timeout: _Response(payload))
+        self.assertEqual(result["url"], "https://files.test/new.zip")
+        self.assertEqual(result["resource_id"], 2)
+
+    def test_world_bank_bulk_download_validates_country_and_csv_schema(self):
+        source = {"source_id": "world-bank-rtfp", "url": "https://catalog.test/4503", "download_url": "https://catalog.test/files", "retrieval": {"mode": "world_bank_bulk_zip", "study_idno": "NGA_2021_RTFP_v02_M", "expected_filename_prefix": "NGA_RTFP_mkt_", "accepted_extensions": [".zip"]}}
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as handle:
+            handle.writestr("NGA_RTFP_mkt_2026-08-24.csv", "ISO3,price_date\nNGA,2026-08-01\n")
+        catalog = {"status": "success", "files": [{"filename": "NGA_RTFP_mkt_2026-08-24.zip", "study_idno": "NGA_2021_RTFP_v02_M", "data_access_type": "open", "dcdate": "2026-08-24", "changed": "2026-08-24", "resource_id": 2, "links": {"download": "https://files.test/new.zip"}}]}
+        calls = iter([_Response(catalog), _BytesResponse(archive.getvalue())])
+        with tempfile.TemporaryDirectory() as folder:
+            result = download_world_bank_bulk(source, Path(folder) / "world-bank.zip", opener=lambda request, timeout: next(calls))
+        self.assertEqual(result["rows"], 1)
+        self.assertEqual(result["date_max"], "2026-08-01")
 
     def test_synthetic_five_crop_three_stable_market_price_gate(self):
         rows = []
@@ -274,6 +315,32 @@ class SourceRegisterTests(unittest.TestCase):
         self.assertEqual(timeouts, [7, 7])
         self.assertTrue(all("country_code=NG" in url and "country=NG" not in url for url in urls))
         self.assertEqual(result["filter"], {"country_code": "NG"})
+
+    def test_fews_dataset_filter_is_preserved_in_documented_request(self):
+        urls = []
+        def opener(request, timeout):
+            urls.append(request.full_url)
+            return _Response({"count": 1, "results": [{"country": "Nigeria"}]})
+        with tempfile.TemporaryDirectory() as folder:
+            result = download_fews_paginated({
+                "download_url": "https://example.test/marketpricefacts/",
+                "retrieval": {
+                    "mode": "fews_v3_paginated_json", "country_parameter": "country",
+                    "country_value": "NG", "page_size_parameter": "page_size",
+                    "offset_parameter": "offset", "response_total_field": "count",
+                    "response_rows_field": "results", "row_country_fields": ["country_code", "country"],
+                    "query_parameters": {"dataset": "FEWS_NET_Staple_Food_Price_Data", "fields": "website"},
+                    "format_parameter": "format", "format": "json", "history_months": 60, "page_size": 1,
+                    "request_timeout_seconds": 7, "retries": 1, "transient_statuses": [403, 429, 500],
+                    "page_delay_seconds": 0,
+                },
+            }, Path(folder) / "fews.json", cutoff_month="2026-08", opener=opener, sleep=lambda _: None)
+        self.assertEqual(result["filter"], {"country": "NG"})
+        self.assertIn("country=NG", urls[0])
+        self.assertIn("dataset=FEWS_NET_Staple_Food_Price_Data", urls[0])
+        self.assertIn("format=json", urls[0])
+        self.assertIn("start_date=2021-09-01", urls[0])
+        self.assertIn("end_date=2026-08-31", urls[0])
 
     def test_required_retrieval_failure_writes_manual_only_fallback_record(self):
         sources = [{"source_id": "fews-net", "required_for_gate": True, "download_url": "https://example.test/fews.json", "formats": ["json"]}]

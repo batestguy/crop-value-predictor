@@ -3,17 +3,17 @@ import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { COST_CATEGORIES, calculateScenarios, type CostCategory, type UserScenarioInput } from './calculations'
 import { clearDraft, loadDraft, saveDraft, type SavedScenarioV1 } from './persistence'
-import { loadApprovedPriceSuggestions, suggestionsForCrop, type PriceSuggestion, type PriceSuggestionsSnapshot } from './priceSuggestions'
+import { loadApprovedPriceSuggestions, loadModeledPriceSuggestions, suggestionsForCrop, type PriceSuggestion, type PriceSuggestionsSnapshot } from './priceSuggestions'
 
 const crops = [
-  ['maize-white', 'White maize', 'dry grain'], ['rice', 'Rice', 'paddy'], ['cassava', 'Cassava', 'fresh roots'], ['yam', 'Yam', 'fresh tuber'], ['sorghum', 'Sorghum', 'dry grain'],
+  ['maize-white', 'White maize', 'dry grain'], ['rice', 'Rice', 'paddy'], ['cassava', 'Cassava', 'fresh roots'], ['yam', 'Yam', 'fresh tuber'], ['sorghum', 'Sorghum', 'dry grain'], ['rice-milled', 'Milled rice', 'milled rice'], ['gari-white', 'White gari', 'processed cassava'], ['millet', 'Pearl millet', 'dry grain'],
 ] as const
 const labels: Record<CostCategory, string> = { land_preparation: 'Land prep', seed: 'Seed', fertilizer: 'Fertilizer', pesticide: 'Pesticide', labour: 'Labour', irrigation: 'Irrigation', transport: 'Transport', storage: 'Storage' }
 type DraftCrop = SavedScenarioV1['inputsByCropId'][string]
 const blankCrop = (): DraftCrop => ({ yieldTPerHa: '', sellingPriceNgnPerKg: '', lowPriceNgnPerKg: '', highPriceNgnPerKg: '', costsPerHa: Object.fromEntries(COST_CATEGORIES.map((key) => [key, ''])) as Record<CostCategory, string> })
 const money = (value: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(value)
 const number = (value: string) => value.trim() === '' ? Number.NaN : Number(value)
-const priceLabel = (draft: DraftCrop) => draft.priceOrigin === 'sourced_suggestion' && draft.priceSuggestion ? `Sourced suggestion · ${draft.priceSuggestion.marketName} · ${draft.priceSuggestion.priceType}` : 'User-entered value'
+const priceLabel = (draft: DraftCrop) => draft.priceOrigin === 'sourced_suggestion' && draft.priceSuggestion ? draft.priceSuggestion.priceType === 'modeled_estimate' ? `Modeled estimate · ${draft.priceSuggestion.marketName} · not observed` : `Sourced suggestion · ${draft.priceSuggestion.marketName} · ${draft.priceSuggestion.priceType}` : 'User-entered value'
 
 function App() {
   const [restored] = useState(() => loadDraft()); const initial = restored.draft
@@ -32,7 +32,7 @@ function App() {
   const skipInitialSave = useRef(restored.recovered || restored.storageUnavailable)
   const getCrop = (id: string) => crops.find((crop) => crop[0] === id)!
   const draftFor = (id: string) => inputs[id] ?? blankCrop()
-  useEffect(() => { loadApprovedPriceSuggestions().then((snapshot) => { setPriceSnapshot(snapshot); setSuggestionsLoaded(true) }) }, [])
+  useEffect(() => { loadApprovedPriceSuggestions().then((snapshot) => snapshot ?? loadModeledPriceSuggestions()).then((snapshot) => { setPriceSnapshot(snapshot); setSuggestionsLoaded(true) }) }, [])
   useEffect(() => {
     if (skipInitialSave.current) { skipInitialSave.current = false; return }
     const blank = area.trim() === '' && selected.length === 0 && Object.keys(inputs).length === 0
@@ -55,7 +55,8 @@ function App() {
   const toggle = (id: string) => { setSelected((current) => { const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id]; if (id === activeCrop && !next.includes(id)) setActiveCrop(next[0] ?? ''); return next }); if (!selected.includes(id)) setActiveCrop(id) }
   const ready = batch.status === 'ready'; const winner = ready ? batch.results[0] : undefined; const active = draftFor(activeCrop); const activeSuggestions = suggestionsForCrop(priceSnapshot, activeCrop)
   const reset = () => { const cleared = clearDraft(); setArea(''); setSelected([]); setInputs({}); setActiveCrop(''); setNotice(cleared ? 'Draft cleared. Enter at least two complete crop scenarios to compare.' : 'Your browser could not clear the saved draft. The screen was reset, but saved data may remain.') }
-  return <div className="app-shell">
+   return <div className="app-shell">
+     {priceSnapshot?.lane === 'world-bank-modeled-estimates' && <div className="notice" role="status"><span>!</span><span>Optional modeled estimates are shown as editable context only. They are not observed retail, wholesale, or farmer selling prices.</span></div>}
     <header className="topbar"><div className="wordmark"><span className="leaf-mark">✳</span><span>fieldmargin</span></div><div className="status-chip"><span className="pulse" /> calculator-only · works offline</div><button className="icon-button" aria-label="Open help">?</button></header>
     <main><section className="hero"><div><p className="eyebrow">A calmer way to plan a season</p><h1>Know your margin<br /><em>before</em> you plant.</h1><p className="hero-copy">Compare crops using your own field numbers. Your draft stays on this device.</p></div><div className="hero-note"><span className="note-label">FIELD NOTE 01</span><strong>Profit is a scenario,<br />not a promise.</strong><span>Enter a selling point, yield, and local costs for each crop.</span></div></section>
       {notice && <div className="notice" role="status"><span>ⓘ</span><span>{notice}</span><button onClick={() => setNotice('')}>Dismiss</button></div>}

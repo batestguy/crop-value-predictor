@@ -21,9 +21,10 @@ def main() -> None:
     documents = {name: load(name) for name in FILES}
     manifest = documents["manifest.json"]
     snapshot = manifest["snapshot_id"]
-    assert manifest["schema_version"] in {"1.1.0", "1.2.0"}
+    assert manifest["schema_version"] in {"1.1.0", "1.2.0", "1.3.0"}
     if not manifest["stage_1_approved"]:
-        assert set(manifest["artifacts"]) == set(FILES[1:])
+        assert set(FILES[1:]).issubset(manifest["artifacts"])
+        assert "price_suggestions.json" not in manifest["artifacts"]
     for name, document in documents.items():
         assert document["snapshot_id"] == snapshot, f"snapshot mismatch: {name}"
 
@@ -37,7 +38,7 @@ def main() -> None:
     assert not forecasts, "calculator-only snapshot cannot contain forecasts"
     assert not documents["defaults.json"]["yield_defaults"]
     assert not documents["defaults.json"]["cost_defaults"]
-    assert documents["quality.json"]["pipeline"]["status"] == "calculator_only"
+    assert documents["quality.json"]["pipeline"]["status"] in {"calculator_only", "calculator_only_with_modeled_context"}
     for forecast in forecasts:
         key = (forecast["crop_id"], forecast["location_id"], forecast["horizon_months"])
         assert key not in forecast_keys, f"duplicate forecast: {key}"
@@ -67,6 +68,14 @@ def main() -> None:
             assert item["source"].get("commodity_label")
     else:
         assert "price_suggestions.json" not in manifest["artifacts"]
+    if manifest.get("modeled_estimates_enabled"):
+        assert "modeled_price_suggestions.json" in manifest["artifacts"]
+        modeled = load("modeled_price_suggestions.json")
+        assert modeled["snapshot_id"] == manifest["modeled_estimate_snapshot_id"]
+        assert modeled["lane"] == "world-bank-modeled-estimates"
+        assert "not observed" in modeled["warning"]
+        assert modeled["suggestions"]
+        assert all(item["price_type"] == "modeled_estimate" for item in modeled["suggestions"])
     print(f"validated {snapshot}: {len(crop_ids)} crops, calculator-only snapshot")
 
 
