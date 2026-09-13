@@ -159,6 +159,7 @@ test('adds an other crop and reviews Tavily starting values before applying them
     })
   })
   await page.goto('/')
+  await expect(page.getByPlaceholder('e.g. dry grain')).toBeVisible()
   await page.getByLabel('Other crop name').fill('Soybean')
   await page.getByLabel('Other crop form').fill('dry grain')
   await page.getByRole('button', { name: 'Add other crop' }).click()
