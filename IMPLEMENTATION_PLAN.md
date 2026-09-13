@@ -51,6 +51,26 @@ failure is `expected exactly one official Nigeria FEWS CSV link, found 0`.
 Phase 1 is now **Closed — fallback accepted**. It is not approved, and no
 additional attempt against the same page or obsolete API path is planned.
 
+## Proposed Phase 3A — Online Research Assist
+
+The product direction includes an optional online research assist alongside the
+default offline calculator. Gate A was authorized for review on 2026-09-13;
+the feature is not implemented and deployment is not authorized. A farmer may
+eventually provide a Nigerian state and crop so a server-side/edge service can
+search an approved, rights-compatible multi-source allowlist and return a
+transparent aggregate estimate, range, and supporting evidence for explicit
+confirmation.
+Confirmed estimates remain editable with provenance; only complete scenarios rank.
+
+The full future-phase contract is
+[`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+It defines source policy, model limits, privacy/security controls, the
+three-minute timeout target, partial/failure behavior, free-tier verification,
+acceptance evidence, and stop conditions. This lane does not reopen Stage 1,
+approve observed prices, change static snapshots, unlock Stages 3/4, or make
+online evidence an automatic ranking input. Model-only estimates remain context
+only.
+
 ## 1. Delivery decision
 
 The product is viable as a zero-cost, public pilot if it is delivered as a
@@ -432,6 +452,20 @@ yield, sale price, and costs only. Optional user-entered low/high prices produce
 the interval. At least two complete crop scenarios are required before any
 ranking, recommendation label, or printable report is available.
 
+### Phase 3A — Optional online research assist (local slice implemented; separately gated)
+
+See [`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+This lane is deliberately separate from the automated pipeline below. Gate A
+is authorized but not passed for hosted use. The local development route uses
+the retained raw snapshot first and a bounded Tavily fallback only when local
+evidence is unavailable. Its entry evidence must include a
+multi-source Nigeria-focused allowlist and rights review, aggregation rules,
+privacy/security design, free-tier verification, and a chosen edge/server-side
+runtime. It returns a provenance-labelled aggregate and supporting evidence for
+explicit user confirmation only; it never supplies
+automatic ranking inputs or production snapshots. Deployment is separately
+authorized.
+
 ### Stage 3 — Automated data pipeline
 
 **Work**
@@ -628,7 +662,7 @@ farmer-validated.
 - A data or model failure reduces scope or falls back transparently; it never
   invents a crop, market, conversion, price, yield, cost, or confidence claim.
 
-## 11. Deferred features
+## 11. Deferred features and proposed Phase 3A boundary
 
 The following are explicitly outside the pilot and require a later evidence,
 cost, privacy, or usability decision:
@@ -637,9 +671,11 @@ cost, privacy, or usability decision:
 - agro-ecological-zone, state-wide, LGA-wide, or market-town estimates without
   qualified observations;
 - one-week forecasts from monthly data;
-- live browser calls to agricultural, weather, or foreign-exchange APIs;
-- an always-on FastAPI service, PostgreSQL, Celery, paid hosting, or server-side
-  model inference;
+- background or automatic browser calls to agricultural, weather, or
+  foreign-exchange APIs;
+- an always-on FastAPI service, PostgreSQL, Celery, paid hosting, or permanent
+  cloud scenario storage;
+- server-side model inference as an automatic source of prices;
 - accounts, cloud scenario history, admin dashboards, and personal-data sync;
 - Pidgin, Hausa, Yoruba, and Igbo releases before reviewed translation and field
   validation;
@@ -649,16 +685,27 @@ cost, privacy, or usability decision:
 - automatic adoption of ADIP, Coldtivate, Farm Price API, Kaggle mirrors,
   AfroTools, or any new source before it passes the same source gate.
 
+The separately proposed Phase 3A lane is documented in
+[`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+It is the only planned exception to the otherwise offline-only interaction
+model, and it remains disabled until its own authorization, source/rights,
+privacy/security, free-tier, service, evidence, and deployment gates pass.
+It may return provenance-labelled aggregate estimates and their underlying
+evidence for explicit farmer confirmation;
+it may not create automated defaults, live snapshots, automatic rankings,
+forecasts, or Stage 3/4 inputs.
+
 ## 12. Delivery completion definition
 
-The public pilot is complete only when all six stage gates pass; the current
+The public pilot is complete only when the applicable stage gates pass; the current
 static JSON contract is published; the PWA performs the full decision flow
 offline; every recommendation is reproducible from its snapshot and inputs; all
 source, freshness, price-basis, uncertainty, and fallback labels are visible;
 the literature-informed readiness decision and limitations are documented; and
-any later participant, physical-device, deployment, or forecast evidence has
-passed its own gate. Literature-informed readiness does not mean farmer-
-validated.
+any later participant, physical-device, deployment, forecast, or optional online
+research evidence has passed its own gate. Phase 3A is not required for the
+offline calculator release. Literature-informed readiness does not mean
+farmer-validated.
 
 If fewer than five crops pass the source audit, a useful offline calculator may
 still be released, but it is not branded as a crop value predictor and it uses
@@ -680,16 +727,16 @@ farmer-entered expected sale prices instead of automated forecasts.
 - [Cloudflare Pages free-plan limits](https://developers.cloudflare.com/pages/platform/limits/)
 - [GitHub Actions billing and free public-repository usage](https://docs.github.com/en/actions/concepts/billing-and-usage)
 - [web.dev: offline PWA data with Cache Storage and IndexedDB](https://web.dev/learn/pwa/offline-data)
-# Verification boundary — 2026-09-04
+# Verification boundary — 2026-09-13
 
-The prior Stage 1 audit is `Closed — fallback accepted`: WFP/HDX produced zero
-qualified price series, and automated prices remain blocked. A new web-first
-remediation attempt is active. Stage 2 is `Approved` for
+The prior Stage 1 audit is `Closed — fallback accepted`: observed prices remain
+unapproved and automated prices remain blocked. No repeat of the failed API or
+static-export path is active. Stage 2 is `Approved` for
 calculator-only scenarios on
 commit `2e8802f`; clean-clone verification passed npm test (4), typecheck,
 build, six Chromium E2E scenarios, Python tests (26), snapshot validation,
 source-register validation, and `git diff --check`. The gate outcome was
 approved by the user on 2026-09-04. Automated Stages 3–4 remain blocked by the
-unchanged Stage 1 source gate. The next action is to complete the fresh
-web-first source remediation; this does not imply that the full automated
+unchanged Stage 1 source gate. The separately authorized future option is the
+proposed Phase 3A research assist; it does not imply that the automated
 predictor path has passed. Deployment still requires explicit authorization.

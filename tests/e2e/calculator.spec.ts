@@ -111,6 +111,33 @@ test('labels modeled context as editable and never as a qualified price', async 
   await expect(page.getByText('Modeled estimate · Kano · not observed')).toBeVisible()
 })
 
+test('reviews and explicitly confirms an online estimate before saving it', async ({ page }) => {
+  await page.route('**/api/price-research', async (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      status: 'web_fallback', crop_id: 'maize-white', state: 'Lagos', price_type: 'retail',
+      estimate_ngn_per_kg: 816, low_ngn_per_kg: 349, high_ngn_per_kg: 816,
+      confidence: 'low', source_count: 2,
+      sources: [{ title: 'Example market report', url: 'https://example.com/market-report' }],
+      warnings: ['No usable local observation was found.'],
+    }),
+  }))
+  await page.goto('/')
+  await page.getByLabel('Farm state').fill('Lagos')
+  await page.getByRole('button', { name: 'Find internet estimate' }).click()
+  await expect(page.getByText('₦816 / kg', { exact: true })).toBeVisible()
+  await expect(page.getByText('This is a starting point, not a guarantee.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Use this estimate' })).toBeVisible()
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('')
+  await page.getByRole('button', { name: 'Use this estimate' }).click()
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('816')
+  await expect(page.getByText('Internet estimate · Lagos · confirmed')).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('816')
+  await expect(page.getByText('Internet estimate · Lagos · confirmed')).toBeVisible()
+})
+
 test('has no critical accessibility violations before and after a ranked result', async ({ page }) => {
   await page.goto('/')
   await expectNoCriticalAxeViolations(page)

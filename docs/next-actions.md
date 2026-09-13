@@ -2,8 +2,8 @@
 
 **Updated:** 2026-09-13
 **Current release posture:** calculator-only, browser-first PWA
-**Active gate:** Stage 1 is closed as calculator-only fallback; observed prices
-remain unapproved.
+**Active gate:** Phase 3A Gate A is authorized and in review. Stage 1 remains
+closed as calculator-only fallback; observed prices remain unapproved.
 
 This is the operational sequence after the 2026-09-10 fresh audit. It keeps
 the existing technical thresholds and the manual-input fallback intact.
@@ -16,8 +16,9 @@ the existing technical thresholds and the manual-input fallback intact.
 | Offline calculator | Approved and validated | `docs/phases/02-offline-calculator.md` |
 | Observed-price Stage 1 | Closed — fallback accepted; retrieval unavailable | `audit-output-fews-canary-20260913-34731386407` |
 | Modeled context lane | Provisionally retained as editable context | `public/data/v1/modeled_price_suggestions.json` |
+| Optional online research assist | Local development slice implemented; hosted Gate A open | `docs/phases/03-online-research-assist.md` |
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
-| Browser verification | Complete: 17 passed, 1 intentional skip, clean process exit | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
+| Browser verification | Complete: 18 passed, 1 intentional skip; Playwright also confirmed research flow | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
 
 ## Ordered action sequence
 
@@ -74,7 +75,22 @@ Do not promote or alter the public snapshot. Phase 1 is closed as fallback;
 reopening requires a materially changed official access path or provider-supplied
 export URL, followed by a new immutable audit and two independent reviews.
 
-### 4. Continue calculator-only readiness
+### 4. Phase 3A local implementation — completed; hosted gate remains open
+
+The optional hybrid research lane is documented in
+[`03-online-research-assist.md`](./phases/03-online-research-assist.md). It may
+The user authorized the local implementation slice. Gate A is still reviewing
+a multi-source internet aggregate,
+including a candidate Hugging Face WFP/HDX snapshot, Cloudflare Workers/Workers
+AI free-tier viability, Tavily Search free-tier viability, aggregation rules,
+privacy/security controls, and the
+candidate contract. The local Vite endpoint, Python estimator, review UI, and
+draft provenance are now implemented and tested. No production refresh, live
+snapshot, automatic default, or unconfirmed ranking input is authorized. A
+hosted endpoint still requires the source-rights, free-tier, privacy, and
+deployment decisions described in the Phase 3A document.
+
+### 5. Continue calculator-only readiness
 
 While Stage 1 is blocked, permitted work is limited to browser-PWA quality:
 
@@ -84,10 +100,11 @@ While Stage 1 is blocked, permitted work is limited to browser-PWA quality:
 - clear source, modeled-context, and uncertainty wording;
 - reproducible CI and clean-clone verification.
 
-Do not add automated price defaults, browser API calls, forecasting, source
-stitching, participant claims, or production-data promotion.
+Do not add automated price defaults, browser calls to upstream sources,
+forecasting, source stitching, participant claims, or production-data
+promotion.
 
-### 5. Re-open Stage 1 only after a materially changed source path
+### 6. Re-open Stage 1 only after a materially changed source path
 
 Stage 3 can begin only after Stage 1 technical and rights approval. Stage 4
 also requires an approved Stage 3 data pipeline and validation design. Deployment
@@ -100,8 +117,14 @@ The next progress update should contain either:
 
 - an explicit decision to remain calculator-only for the next release slice; or
 - an explicitly authorized immutable observed-price audit with a qualification
-  result and review status.
+  result and review status; or
+- an explicitly authorized Phase 3A implementation gate with its source,
+  rights, privacy, free-tier, service, and test evidence.
 
 Until then, the truthful status is: useful offline calculator, modeled context
 available with warnings, observed prices unapproved, forecasting blocked, and
 not farmer-validated.
+
+If Phase 3A proceeds beyond local development, it must record explicit
+entry-gate evidence and deployment authorization. The local slice does not
+authorize public online retrieval or deployment.

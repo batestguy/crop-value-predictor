@@ -1,8 +1,9 @@
 import { COST_CATEGORIES, type CostCategory } from './calculations'
 import type { PriceType } from './priceSuggestions'
-export type PriceOrigin = 'sourced_suggestion' | 'user_entered'
+export type PriceOrigin = 'sourced_suggestion' | 'online_estimate' | 'user_entered'
 export type SavedPriceSuggestion = { snapshotId: string; suggestionId: string; marketId: string; marketName: string; priceType: PriceType; observationDate: string; sourceAttribution: string }
-export type SavedScenarioV1 = { schemaVersion: 1; savedAt: string; areaHa: string; selectedCropIds: string[]; inputsByCropId: Record<string, { yieldTPerHa: string; sellingPriceNgnPerKg: string; lowPriceNgnPerKg?: string; highPriceNgnPerKg?: string; costsPerHa: Record<CostCategory, string>; marketId?: string; priceOrigin?: PriceOrigin; priceSuggestion?: SavedPriceSuggestion }> }
+export type SavedOnlineEstimate = { state: string; priceType: 'retail' | 'wholesale'; estimateNgnPerKg: number; lowNgnPerKg?: number; highNgnPerKg?: number; status: 'local' | 'web_fallback'; confidence?: 'low' | 'medium' | 'high'; sourceCount?: number; observationCount?: number; marketCount?: number; dateFrom?: string; dateTo?: string; publisher?: string; sources?: { title: string; url: string }[]; retrievedAt: string }
+export type SavedScenarioV1 = { schemaVersion: 1; savedAt: string; areaHa: string; selectedCropIds: string[]; inputsByCropId: Record<string, { yieldTPerHa: string; sellingPriceNgnPerKg: string; lowPriceNgnPerKg?: string; highPriceNgnPerKg?: string; costsPerHa: Record<CostCategory, string>; marketId?: string; priceOrigin?: PriceOrigin; priceSuggestion?: SavedPriceSuggestion; onlineEstimate?: SavedOnlineEstimate }> }
 export const STORAGE_KEY = 'fieldmargin.saved-scenario.v1'
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isStringRecord = (value: unknown): value is Record<string, string> => isRecord(value) && Object.values(value).every((item) => typeof item === 'string')
@@ -12,11 +13,13 @@ const isSavedCrop = (value: unknown): value is SavedScenarioV1['inputsByCropId']
   if (COST_CATEGORIES.some((key) => typeof costs[key] !== 'string')) return false
   const suggestion = value.priceSuggestion
   const validSuggestion = suggestion === undefined || (isRecord(suggestion) && typeof suggestion.snapshotId === 'string' && typeof suggestion.suggestionId === 'string' && typeof suggestion.marketId === 'string' && typeof suggestion.marketName === 'string' && (suggestion.priceType === 'retail' || suggestion.priceType === 'wholesale' || suggestion.priceType === 'modeled_estimate') && typeof suggestion.observationDate === 'string' && typeof suggestion.sourceAttribution === 'string')
-  return Object.keys(value).every((key) => ['yieldTPerHa', 'sellingPriceNgnPerKg', 'lowPriceNgnPerKg', 'highPriceNgnPerKg', 'costsPerHa', 'marketId', 'priceOrigin', 'priceSuggestion'].includes(key)) &&
+  const online = value.onlineEstimate
+  const validOnline = online === undefined || (isRecord(online) && typeof online.state === 'string' && (online.priceType === 'retail' || online.priceType === 'wholesale') && typeof online.estimateNgnPerKg === 'number' && Number.isFinite(online.estimateNgnPerKg) && online.estimateNgnPerKg > 0 && (online.status === 'local' || online.status === 'web_fallback') && typeof online.retrievedAt === 'string' && (online.sources === undefined || (Array.isArray(online.sources) && online.sources.every((source) => isRecord(source) && typeof source.title === 'string' && typeof source.url === 'string'))))
+  return Object.keys(value).every((key) => ['yieldTPerHa', 'sellingPriceNgnPerKg', 'lowPriceNgnPerKg', 'highPriceNgnPerKg', 'costsPerHa', 'marketId', 'priceOrigin', 'priceSuggestion', 'onlineEstimate'].includes(key)) &&
     (value.lowPriceNgnPerKg === undefined || typeof value.lowPriceNgnPerKg === 'string') &&
     (value.highPriceNgnPerKg === undefined || typeof value.highPriceNgnPerKg === 'string') &&
     (value.marketId === undefined || typeof value.marketId === 'string') &&
-    (value.priceOrigin === undefined || value.priceOrigin === 'sourced_suggestion' || value.priceOrigin === 'user_entered') && validSuggestion
+    (value.priceOrigin === undefined || value.priceOrigin === 'sourced_suggestion' || value.priceOrigin === 'online_estimate' || value.priceOrigin === 'user_entered') && validSuggestion && validOnline
 }
 const isSavedDraft = (value: unknown): value is SavedScenarioV1 => isRecord(value) && value.schemaVersion === 1 && typeof value.savedAt === 'string' && typeof value.areaHa === 'string' && Array.isArray(value.selectedCropIds) && value.selectedCropIds.every((id) => typeof id === 'string') && isRecord(value.inputsByCropId) && Object.values(value.inputsByCropId).every(isSavedCrop)
 export function loadDraft(): { draft?: SavedScenarioV1; recovered: boolean; storageUnavailable?: boolean } {

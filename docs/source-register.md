@@ -1,13 +1,19 @@
 # Stage 1 Source Register (Initial Audit)
 
 **Started:** 2026-08-25  
-**Status:** In progress; qualification is not yet accepted
+**Status:** Historical Stage 1 register — qualification closed as fallback; no
+observed-price approval
 
 This register records candidate sources before remote download and qualification.
 The machine-readable versions are [`../config/sources.json`](../config/sources.json)
 and the initial canonical mapping scaffold in
 [`../config/mappings.json`](../config/mappings.json).
 No source is promoted to a production claim from this table alone.
+
+Stage 1 is now **Closed — fallback accepted**. The entries below are retained
+as historical audit evidence and must not be treated as an active retrieval
+instruction. The separately authorized Phase 3A online research assist has its
+own source/rights review and must not reuse this register as approval evidence.
 
 The current alternatives assessment is recorded in
 [`stage1-source-alternatives.md`](stage1-source-alternatives.md). It confirms

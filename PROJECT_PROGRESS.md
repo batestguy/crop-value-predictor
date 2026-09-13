@@ -11,6 +11,7 @@
 | 0. Baseline and tracking setup | Approved | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
 | 1. Source and feasibility audit | Closed — fallback accepted; observed gate unapproved | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | Reopen only with a materially changed official source path; unchanged gates remain mandatory |
 | 2. Offline decision calculator | Approved | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
+| 3A. Optional online research assist | Local development slice implemented; hosted Gate A open | [`03-online-research-assist.md`](./docs/phases/03-online-research-assist.md) | Hosted review of source rights, provider terms/free quota, privacy, deterministic validation, and deployment gates |
 | 3. Automated data pipeline | Blocked | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Unchanged Stage 1 source gate blocks automated data |
 | 4. Forecasting and validation | Blocked | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Unchanged Stage 1/Stage 3 dependency blocks forecasting |
 | 5. Web deployment and farmer readiness | Approved | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Browser-first calculator readiness; Cloudflare Pages deployment remains separately gated |
@@ -52,6 +53,51 @@ CSV links. The uploaded manifest records
 `expected exactly one official Nigeria FEWS CSV link, found 0`; no raw FEWS
 file was accepted. Stage 1 is therefore **Closed — fallback accepted**, not
 Approved. `stage_1_approved` remains false, and Stages 3–4 remain blocked.
+
+## Phase 3A Gate A authorization — 2026-09-13
+
+The user authorized Gate A review for the optional Phase 3A online research
+assist, documented in
+[`03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+Gate A is not yet passed. Multi-source internet aggregation is the preliminary
+product posture, with the Hugging Face WFP/HDX repackage recorded as one dated
+candidate input rather than a current official feed. Exact source rights,
+provenance, aggregation rules, provider terms, quotas, and privacy evidence
+remain open. The local reference implementation, same-origin development
+endpoint, and one bounded Tavily provider test exist; no deployment or
+production snapshot change has occurred. The default remains the approved
+offline calculator. The
+lane cannot reopen Stage 1 or unlock Stages 3 or 4.
+
+## Phase 3A target clarification — 2026-09-13
+
+The user clarified that Phase 3A should optimize for the best available
+internet-informed aggregate estimate, not for proving that WFP is the sole
+authoritative source. The planned service will combine only comparable,
+evidence-backed observations or listings, apply declared recency and geography
+rules, and show the aggregate, range, contributors, dates, and warnings. The
+Hugging Face Electric Sheep Africa dataset is recorded as one possible dated
+input, not as a current or official live feed. This clarification changes the
+Phase 3A design target but does not authorize implementation, deployment,
+automatic price defaults, or Stage 1/3/4 progression. Local development
+implementation is authorized; hosted deployment remains separately blocked.
+
+For the missing-location fallback, the selected zero-cost direction is Tavily
+Search for bounded web retrieval plus Cloudflare Workers AI for structured
+extraction and aggregation. The published free quotas must be verified again
+at implementation time; if exhausted or unavailable, the feature must fail
+back to manual entry rather than incur paid usage.
+
+The retained raw WFP/HDX CSV was then checked directly for the aggregate use
+case: 88,556 rows, 16 expected fields, zero missing values, zero exact or
+observation-key duplicates, NGN-only positive numeric prices, 14 states, 68
+markets, and 43 commodities. The remaining verification decisions are
+comparability and interpretation: 68% of rows come from Borno/Yobe, only those
+two states have 2026 rows, 12,896 rows use non-mass units, and 1,217 rows carry
+the combined `actual,aggregate` flag. The raw file is therefore structurally
+usable as a baseline aggregate input, but not a standalone current nationwide
+estimate. The complete QA record and closure requirements are in the Phase 3A
+document.
 
 ## Baseline evidence
 
@@ -157,18 +203,12 @@ approval is claimed.
 
 ## Next action and handoff
 
-Stage 2 was approved on 2026-09-04, recorded in `7e626c0`, based on
-implementation `2e8802f` and evidence `8ef54f5`. Continue calculator-only
-readiness using [Stage 5's work packages](./docs/phases/05-deployment-readiness.md)
-and the [current handoff](./SESSION_HANDOFF.md). Review the existing uncommitted
-implementation against the approved baseline, then validate it in an isolated
-reproducible environment if the primary toolchain remains unusable.
-
-Planning is prepared; implementation verification is pending. Earlier recovery
-entries below are historical and do not reopen the approved Stage 2 gate.
-Stage 1 remediation is now active under the unchanged source gates; Stages 3
-and 4 remain blocked until a new report passes. Deployment and public launch
-require separate authorization.
+Stage 2 remains approved. The local Phase 3A slice is implemented and verified
+against the raw-data branch and bounded web fallback. See
+[`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md) for the evidence and ordered next
+steps. The next project decision is the hosted Phase 3A Gate A review; Stage 1
+remains closed as fallback and Stages 3/4 remain blocked. Earlier recovery
+entries below are historical and do not reopen any gate.
 
 ## Verification checkpoint — 2026-09-04
 

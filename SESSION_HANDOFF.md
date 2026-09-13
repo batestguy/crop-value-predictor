@@ -2,8 +2,9 @@
 
 Updated: 2026-09-13
 Repository: `D:\Crop Value Predictor App`
-Last implementation commit: `7683fb1 feat: add modeled price context lane`; the
-FEWS static-export implementation is currently uncommitted in the working tree.
+This handoff records the completed local Phase 3A implementation slice in this
+session commit. The pre-existing `debug.log` change remains uncommitted. The
+external Tavily key remains outside the repository and is never committed.
 Branch at handoff: `stage1-adapter-fix`
 
 ## Current disposition — 2026-09-13
@@ -34,27 +35,23 @@ The latest commit is the trusted implementation baseline for this session. Do
 not redo the academic review or World Bank adapter work unless a validation
 failure identifies a concrete defect.
 
-## Current handoff — FEWS static export implementation
+## Current handoff — settled Stage 1 and completed local Phase 3A slice
 
-This session settled the FEWS retrieval design in code. The configured primary
-path is now the official static CSV export discovered from the Nigeria FEWS
-page. The documented v3 API adapter remains available only through the
-explicit diagnostic canary and is not an automatic fallback or merge source.
+Stage 1 is settled as **Closed — fallback accepted**, not approved. The latest
+authorized static canary failed closed because the official Nigeria FEWS page
+exposed zero matching CSV links. Do not repeat the old API path or the same
+static canary. Reopen Stage 1 only after a materially changed official access
+path or provider-supplied export URL, followed by the unchanged qualification,
+rights, review, and approval gates.
 
-Implementation is in `pipeline/source_audit.py`. It uses the standard-library
-HTML parser, requires exactly one labeled official CSV link, permits only
-configured FEWS-owned HTTPS hosts, rejects unknown-host redirects, empty/HTML/
-JavaScript bot responses, and atomically replaces `raw/fews-net.csv` only after
-explicit schema and Nigeria-row validation. Successful manifest records include
-the discovery page, resolved export URL, filename, content type, cutoff month,
-row count, byte count, and SHA-256.
-
-The source contract is in `config/sources.json`; the API contract is under
-`diagnostic_retrieval`. The manual workflow is
-`.github/workflows/fews-canary.yml`. Artifact recovery now requires an explicit
-run ID and verifies the current `raw/fews-net.csv` layout in
-`pipeline/resume_stage1.ps1`. Operational details are in
-`docs/agent-stage1-automation.md` and `docs/upstream-fallback-runbook.md`.
+Stage 2 is approved for complete farmer-entered offline scenarios. The user
+authorized the local Phase 3A implementation slice. The Vite development
+server now has a guarded same-origin research route, the Python helper reads
+the retained raw CSV first and uses Tavily only for a missing-location
+fallback, and the UI requires review and explicit confirmation before changing
+a scenario. There is no hosted endpoint, production source allowlist,
+deployment, or production approval. Phase 3A Gate A remains open for those
+decisions.
 
 ## Current project status
 
@@ -66,8 +63,9 @@ automated pipeline and forecasting stages.
 | Stage | Status | Meaning |
 | --- | --- | --- |
 | 0. Baseline and tracking | Approved | Reproducible project baseline |
-| 1. Source and feasibility audit | In progress; observed gate blocked | Static FEWS adapter is implemented; authorized cloud canary and unchanged source gates remain pending |
+| 1. Source and feasibility audit | Closed — fallback accepted; observed gate unapproved | Failed API/static-export procedures are not active; reopen only with a materially changed official access path and unchanged gates |
 | 2. Offline decision calculator | Approved | Manual-input calculator works offline |
+| 3A. Optional online research assist | Local development slice implemented; hosted Gate A open | Multi-source internet aggregate direction, with Hugging Face as one candidate input; see `docs/phases/03-online-research-assist.md` |
 | 3. Automated data pipeline | Blocked | Cannot proceed as an observed-price pipeline until Stage 1 passes |
 | 4. Forecasting and validation | Blocked | Depends on qualified Stage 1/Stage 3 data |
 | 5. Web deployment and farmer readiness | Approved | Browser readiness approved; deployment is separately authorized |
@@ -111,13 +109,39 @@ Confirm that the warning, attribution, source hash, crop-form mappings, and
 editable-context wording are acceptable. If approved, record that decision in
 the Stage 1 evidence log without changing `stage_1_approved`.
 
-### Path B: make actual observed Stage 1 progress
+### Path B: move the authorized Phase 3A work to hosted-gate review
 
-The API-based FEWS/WFP audit was run on 2026-09-10 and failed closed on FEWS
-HTTP 403 after bounded retries. The static-export adapter is now implemented,
-so the next observed Stage 1 action is an explicitly authorized cloud static
-canary. If that export is unavailable, retain the calculator-only fallback.
-The existing thresholds remain unchanged:
+The optional hybrid lane is defined in
+[`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+Gate A is authorized but not passed for hosted use. The local slice is complete:
+it uses retained raw data first, falls back to Tavily only when local evidence
+is absent, keeps the key server-side, shows evidence and warnings, and requires
+explicit confirmation before changing a scenario. The next work is a focused
+hosted review of source rights/allowlisting, Tavily and Workers AI quotas and
+terms, privacy/rate limits, deterministic candidate validation, and deployment.
+The lane returns a transparent aggregate for user confirmation and does not
+change Stage 1 or automatic ranking.
+
+### What is next, in order
+
+1. Keep using the local app for manual and confirmed research-assisted
+   scenarios. Start it with the external key loaded only into the server
+   process; do not put the key in the repository or browser.
+2. Complete the hosted Phase 3A Gate A evidence review. Resolve source rights,
+   source allowlisting, provider terms/free quota, data retention, rate limits,
+   timeout behavior, and the final response contract.
+3. Add the hosted service layer and its deterministic validation tests. Include
+   malformed, stale, conflicting, timeout, quota, and no-evidence cases.
+4. Run a fresh accessibility/browser review against the hosted endpoint.
+5. Request separate deployment authorization. Do not reopen Stage 1, promote
+   online results into `public/data`, enable automatic price defaults, or start
+   Stage 3/4 as part of this path.
+
+### Stage 1 reopening boundary
+
+Do not repeat the failed FEWS API/static-export procedure. Reopen Stage 1 only
+after a materially changed official access path or provider-supplied export URL.
+The unchanged thresholds would then apply:
 
 - at least five crop forms;
 - at least 36 months and at least 80% completeness in the latest 36 months;
@@ -146,10 +170,11 @@ is `audit-output-fews-cloud-full-20260910-34434760861`; qualification remains
 static-export implementation and must not be treated as the new static result.
 
 Follow the ordered sequence in [`docs/next-actions.md`](./docs/next-actions.md).
-The modeled-context boundary is now covered by clean browser-suite evidence:
-17 tests passed with one intentional base-path skip. Do not repeat local FEWS
-retrieval; further observed-source work requires an explicitly authorized
-cloud retrieval origin.
+The modeled-context boundary and explicit online confirmation flow are covered
+by clean browser-suite evidence: 18 tests passed with one intentional base-path
+skip. Playwright also completed a live local Bauchi lookup and confirmation.
+Do not repeat local FEWS retrieval; further observed-source work requires an
+explicitly authorized cloud retrieval origin.
 
 ## Recommended validation commands
 
@@ -167,7 +192,7 @@ npm.cmd run test:e2e
 git diff --check
 ```
 
-Expected current results are: 47 Python tests passing, 4 calculator tests
+Expected baseline results are: 60 Python tests passing, 4 calculator tests
 passing, typecheck passing, production build passing, and the Chromium suite
 passing with one intentional base-path skip in the existing environment.
 
@@ -190,6 +215,8 @@ passing with one intentional base-path skip in the existing environment.
 - `PROJECT_PROGRESS.md` - stage dashboard and dated evidence log.
 - `IMPLEMENTATION_PLAN.md` - roadmap, gates, and product boundaries.
 - `docs/phases/01-source-audit.md` - source-gate evidence and remediation log.
+- `docs/phases/03-online-research-assist.md` - online research contract,
+  local implementation evidence, and hosted-gate boundary.
 - `docs/stage1-source-alternatives.md` - observed versus modeled alternatives.
 - `docs/academic-evidence-review.md` - literature review protocol and claims.
 - `config/sources.json` - source contracts and retrieval metadata.
@@ -198,7 +225,11 @@ passing with one intentional base-path skip in the existing environment.
 - `public/data/v1/manifest.json` - release flags and artifact contract.
 - `public/data/v1/modeled_price_suggestions.json` - modeled context artifact.
 - `src/priceSuggestions.ts` - same-origin artifact validation and loading.
-- `src/main.tsx` - calculator UI and modeled-context warning.
+- `src/main.tsx` - calculator UI, modeled-context warning, and confirmed
+  research-assist flow.
+- `src/onlineEstimate.ts` - same-origin research client and response checks.
+- `vite.config.ts` - local-only guarded research endpoint.
+- `pipeline/online_estimate.py` - raw-data estimator and bounded Tavily fallback.
 
 ## Final handoff rule
 
@@ -207,7 +238,11 @@ the smallest change needed for the selected path. The project is not
 farmer-validated, not observed-price approved, not forecast-approved, and not
 deployed.
 
-## Session handoff — 2026-09-10 FEWS static export
+## Historical FEWS static-export handoff — superseded
+
+The following is retained as dated evidence only. It must not be used as an
+active instruction to dispatch or repeat the failed canary; the current
+disposition and next-path rules above control.
 
 Evidence from this session:
 
