@@ -17,14 +17,14 @@ must never be placed in the browser bundle, repository, or command arguments.
   raw snapshot before its Tavily fallback.
 - The hosted Function uses the bounded Tavily fallback contract. It does not
   publish a price snapshot and it does not change `stage_1_approved`.
-- The calculator-only static production deployment is live at
-  `https://crop-value-predictor.pages.dev/`.
-- The Pages Function bundle was not retained in production because its first
-  deployment returned a Cloudflare 522 at the host. The online lookup is
-  therefore intentionally unavailable and falls back to manual entry.
-- The Tavily key has not been uploaded, consistent with the project owner’s
-  instruction. A hosted online lookup requires a later explicit decision to
-  configure a server-side secret after the Function 522 is resolved.
+- The calculator-only static production deployment and hosted Function are live
+  at `https://crop-value-predictor.pages.dev/`.
+- The production deployment `fba35fc6` was verified with Playwright on
+  2026-09-13. A custom Soybean / dry grain request for Bauchi returned
+  `NGN 110/kg`, a `NGN 100-120/kg` range, `2.5 t/ha`, and eight source links.
+- `TAVILY_API_KEY` is configured only as an encrypted production Pages secret.
+  It is not present in the repository, browser bundle, command output, or
+  deployment files.
 
 ## One-time account setup
 
@@ -47,8 +47,9 @@ Get-Content -Raw 'C:\Users\TOSHIBA\.config\crop-value-predictor\tavily-key.txt' 
   npx.cmd wrangler pages secret put TAVILY_API_KEY --project-name crop-value-predictor
 ```
 
-The command may prompt for the target environment. Use the production
-environment only after the hosted Gate A/D checks below are recorded.
+The production secret was configured only after explicit owner authorization.
+Do not repeat the command unless rotating the secret; use the external file
+only as process input.
 
 ## Build and deploy
 
@@ -64,7 +65,7 @@ npm.cmd run test:e2e
 Then publish the committed build:
 
 ```powershell
-npx.cmd wrangler pages deploy dist --project-name crop-value-predictor
+npx.cmd wrangler pages deploy dist --project-name crop-value-predictor --branch main
 ```
 
 The first deployment may require the Pages project to be created. Do not pass
@@ -98,7 +99,8 @@ Stop before production publishing if any of these is true:
 - The hosted route cannot be tested with the online provider unavailable.
 - A lookup can populate or rank a crop without explicit farmer confirmation.
 
-The current production deployment is the calculator-only case: it has no
-server-side Tavily secret and the online button fails safely with manual entry.
-A public online deployment should wait until the Function runtime issue and
-the hosted service/privacy/rate-limit review are resolved.
+The current production deployment includes the optional hosted research route.
+Its outputs are low-confidence editable context and require explicit farmer
+confirmation. This does not promote online values into `public/data`, reopen
+Stage 1, or enable automatic defaults/rankings. Continue the service/privacy/
+rate-limit review before expanding the source set or request volume.

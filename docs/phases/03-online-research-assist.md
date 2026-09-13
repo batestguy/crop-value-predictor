@@ -1,10 +1,11 @@
 # Phase 3A — Optional Online Internet Aggregate Estimate
 
-**Status:** Gate A authorized; local development slice implemented and verified.
+**Status:** Gate A authorized; bounded hosted deployment operational.
 The local development slice and hosted Pages Function adapter are implemented
-and verified locally. The calculator-only static site is deployed, but the
-Function bundle returned a 522 and the Tavily key was intentionally not
-uploaded. Hosted online retrieval and production use remain open.
+and verified. The calculator-only static site and optional hosted research route
+are deployed. Formal source allowlisting, rights, privacy, and rate-limit
+hardening remain follow-up work; hosted retrieval does not become an observed-
+price feed.
 
 **Gate A authorization date:** 2026-09-13
 
@@ -347,28 +348,29 @@ timeout, or malformed answer leaves the calculator in manual-entry mode.
 
 ### 5.4 Hosted deployment adapter
 
-The production-shaped adapter is present at
+The production-shaped adapter is deployed at
 `functions/api/price-research.ts`. It accepts the same small request, including
 validated custom crop name/form fields, keeps the Tavily secret in the Pages
 Function environment, limits the request to one bounded Tavily call, parses
-explicit price/yield/cost markers, and returns a low-confidence result with
-source URLs or a fail-closed error. `wrangler.toml` sets the Pages output
-directory to `dist/`.
+explicit and natural-language price/yield/cost markers, and returns a
+low-confidence result with source URLs or a fail-closed error. `wrangler.toml`
+sets the Pages output directory to `dist/`.
 
-This adapter is deployable code, not evidence that a hosted deployment has
-occurred. It does not publish the retained WFP snapshot or reopen Stage 1. The
-deployment checklist and stop conditions are in
+The production deployment is live at
+`https://crop-value-predictor.pages.dev/`. Its encrypted `TAVILY_API_KEY`
+secret is server-side only. It does not publish the retained WFP snapshot or
+reopen Stage 1. The deployment checklist and stop conditions are in
 [`docs/deployment-runbook.md`](../deployment-runbook.md).
 
-The local slice is not a production endpoint: it does not provide rate limiting,
-an approved hosted source allowlist, Cloudflare deployment, Workers AI model
-extraction, or shared caching. Those remain Gate B/D work and require a
-separate deployment decision.
+The local Vite slice is not the production endpoint: it does not provide rate
+limiting, an approved hosted source allowlist, Workers AI model extraction, or
+shared caching. Those remain Gate B/D hardening work. The hosted Function is
+deployed, but it remains bounded and must not be expanded without review.
 
-The existing Cloudflare Pages direction is the preferred deployment context,
-with a free-tier edge/serverless function or worker. Deployment remains a
-separate authorization and must wait until free-tier limits, terms, and source
-rights are verified.
+The Cloudflare Pages deployment is the selected edge/serverless context. The
+owner explicitly authorized production deployment after acknowledging possible
+Tavily usage charges. Free-tier limits, terms, source rights, privacy, and
+rate-limit hardening still require review before expanding this lane.
 
 ## 6. Proposed interface contracts
 
@@ -738,17 +740,18 @@ lane.
 
 As of 2026-09-13:
 
-- Gate A is authorized and in review; it has not passed;
+- Gate A is authorized; the bounded hosted lane is deployed under explicit
+  owner authorization, while broader hardening remains open;
 - multi-source aggregation is the selected product posture;
 - Tavily Search is the selected free web-retrieval provider direction;
 - the Hugging Face WFP/HDX repackage is a candidate snapshot for investigation,
   not a current or official live feed;
-- Cloudflare Workers/Pages Functions plus Workers AI is the selected free-tier
-  direction, not a deployment approval;
-- a local development browser endpoint exists at `/api/price-research`; it is
-  not a hosted or production endpoint;
-- one bounded live Tavily retrieval test and one local endpoint smoke test have
-  run; no production refresh or public online retrieval is enabled;
+- Cloudflare Pages Functions is the deployed server-side context; Workers AI is
+  not enabled;
+- local development and public production browser endpoints exist at
+  `/api/price-research`;
+- a bounded live Tavily retrieval test and public endpoint smoke test have run;
+  the public route returns low-confidence research context only;
 - `pipeline/online_estimate.py` and the Vite route are local development
   components only;
 - no model has been pinned or quota-verified for production use;
@@ -756,14 +759,13 @@ As of 2026-09-13:
   feature;
 - the calculator-only static site is deployed at
   `https://crop-value-predictor.pages.dev/`;
-- the hosted Function deployment returned a 522 and is not active in the live
-  site; the Tavily key was intentionally not uploaded;
+- the hosted Function is active at `https://crop-value-predictor.pages.dev/`
+  with `TAVILY_API_KEY` held as an encrypted production secret;
 - no public snapshot has changed;
 - Stage 1 remains closed with fallback accepted and unapproved;
 - Stage 2 remains approved for complete farmer-entered offline scenarios.
 
-The local implementation and hosted adapter are authorized for development
-verification. The static calculator deployment is live; online retrieval still
-requires resolution of the Function runtime issue, an explicit server-side
-secret decision, hosted smoke testing, and privacy/rate-limit checks. Nothing
-is promoted into `public/data` or the Stage 1 snapshot.
+The local implementation and hosted adapter are verified. Public online
+retrieval is enabled only through an explicit user action and returns editable,
+low-confidence context. Nothing is promoted into `public/data` or the Stage 1
+snapshot; privacy/rate-limit hardening and any source expansion remain open.

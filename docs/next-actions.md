@@ -16,7 +16,7 @@ the existing technical thresholds and the manual-input fallback intact.
 | Offline calculator | Approved and validated | `docs/phases/02-offline-calculator.md` |
 | Observed-price Stage 1 | Closed — fallback accepted; retrieval unavailable | `audit-output-fews-canary-20260913-34731386407` |
 | Modeled context lane | Provisionally retained as editable context | `public/data/v1/modeled_price_suggestions.json` |
-| Optional online research assist | Static calculator deployed; online Function disabled after 522 and key intentionally not uploaded | `docs/phases/03-online-research-assist.md`, `docs/deployment-runbook.md` |
+| Optional online research assist | Bounded Pages Function deployed; encrypted production secret configured; public smoke test passed | `docs/phases/03-online-research-assist.md`, `docs/deployment-runbook.md` |
 | Custom crop starting values | Implemented locally: farmer can add any crop/form and request Tavily starting price, yield, and available cost categories for review | `src/main.tsx`, `pipeline/online_estimate.py`, `tests/e2e/calculator.spec.ts` |
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
 | Browser verification | Complete: 22 passed, 1 intentional skip; Playwright confirms custom-crop research and JJMB UI flows | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
@@ -83,7 +83,7 @@ Do not promote or alter the public snapshot. Phase 1 is closed as fallback;
 reopening requires a materially changed official access path or provider-supplied
 export URL, followed by a new immutable audit and two independent reviews.
 
-### 4. Phase 3A implementation — local adapter complete; hosted deployment remains separate
+### 4. Phase 3A implementation — hosted bounded adapter deployed 2026-09-13
 
 The optional hybrid research lane is documented in
 [`03-online-research-assist.md`](./phases/03-online-research-assist.md). It may
@@ -96,15 +96,15 @@ including a candidate Hugging Face WFP/HDX snapshot, Cloudflare Workers/Workers
 AI free-tier viability, Tavily Search free-tier viability, aggregation rules,
 privacy/security controls, and the
 candidate contract. The local Vite endpoint, Python estimator, review UI, and
-draft provenance are now implemented and tested. No production refresh, live
+draft provenance are implemented and tested. No production refresh, live
 snapshot, automatic default, or unconfirmed ranking input is authorized. The
-static calculator is live at `https://crop-value-predictor.pages.dev/`.
-The hosted Pages Function adapter and `wrangler.toml` exist, but the Function
-deployment returned 522 and was replaced by a static-only production upload.
-The Tavily key was intentionally not uploaded, so online lookup remains
-disabled and falls back to manual entry. Resolving the Function runtime issue,
-then configuring a server-side secret and running the hosted smoke test, is a
-separate future action. See `docs/deployment-runbook.md` for the sequence.
+static calculator and hosted Function are live at
+`https://crop-value-predictor.pages.dev/`.
+The production secret is encrypted in Cloudflare and is never placed in the
+repository or browser bundle. A public Playwright smoke test for custom
+Soybean/dry grain in Bauchi returned `NGN 110/kg`, a `NGN 100-120/kg` range,
+`2.5 t/ha`, and eight source links. See `docs/deployment-runbook.md` for the
+repeatable sequence and guardrails.
 
 ### 5. Continue calculator-only readiness
 

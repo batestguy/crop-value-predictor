@@ -3,7 +3,7 @@
 Updated: 2026-09-13
 Repository: `D:\Crop Value Predictor App`
 This handoff records the completed local Phase 3A implementation slice, hosted
-Pages Function adapter, and calculator-only static deployment. The pre-existing
+Pages Function adapter, and public deployment of the bounded research route. The pre-existing
 `debug.log` change remains uncommitted. The external Tavily key remains outside
 the repository and is never committed.
 Branch at handoff: `stage1-adapter-fix`
@@ -23,12 +23,32 @@ path only and was not printed, stored, or committed. The browser test also
 confirms that Soybean and Carrot requests carry their crop names, forms, IDs,
 state, and `researchAll: true`.
 
-The static-only release was deployed successfully at 12:44 WAT using commit
+The initial static-only release was deployed successfully at 12:44 WAT using commit
 `56e439d`. Cloudflare returned the deployment URL
 `https://b5bbe675.crop-value-predictor.pages.dev`; the main URL
 `https://crop-value-predictor.pages.dev/` also returned HTTP 200. Public
 Playwright verified the JJMB card, custom-crop UI, and local flag asset. The
-hosted research Function was excluded from this upload.
+hosted research Function was excluded from that initial upload.
+
+## Hosted Tavily deployment update — 2026-09-13
+
+The hosted Pages Function is now deployed to the `main` production branch at
+`https://crop-value-predictor.pages.dev/`. Cloudflare deployment ID:
+`fba35fc6` (source commit `cb90b5c`). `TAVILY_API_KEY` is configured only as an
+encrypted production secret; the key was read from its external path and was
+never printed, committed, or placed in browser code.
+
+Public Playwright smoke verification confirmed:
+
+- `GET /api/price-research` returns the Function's expected `405`;
+- a custom `Soybean` / `dry grain` request for Bauchi returns HTTP `200`;
+- the parsed estimate is `NGN 110/kg`, with `NGN 100-120/kg` bounds;
+- natural-language yield parsing returns `2.5 t/ha`; and
+- eight HTTPS source links are returned.
+
+The result remains low-confidence research context. It does not change the
+scenario until the farmer clicks **Use this estimate**. The hosted route does
+not publish a snapshot, reopen Stage 1, or enable automatic rankings/defaults.
 
 ## Latest handoff update — 2026-09-13
 
@@ -79,15 +99,14 @@ confirmation before use.
 
 ### Current deployment boundary
 
-The public site remains the calculator-only static deployment at
-`https://crop-value-predictor.pages.dev/`. The hosted Pages Function is not
-active because its earlier deployment returned Cloudflare 522, and the Tavily
-key was intentionally not uploaded. The custom Tavily path is therefore ready
-for local development only until the hosted Function issue is separately
-resolved and a server-side secret is explicitly configured.
+The public site at `https://crop-value-predictor.pages.dev/` includes the
+calculator and the optional hosted Pages Function. The Function uses the
+encrypted production `TAVILY_API_KEY` secret and supports custom crop/form
+requests. It is bounded, low-confidence research context only; results require
+explicit farmer confirmation and never become the observed-price snapshot.
 
 Never place the Tavily key in the repository, browser bundle, command output,
-or a Cloudflare deployment without a new explicit decision. The existing
+or deployment files. The existing
 `debug.log` modification is pre-existing and remains intentionally
 uncommitted.
 
@@ -99,6 +118,8 @@ uncommitted.
 - `python -m unittest discover -s tests -v` — 61 passed.
 - `npm.cmd run test:e2e` — 19 passed, 1 intentional base-path skip.
 - `npx.cmd tsc --noEmit functions/api/price-research.ts --target es2020 --module esnext --lib es2020,dom --skipLibCheck` — passed.
+- Public Playwright smoke — Function `GET` 405, custom-crop `POST` 200,
+  `NGN 110/kg` estimate, `NGN 100-120/kg` range, `2.5 t/ha`, and 8 sources.
 - `pipeline\agent_preflight.ps1` — passed with an external temporary token
   path because the configured GitHub token path was access-denied to the
   sandbox; no token was read or printed.
@@ -161,19 +182,15 @@ path or provider-supplied export URL, followed by the unchanged qualification,
 rights, review, and approval gates.
 
 Stage 2 is approved for complete farmer-entered offline scenarios. The user
-authorized the local Phase 3A implementation slice. The Vite development
-server now has a guarded same-origin research route, the Python helper reads
-the retained raw CSV first and uses Tavily only for a missing-location
-fallback, and custom crops can request starting price, yield, and available
-cost categories. The UI requires review and explicit confirmation before
-changing a scenario. The hosted Pages Function adapter is now in source, but there is
-no Cloudflare deployment, production source allowlist, or production approval.
-The calculator-only static deployment is live at
-`https://crop-value-predictor.pages.dev/`. The Function bundle returned
-Cloudflare 522 during an earlier attempt and was intentionally excluded from
-the latest static upload. The Tavily key was not uploaded. There is no hosted
-online retrieval or production source allowlist; Phase 3A Gate A/D remains
-open for the online lane.
+authorized the local Phase 3A implementation slice and the bounded public
+deployment. The Vite development server now has a guarded same-origin research
+route, the Python helper reads the retained raw CSV first and uses Tavily only
+for a missing-location fallback, and custom crops can request starting price,
+yield, and available cost categories. The UI requires review and explicit
+confirmation before changing a scenario. The hosted Pages Function is live at
+`https://crop-value-predictor.pages.dev/` with its secret held server-side.
+Formal source allowlisting, privacy, and rate-limit hardening remain open for
+any expansion; Phase 3A does not reopen Stage 1 or the automated pipeline.
 
 ## Current project status
 
@@ -187,10 +204,10 @@ automated pipeline and forecasting stages.
 | 0. Baseline and tracking | Approved | Reproducible project baseline |
 | 1. Source and feasibility audit | Closed — fallback accepted; observed gate unapproved | Failed API/static-export procedures are not active; reopen only with a materially changed official access path and unchanged gates |
 | 2. Offline decision calculator | Approved | Manual-input calculator works offline |
-| 3A. Optional online research assist | Local development slice implemented; hosted Gate A open | Multi-source internet aggregate direction, with Hugging Face as one candidate input; see `docs/phases/03-online-research-assist.md` |
+| 3A. Optional online research assist | Bounded hosted lane deployed; broader hardening open | Multi-source internet aggregate context with explicit confirmation; see `docs/phases/03-online-research-assist.md` |
 | 3. Automated data pipeline | Blocked | Cannot proceed as an observed-price pipeline until Stage 1 passes |
 | 4. Forecasting and validation | Blocked | Depends on qualified Stage 1/Stage 3 data |
-| 5. Web deployment and farmer readiness | Approved — calculator-only deployment live | Static production site is live; online retrieval remains disabled |
+| 5. Web deployment and farmer readiness | Approved — calculator and optional research route live | Public site is live; online values remain editable context only |
 | 6. Literature-informed calculator readiness | Approved | Academic evidence review approved; participant validation remains absent |
 
 ## Critical truth
@@ -231,32 +248,28 @@ Confirm that the warning, attribution, source hash, crop-form mappings, and
 editable-context wording are acceptable. If approved, record that decision in
 the Stage 1 evidence log without changing `stage_1_approved`.
 
-### Path B: move the authorized Phase 3A work to hosted-gate review
+### Path B: maintain the bounded Phase 3A hosted lane
 
 The optional hybrid lane is defined in
 [`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
-Gate A is authorized but not passed for hosted use. The local slice is complete:
-it uses retained raw data first, falls back to Tavily only when local evidence
-is absent, keeps the key server-side, shows evidence and warnings, and requires
-explicit confirmation before changing a scenario. The next work is a focused
-hosted review of source rights/allowlisting, Tavily and Workers AI quotas and
-terms, privacy/rate limits, deterministic candidate validation, and deployment.
-The lane returns a transparent aggregate for user confirmation and does not
-change Stage 1 or automatic ranking.
+Gate A is authorized and the bounded hosted route is deployed. The lane uses
+retained raw data first, falls back to Tavily only when local evidence is absent,
+keeps the key server-side, shows evidence and warnings, and requires explicit
+confirmation before changing a scenario. The remaining work is a focused
+review of source rights/allowlisting, Tavily quotas and terms, privacy/rate
+limits, deterministic candidate validation, and any future expansion. The lane
+returns a transparent aggregate for user confirmation and does not change Stage
+1 or automatic ranking.
 
 ### What is next, in order
 
 1. Keep using the local app for manual and confirmed research-assisted
    scenarios. Start it with the external key loaded only into the server
    process; do not put the key in the repository or browser.
-2. Resolve the Pages Function 522 using a separate staging deployment; keep
-   the production site calculator-only while it is unresolved.
-3. Only if explicitly chosen later, configure `TAVILY_API_KEY` as a Pages
-   secret from the external credential path, never in repository files or
-   browser code.
-4. Run the hosted Gate A/D review: source/terms, free quota, privacy,
-   rate-limit, timeout, malformed/no-evidence behavior, and browser smoke test.
-5. Do not promote online results into `public/data`, enable automatic price
+2. Continue the hosted Gate A/D hardening review: source/terms, free quota,
+   privacy, rate-limit, timeout, malformed/no-evidence behavior, and browser
+   smoke test.
+3. Do not promote online results into `public/data`, enable automatic price
    defaults, or start Stage 3/4 as part of this path.
 
 ### Stage 1 reopening boundary

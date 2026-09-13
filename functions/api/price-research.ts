@@ -16,6 +16,16 @@ const SEARCH_TERMS: Record<string, string> = {
   cassava: 'cassava',
 }
 const COST_CATEGORIES = ['land_preparation', 'seed', 'fertilizer', 'pesticide', 'labour', 'irrigation', 'transport', 'storage'] as const
+const COST_TERMS: Record<typeof COST_CATEGORIES[number], string> = {
+  land_preparation: 'land preparation|land prep|cultivation',
+  seed: 'seed|seeds',
+  fertilizer: 'fertilizer|fertiliser',
+  pesticide: 'pesticide|herbicide|insecticide',
+  labour: 'labou?r|hired labour',
+  irrigation: 'irrigation',
+  transport: 'transport|haulage',
+  storage: 'storage',
+}
 const NIGERIAN_STATES = new Set([
   'abia', 'adamawa', 'akwa ibom', 'anambra', 'bauchi', 'bayelsa', 'benue',
   'borno', 'cross river', 'delta', 'ebonyi', 'edo', 'ekiti', 'enugu', 'gombe',
@@ -30,27 +40,33 @@ const numberFrom = (value: string) => Number(value.replace(/,/g, ''))
 
 function parseAnswer(answer: unknown, cropId: string, state: string, priceType: 'retail' | 'wholesale', results: unknown[], customCrop = false) {
   if (typeof answer !== 'string') return undefined
-  const explicit = answer.match(/ESTIMATE_NGN_PER_KG\s*[:=]\s*(?:NGN|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i)
-  const natural = answer.match(/(?:price|retail(?:s| price)?|estimate|average|cost|around)[^A-Za-z0-9]{0,100}(?:NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|\/)\s*(kg|kilogram|metric\s+ton|tonne|ton)/i)
-  const match = explicit ?? natural
+  const explicit = answer.match(/ESTIMATE_NGN_PER_KG\s*[:=]\s*(?:₦|NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i)
+  const range = answer.match(/(?:price|retail(?:s| price)?|estimate|average)[^0-9]{0,100}(?:₦|NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:-|–|to)\s*(?:₦|NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|\/)\s*(kg|kilogram|metric\s+ton|tonne|ton)/i)
+  const natural = answer.match(/(?:price|retail(?:s| price)?|estimate|average|cost|around)[^0-9]{0,100}(?:₦|NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|\/)\s*(kg|kilogram|metric\s+ton|tonne|ton)/i)
+  const generic = answer.match(/(?:₦|NGN|Naira|N)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|\/)\s*(kg|kilogram|metric\s+ton|tonne|ton)/i)
+  const match = explicit ?? range ?? natural ?? generic
   if (!match) return undefined
-  const rawValue = numberFrom(match[1])
+  const rawValue = explicit ? numberFrom(explicit[1]) : range ? (numberFrom(range[1]) + numberFrom(range[2])) / 2 : numberFrom(match[1])
   if (!Number.isFinite(rawValue) || rawValue <= 0) return undefined
-  const divisor = !explicit && natural && !['kg', 'kilogram'].includes(natural[2].toLowerCase()) ? 1000 : 1
+  const unit = range?.[3] ?? natural?.[2] ?? generic?.[2]
+  const divisor = !explicit && unit && !['kg', 'kilogram'].includes(unit.toLowerCase()) ? 1000 : 1
   const marked = (name: string) => {
-    const value = answer.match(new RegExp(`${name}\\s*[:=]\\s*(?:NGN|Naira|N)?\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)`, 'i'))
+    const value = answer.match(new RegExp(`${name}\\s*[:=]\\s*(?:₦|NGN|Naira|N)?\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)`, 'i'))
     if (!value) return undefined
     const number = numberFrom(value[1])
     return Number.isFinite(number) && number > 0 ? number : undefined
   }
-  const low = marked('LOW_NGN_PER_KG')
-  const high = marked('HIGH_NGN_PER_KG')
+  const low = range && !explicit ? numberFrom(range[1]) : marked('LOW_NGN_PER_KG')
+  const high = range && !explicit ? numberFrom(range[2]) : marked('HIGH_NGN_PER_KG')
   const yieldMatch = customCrop ? answer.match(/YIELD_T_PER_HA\s*[:=]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i) : null
-  const yieldValue = yieldMatch ? numberFrom(yieldMatch[1]) : undefined
+  const naturalYield = customCrop && !yieldMatch ? answer.match(/(?:yield|production|harvest)[^0-9]{0,100}([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:t\/ha|tonnes?\s+per\s+hectare|tons?\s+per\s+hectare)/i) : null
+  const yieldValue = yieldMatch ? numberFrom(yieldMatch[1]) : naturalYield ? numberFrom(naturalYield[1]) : undefined
   const costs = customCrop ? Object.fromEntries(COST_CATEGORIES.flatMap((category) => {
-    const match = answer.match(new RegExp(`COST_${category.toUpperCase()}_NGN_PER_HA\\s*[:=]\\s*(?:NGN|Naira|N)?\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)`, 'i'))
-    if (!match) return []
-    const value = numberFrom(match[1])
+    const match = answer.match(new RegExp(`COST_${category.toUpperCase()}_NGN_PER_HA\\s*[:=]\\s*(?:₦|NGN|Naira|N)?\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)`, 'i'))
+    const natural = new RegExp(`(?:${COST_TERMS[category]})[^0-9]{0,100}(?:₦|NGN|Naira|N)\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)`, 'i').exec(answer)
+    const valueMatch = match ?? natural
+    if (!valueMatch) return []
+    const value = numberFrom(valueMatch[1])
     return Number.isFinite(value) && value >= 0 ? [[category, value]] : []
   })) : {}
   const sources = results.filter((item): item is SearchResult => {

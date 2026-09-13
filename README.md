@@ -34,6 +34,11 @@ in this repository, the browser bundle, command output, or a committed file.
 If no key is available, the app fails closed or shows only retained local price
 context; it does not invent the remaining assumptions.
 
+The public production site also exposes the same bounded route at
+`https://crop-value-predictor.pages.dev/api/price-research`. Its Tavily key is
+held only as an encrypted Cloudflare Pages secret. The hosted route is optional,
+does not publish a price snapshot, and does not change the Stage 1 decision.
+
 Newly added crops use the same research path. After entering a crop name and
 product form (for example, `Soybean` and `dry grain`), choose a Nigerian state
 and click **Find all starting values**. The request includes the custom crop
@@ -133,24 +138,25 @@ milestone and remain deferred future human-validation materials.
 
 The copy-ready handoff is [`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md). The
 Stage 6 gate is complete. Gate A for the optional online research assist is
-authorized and in review; the local lane is implemented and the future hosted
-lane is documented in
+authorized; the bounded hosted lane is deployed and the remaining source,
+rights, privacy, and rate-limit review is documented in
 [`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md);
-it has not been approved for deployment. Human validation, data
-promotion, hosted online retrieval, or another scoped milestone still requires
-separate authorization. The calculator-only static release is deployed at
+it is not an observed-price data feed. Human validation, data promotion,
+automated defaults, or another scoped milestone still requires separate
+authorization. The calculator-only static release is deployed at
 `https://crop-value-predictor.pages.dev/`.
 Literature-informed readiness must not be described as farmer-validated.
 
 The Stage 1 audit closed on 2026-09-13 after the authorized static-export
 canary found no official Nigeria CSV link; it remains an accepted fallback, not
-an approval. The calculator remains manual-input-only by default. A future
+an approval. The calculator remains manual-input-only by default. The optional
 online research assist may return a confirmed, editable internet aggregate
-estimate with its supporting evidence, but
-it cannot reopen Stage 1 or automatically rank a scenario.
+estimate with its supporting evidence, but it cannot reopen Stage 1 or
+automatically rank a scenario.
 
-Production data integration, Stages 3 and 4, hosted online retrieval, and a
-broader public launch remain blocked until their separate gates pass.
+Production data integration, Stages 3 and 4, and a broader public launch
+remain blocked until their separate gates pass. The optional hosted research
+assist is available only through an explicit user action and confirmation.
 
 Stage 2 is **Approved** on commit `2e8802f`: clean-clone
 verification passed npm tests, typecheck, build, six Chromium E2E scenarios,
