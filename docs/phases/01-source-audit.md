@@ -1,6 +1,6 @@
 # Stage 1 — Source and Feasibility Audit
 
-**Status:** In progress — web-first remediation run opened 2026-09-09
+**Status:** Closed — fallback accepted 2026-09-13; observed-price gate unapproved
 **Dependency:** Stage 0 approved on 2026-08-25; prior failed audits remain immutable evidence
 
 ## Objective
@@ -322,3 +322,18 @@ Stage 1 remains unapproved, the public snapshot is unchanged, and no
 promotion was attempted. The next FEWS action must be a justified
 endpoint-contract or access-path change, not repeated requests against the
 same failing path.
+
+### 2026-09-13 — static-export canary closed fail-closed
+
+- Reviewed commit `cbb9e3c` was pushed with the static adapter, qualification
+  hardening, promotion guard, and sequential gate plan.
+- Evidence-only static canary [34731386407](https://github.com/batestguy/crop-value-predictor/actions/runs/34731386407)
+  ran with cutoff `2026-08` and a 30-second bound.
+- The official Nigeria FEWS page exposed zero matching CSV links. The manifest
+  records: `expected exactly one official Nigeria FEWS CSV link, found 0`.
+- The artifact is retained in `audit-output-fews-canary-20260913-34731386407`.
+  No raw FEWS file was accepted, no public snapshot changed, and no promotion
+  occurred.
+- Phase 1 is resolved as the calculator-only fallback, not as observed-price
+  approval. Reopening requires a materially changed official access path or a
+  provider-supplied export URL, followed by all gates and two reviews.

@@ -2,14 +2,14 @@
 
 **Plan:** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)  
 **Workflow:** sequential delivery with a user review at every acceptance gate  
-**Last updated:** 2026-09-10
+**Last updated:** 2026-09-13
 
 ## Current status
 
 | Stage | Status | Evidence record | Gate condition |
 |---|---|---|---|
 | 0. Baseline and tracking setup | Approved | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
-| 1. Source and feasibility audit | In progress — observed retrieval blocked | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | Fresh FEWS/WFP audit must pass unchanged technical and rights gates |
+| 1. Source and feasibility audit | Closed — fallback accepted; observed gate unapproved | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | Reopen only with a materially changed official source path; unchanged gates remain mandatory |
 | 2. Offline decision calculator | Approved | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
 | 3. Automated data pipeline | Blocked | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Unchanged Stage 1 source gate blocks automated data |
 | 4. Forecasting and validation | Blocked | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Unchanged Stage 1/Stage 3 dependency blocks forecasting |
@@ -41,6 +41,17 @@ gate outcome. A stage is never approved from code presence alone.
 6. Mark a passing gate `Approved`; if the gate fails but its documented
    fallback is accepted, mark it `Closed — fallback accepted` and preserve the
    failed conditions in the evidence record.
+
+## Stage 1 final fallback outcome — 2026-09-13
+
+The reviewed static-export implementation was pushed as commit `cbb9e3c` and
+run once as evidence-only canary
+[34731386407](https://github.com/batestguy/crop-value-predictor/actions/runs/34731386407).
+It failed closed because the official Nigeria FEWS page exposed zero matching
+CSV links. The uploaded manifest records
+`expected exactly one official Nigeria FEWS CSV link, found 0`; no raw FEWS
+file was accepted. Stage 1 is therefore **Closed — fallback accepted**, not
+Approved. `stage_1_approved` remains false, and Stages 3–4 remain blocked.
 
 ## Baseline evidence
 

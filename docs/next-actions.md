@@ -1,9 +1,9 @@
 # Next actions and decision gates
 
-**Updated:** 2026-09-10
+**Updated:** 2026-09-13
 **Current release posture:** calculator-only, browser-first PWA
-**Active gate:** Stage 1 observed-price remediation is blocked by upstream FEWS
-retrieval availability.
+**Active gate:** Stage 1 is closed as calculator-only fallback; observed prices
+remain unapproved.
 
 This is the operational sequence after the 2026-09-10 fresh audit. It keeps
 the existing technical thresholds and the manual-input fallback intact.
@@ -14,7 +14,7 @@ the existing technical thresholds and the manual-input fallback intact.
 | --- | --- | --- |
 | Agent workflow | Implemented locally and globally | `AGENTS.md`, `.agents/agent-policy.toml`, global `.codex/AGENTS.md` |
 | Offline calculator | Approved and validated | `docs/phases/02-offline-calculator.md` |
-| Observed-price Stage 1 | Not approved; retrieval blocked | `audit-output-remediation-2026-09-10` |
+| Observed-price Stage 1 | Closed — fallback accepted; retrieval unavailable | `audit-output-fews-canary-20260913-34731386407` |
 | Modeled context lane | Provisionally retained as editable context | `public/data/v1/modeled_price_suggestions.json` |
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
 | Browser verification | Complete: 17 passed, 1 intentional skip, clean process exit | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
@@ -51,28 +51,30 @@ non-endorsement wording are covered, but any third-party restrictions must be
 confirmed before broader redistribution. This lane does not alter
 `stage_1_approved`.
 
-### 3. Authorized observed-price retrieval investigation — complete 2026-09-10
+### 3. Authorized observed-price retrieval investigation — closed 2026-09-13
 
 The authorized cloud origin was used for two bounded canaries and one full
 read-only Stage 1 audit. The cloud origin is reachable, but the FEWS data path
-still fails closed: the August canary returned no positive total, the June
-canary returned HTTP 403, and the full audit returned HTTP 403 after bounded
-retries.
+still fails closed. The corrected static-export canary then found zero official
+CSV links on the Nigeria page.
 
 Evidence:
 
 - Canaries: `34434267144` and `34434497826`.
 - Full audit: `34434760861`.
+- Static canary: [34731386407](https://github.com/batestguy/crop-value-predictor/actions/runs/34731386407).
 - Downloaded immutable artifact:
   `audit-output-fews-cloud-full-20260910-34434760861`.
+- Static canary artifact:
+  `audit-output-fews-canary-20260913-34731386407`.
 - Qualification: `calculator_only_fallback`; zero FEWS eligible series and
   zero selected crops; `stage_1_approved: false`.
 
-Do not promote or alter the public snapshot. Further FEWS work now requires a
-justified adapter or endpoint-contract change based on the official API
-contract, followed by a new immutable audit and two independent reviews.
+Do not promote or alter the public snapshot. Phase 1 is closed as fallback;
+reopening requires a materially changed official access path or provider-supplied
+export URL, followed by a new immutable audit and two independent reviews.
 
-### 4. Continue calculator-only readiness in parallel
+### 4. Continue calculator-only readiness
 
 While Stage 1 is blocked, permitted work is limited to browser-PWA quality:
 
@@ -85,7 +87,7 @@ While Stage 1 is blocked, permitted work is limited to browser-PWA quality:
 Do not add automated price defaults, browser API calls, forecasting, source
 stitching, participant claims, or production-data promotion.
 
-### 5. Re-open blocked stages only after their prerequisites pass
+### 5. Re-open Stage 1 only after a materially changed source path
 
 Stage 3 can begin only after Stage 1 technical and rights approval. Stage 4
 also requires an approved Stage 3 data pipeline and validation design. Deployment

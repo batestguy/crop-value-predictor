@@ -4,7 +4,7 @@
 **Plan date:** 2026-08-24  
 **Original specification:** `Crop Value Predictor App.txt`, version 1.0
 
-## Current delivery outcome — 2026-09-10
+## Current delivery outcome — 2026-09-13
 
 Stage 1 completed its audit and evidence review, but the production-price gate
 did not pass. The authenticated qualification report selected zero crop forms:
@@ -42,6 +42,13 @@ review-ready, never approved or promotable by itself. Explicit user approval
 remains the final authorization. The current result has not passed any of
 these later gates: `stage_1_approved` remains false and the calculator-only
 posture remains in force.
+
+The corrected static-export canary ran once from reviewed commit `cbb9e3c` as
+[34731386407](https://github.com/batestguy/crop-value-predictor/actions/runs/34731386407)
+and found zero official CSV links on the Nigeria FEWS page. The exact manifest
+failure is `expected exactly one official Nigeria FEWS CSV link, found 0`.
+Phase 1 is now **Closed — fallback accepted**. It is not approved, and no
+additional attempt against the same page or obsolete API path is planned.
 
 ## 1. Delivery decision
 

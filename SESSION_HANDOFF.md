@@ -1,10 +1,27 @@
 # Next-session handoff
 
-Updated: 2026-09-10
+Updated: 2026-09-13
 Repository: `D:\Crop Value Predictor App`
 Last implementation commit: `7683fb1 feat: add modeled price context lane`; the
 FEWS static-export implementation is currently uncommitted in the working tree.
 Branch at handoff: `stage1-adapter-fix`
+
+## Current disposition — 2026-09-13
+
+The reviewed static-export implementation was committed as `cbb9e3c` and
+pushed to `stage1-adapter-fix`. The single authorized evidence-only canary was
+run as [34731386407](https://github.com/batestguy/crop-value-predictor/actions/runs/34731386407)
+with cutoff `2026-08` and a 30-second bound. It failed closed because the
+official Nigeria FEWS page exposed zero matching CSV links:
+`expected exactly one official Nigeria FEWS CSV link, found 0`.
+
+Phase 1 is now **Closed — fallback accepted**, not approved. The artifact is
+`audit-output-fews-canary-20260913-34731386407`; no raw FEWS file was accepted,
+no public snapshot changed, and no promotion occurred. Stages 3 and 4 remain
+blocked. Do not repeat the old API path or the same static canary. Reopen Stage
+1 only after a materially changed official access path or provider-supplied
+export URL, followed by the complete unchanged gates and two independent
+reviews.
 
 ## Start here
 
