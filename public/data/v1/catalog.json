@@ -6,7 +6,10 @@
     {"crop_id":"rice","name":"Rice","form":"paddy","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
     {"crop_id":"cassava","name":"Cassava","form":"fresh roots","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
     {"crop_id":"yam","name":"Yam","form":"fresh tuber","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
-    {"crop_id":"sorghum","name":"Sorghum","form":"dry grain","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]}
+    {"crop_id":"sorghum","name":"Sorghum","form":"dry grain","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
+    {"crop_id":"rice-milled","name":"Milled rice","form":"milled rice","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
+    {"crop_id":"gari-white","name":"White gari","form":"processed cassava","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]},
+    {"crop_id":"millet","name":"Pearl millet","form":"dry grain","sale_unit":"kg","eligible_for_recommendation":false,"horizons_months":[]}
   ],
   "locations": [
     {"location_id":"nigeria-national-median","name":"Nigeria national median","kind":"national_median","state":null,"latitude":9.08,"longitude":7.40,"covered_crop_ids":["maize-white","rice","cassava","yam","sorghum"]},

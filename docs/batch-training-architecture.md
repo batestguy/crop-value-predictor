@@ -18,13 +18,15 @@ flowchart LR
     K --> O[Metrics, model card, checkpoint, forecasts]
     O --> V[GitHub cloud validation and review]
     V --> P[Approved static JSON release]
-    P --> H[GitHub Pages]
+    P --> H[Cloudflare Pages]
     H --> W[React PWA]
     W --> C[Cache Storage / IndexedDB]
     C --> D[Offline margin calculation]
 ```
 
-GitHub Actions is the workflow authority. Kaggle is the remote training
+GitHub Actions is the workflow authority. Cloudflare Pages is the static web
+host; it serves only reviewed immutable assets and does not run server
+functions. Kaggle is the remote training
 backend. The Kaggle CLI is used only to submit a job, poll its status, and
 retrieve outputs. Kaggle credentials stay in GitHub encrypted secrets and are
 never shipped to the browser.

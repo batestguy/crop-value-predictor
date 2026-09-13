@@ -8,8 +8,10 @@ checksums, and a machine-readable manifest, but never changes ``public/data``.
 from __future__ import annotations
 
 import argparse
+import calendar
 import csv
 import hashlib
+from html.parser import HTMLParser
 import json
 import re
 import sys
@@ -19,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode, urljoin, urlparse
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +34,7 @@ REQUIRED_FIELDS = {
 VALID_STATUSES = {"candidate", "qualified", "rejected", "deferred"}
 MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 SAFE_URL = re.compile(r"^(https://[^?\s#]+)")
+HTML_BOT_MARKERS = (b"cf-chl-", b"captcha", b"access denied", b"enable javascript", b"challenge-platform")
 
 
 def sanitize_url(url: str) -> str:
@@ -40,6 +43,224 @@ def sanitize_url(url: str) -> str:
     if not match:
         raise ValueError("download URL must be an HTTPS URL")
     return match.group(1)
+
+
+def _allowed_fews_hosts(retrieval: dict) -> set[str]:
+    hosts = {str(host).strip().lower().rstrip(".") for host in retrieval.get("allowed_hosts", []) if str(host).strip()}
+    if not hosts:
+        raise ValueError("FEWS static export has no allowed hosts")
+    return hosts
+
+
+def _validate_fews_url(url: str, allowed_hosts: set[str], *, label: str) -> str:
+    parsed = urlparse(str(url or ""))
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme.lower() != "https" or not host or host not in allowed_hosts or parsed.username or parsed.password:
+        raise ValueError(f"FEWS {label} must be HTTPS on a configured FEWS host")
+    return str(url)
+
+
+def _response_final_url(response: object, requested_url: str) -> str:
+    geturl = getattr(response, "geturl", None)
+    return str(geturl() if callable(geturl) else requested_url)
+
+
+def _looks_like_html_or_bot(body: bytes, content_type: str = "") -> bool:
+    lowered = body[:4096].lstrip().lower()
+    content = content_type.lower()
+    if any(marker in content for marker in ("text/html", "application/xhtml", "javascript")):
+        return True
+    if lowered.startswith((b"<!doctype html", b"<html", b"<head", b"<script")):
+        return True
+    return any(marker in lowered for marker in HTML_BOT_MARKERS)
+
+
+class _FewsAnchorParser(HTMLParser):
+    """Collect anchor labels without introducing an HTML dependency."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links: list[dict[str, str]] = []
+        self._current: dict[str, object] | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "a" or self._current is not None:
+            return
+        attributes = {key.lower(): value or "" for key, value in attrs}
+        self._current = {"href": attributes.get("href", ""), "text": []}
+
+    def handle_data(self, data: str) -> None:
+        if self._current is not None:
+            self._current["text"].append(data)  # type: ignore[union-attr]
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() != "a" or self._current is None:
+            return
+        self.links.append({"href": str(self._current["href"]), "label": " ".join(self._current["text"]).strip()})  # type: ignore[arg-type]
+        self._current = None
+
+
+def _normalized_label(value: object) -> str:
+    return " ".join(str(value or "").lower().split())
+
+
+def discover_fews_static_export(
+    source: dict,
+    *,
+    opener: Callable = urlopen,
+    timeout: int | None = None,
+) -> dict:
+    """Discover exactly one official Nigeria FEWS CSV from the FEWS page."""
+    retrieval = source.get("retrieval", {})
+    if retrieval.get("mode") != "fews_static_export":
+        raise ValueError("FEWS static adapter requires the static export retrieval mode")
+    discovery_page = str(source.get("url") or retrieval.get("discovery_page") or "")
+    allowed_hosts = _allowed_fews_hosts(retrieval)
+    _validate_fews_url(discovery_page, allowed_hosts, label="discovery page")
+    request = Request(discovery_page, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "text/html"})
+    with opener(request, timeout=timeout or int(retrieval.get("discovery_timeout_seconds", 60))) as response:
+        status = getattr(response, "status", 200)
+        if status >= 400:
+            raise HTTPError(discovery_page, status, "FEWS discovery page HTTP error", hdrs=None, fp=None)
+        final_page = _validate_fews_url(_response_final_url(response, discovery_page), allowed_hosts, label="discovery redirect")
+        content_type = str((getattr(response, "headers", {}) or {}).get("Content-Type", ""))
+        html = response.read()
+    if not html:
+        raise ValueError("FEWS discovery page is empty")
+    if content_type and not any(marker in content_type.lower() for marker in ("text/html", "application/xhtml")):
+        raise ValueError("FEWS discovery page is not HTML")
+    parser = _FewsAnchorParser()
+    try:
+        parser.feed(html.decode("utf-8", errors="strict"))
+    except UnicodeDecodeError as error:
+        raise ValueError("FEWS discovery page is not valid UTF-8 HTML") from error
+    required_label = _normalized_label(retrieval.get("required_link_label", "nigeria weekly fews net staple food price data"))
+    extensions = {str(item).lower() for item in retrieval.get("accepted_extensions", [".csv"])}
+    matches = []
+    for link in parser.links:
+        href = str(link.get("href") or "").strip()
+        label = _normalized_label(link.get("label"))
+        if not href or required_label not in label:
+            continue
+        resolved = urljoin(final_page, href)
+        _validate_fews_url(resolved, allowed_hosts, label="export link")
+        path = urlparse(resolved).path.lower()
+        if not any(path.endswith(extension) for extension in extensions):
+            continue
+        matches.append({"url": resolved, "label": link.get("label", "").strip(), "filename": unquote(Path(urlparse(resolved).path).name)})
+    if len(matches) != 1:
+        raise ValueError(f"expected exactly one official Nigeria FEWS CSV link, found {len(matches)}")
+    return {
+        "discovery_page": final_page,
+        "url": matches[0]["url"],
+        "link_label": matches[0]["label"],
+        "filename": matches[0]["filename"],
+        "format": "csv",
+    }
+
+
+def validate_fews_static_csv(path: Path, retrieval: dict) -> dict:
+    """Require explicit Nigeria, price, unit, transaction, and rights fields."""
+    configured = retrieval.get("required_columns") or {
+        "country": ["country"],
+        "date": ["period_date", "date", "date_start"],
+        "market": ["market"],
+        "product": ["product"],
+        "price": ["value", "price"],
+        "price_type": ["price_type"],
+        "unit": ["unit"],
+        "currency": ["currency"],
+        "public_usage": ["data_usage_policy", "usage_policy", "access"],
+    }
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fields = reader.fieldnames or []
+        normalized = {str(field).strip().lower(): field for field in fields if field is not None}
+        selected: dict[str, str] = {}
+        missing = []
+        for semantic, candidates in configured.items():
+            names = [str(candidate).strip().lower() for candidate in candidates] if isinstance(candidates, list) else [str(candidates).strip().lower()]
+            match = next((normalized[name] for name in names if name in normalized), None)
+            if match is None:
+                missing.append(semantic)
+            else:
+                selected[semantic] = match
+        if missing:
+            raise ValueError(f"FEWS static export missing required columns: {', '.join(missing)}")
+        rows = 0
+        dates: list[str] = []
+        for row_number, row in enumerate(reader, 2):
+            rows += 1
+            absent = [semantic for semantic, field in selected.items() if not str(row.get(field) or "").strip()]
+            if absent:
+                raise ValueError(f"FEWS static export row {row_number} has empty required fields: {', '.join(absent)}")
+            country = _normalized_label(row.get(selected["country"]))
+            if country not in {"nigeria", "ng", "nga"}:
+                raise ValueError(f"FEWS static export row {row_number} is outside Nigeria")
+            date_value = str(row.get(selected["date"]) or "").strip()
+            if not re.match(r"^\d{4}-\d{2}-\d{2}", date_value):
+                raise ValueError(f"FEWS static export row {row_number} has an invalid explicit date")
+            dates.append(date_value[:10])
+        if rows == 0:
+            raise ValueError("FEWS static export contains zero rows")
+    return {"rows": rows, "columns": fields, "date_min": min(dates), "date_max": max(dates), "required_columns": selected}
+
+
+def download_fews_static_export(
+    source: dict,
+    target: Path,
+    *,
+    cutoff_month: str | None = None,
+    opener: Callable = urlopen,
+    timeout: int | None = None,
+    max_bytes: int = 250_000_000,
+) -> dict:
+    """Discover, validate, and atomically download the official FEWS CSV."""
+    retrieval = source.get("retrieval", {})
+    discovery = discover_fews_static_export(source, opener=opener, timeout=timeout)
+    allowed_hosts = _allowed_fews_hosts(retrieval)
+    url = _validate_fews_url(discovery["url"], allowed_hosts, label="export URL")
+    temporary = target.with_name(target.name + ".tmp")
+    try:
+        request = Request(url, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "text/csv"})
+        with opener(request, timeout=timeout or int(retrieval.get("download_timeout_seconds", 120))) as response:
+            status = getattr(response, "status", 200)
+            if status >= 400:
+                raise HTTPError(url, status, "FEWS export HTTP error", hdrs=None, fp=None)
+            final_url = _validate_fews_url(_response_final_url(response, url), allowed_hosts, label="export redirect")
+            headers = getattr(response, "headers", {}) or {}
+            content_type = str(headers.get("Content-Type", ""))
+            filename_header = str(headers.get("Content-Disposition", ""))
+            total = 0
+            with temporary.open("wb") as handle:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise ValueError("FEWS static export exceeds maximum size")
+                    handle.write(chunk)
+        if total == 0:
+            raise ValueError("FEWS static export is empty")
+        body_sample = temporary.read_bytes()[:4096]
+        if _looks_like_html_or_bot(body_sample, content_type):
+            raise ValueError("FEWS static export response is HTML or a JavaScript bot challenge")
+        profile = validate_fews_static_csv(temporary, retrieval)
+        temporary.replace(target)
+        header_match = re.search(r"filename\s*=\s*\"?([^\";]+)", filename_header, re.I)
+        filename = unquote(header_match.group(1).strip()) if header_match else discovery["filename"]
+        return {
+            "status": "downloaded", "path": target.name, "bytes": total,
+            "sha256": sha256_file(target), "discovery_page": discovery["discovery_page"],
+            "resolved_export_url": final_url, "link_label": discovery["link_label"],
+            "filename": filename, "content_type": content_type, "cutoff_month": cutoff_month,
+            **profile,
+        }
+    except Exception:
+        if temporary.exists():
+            temporary.unlink()
+        raise
 
 
 def _request_json(url: str, *, opener=urlopen, retries: int = 3, sleep: Callable[[float], None] = time.sleep) -> dict:
@@ -168,18 +389,47 @@ def load_register() -> list[dict]:
             retrieval = source["retrieval"]
             assert retrieval.get("page_size") == 100, source_id
             assert retrieval.get("filter") == {"ISO3": "NGA"}, source_id
+        if source.get("retrieval", {}).get("mode") == "world_bank_bulk_zip":
+            retrieval = source["retrieval"]
+            assert retrieval.get("study_idno") == "NGA_2021_RTFP_v02_M", source_id
+            assert retrieval.get("expected_filename_prefix") == "NGA_RTFP_mkt_", source_id
+            assert retrieval.get("accepted_extensions") == [".zip"], source_id
+            assert retrieval.get("country_field") == "ISO3", source_id
+            assert retrieval.get("country_value") == "NGA", source_id
         if source.get("retrieval", {}).get("mode") == "fews_v3_paginated_json":
             retrieval = source["retrieval"]
-            assert source["download_url"].endswith(".json"), source_id
-            assert retrieval.get("country_parameter") == "country", source_id
-            assert retrieval.get("country_code") == "NG", source_id
+            endpoint = source["download_url"].rstrip("/")
+            assert source["download_url"].endswith(".json") or endpoint.endswith("/marketpricefacts"), source_id
+            assert retrieval.get("country_parameter") in {"country_code", "country"}, source_id
+            if retrieval.get("country_parameter") == "country":
+                assert retrieval.get("country_value") == "NG", source_id
+            else:
+                assert retrieval.get("country_code") == "NG", source_id
             assert retrieval.get("page_size_parameter") == "page_size", source_id
             assert retrieval.get("offset_parameter") == "offset", source_id
             assert retrieval.get("response_total_field") == "count", source_id
             assert retrieval.get("response_rows_field") == "results", source_id
+            assert retrieval.get("format_parameter") == "format", source_id
+            assert retrieval.get("format") == "json", source_id
             assert retrieval.get("row_country_fields") == ["country_code", "country"], source_id
+            assert isinstance(retrieval.get("history_months"), int) and retrieval["history_months"] >= 36, source_id
+            assert isinstance(retrieval.get("page_delay_seconds"), (int, float)) and 0 <= retrieval["page_delay_seconds"] <= 10, source_id
+            assert isinstance(retrieval.get("transient_statuses"), list) and all(isinstance(status, int) for status in retrieval["transient_statuses"]), source_id
             assert isinstance(retrieval.get("request_timeout_seconds"), int) and 1 <= retrieval["request_timeout_seconds"] <= 120, source_id
             assert isinstance(retrieval.get("retries"), int) and 1 <= retrieval["retries"] <= 3, source_id
+        if source.get("retrieval", {}).get("mode") == "fews_static_export":
+            retrieval = source["retrieval"]
+            assert source["url"].startswith("https://"), source_id
+            assert retrieval.get("discovery_page") == source["url"], source_id
+            assert retrieval.get("allowed_hosts"), source_id
+            assert ".csv" in [str(item).lower() for item in retrieval.get("accepted_extensions", [])], source_id
+            required_columns = retrieval.get("required_columns")
+            assert isinstance(required_columns, dict), source_id
+            assert {"country", "date", "market", "product", "price", "price_type", "unit", "currency", "public_usage"}.issubset(required_columns), source_id
+            assert isinstance(retrieval.get("retries"), int) and 1 <= retrieval["retries"] <= 3, source_id
+        diagnostic = source.get("diagnostic_retrieval")
+        if diagnostic is not None:
+            assert diagnostic.get("mode") == "fews_v3_paginated_json", source_id
     return sources
 
 
@@ -189,6 +439,12 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def shift_month(ym: str, delta: int) -> str:
+    year, month = map(int, ym.split("-"))
+    index = year * 12 + month - 1 + delta
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"
 
 
 def _json_rows(payload: object) -> list[dict]:
@@ -288,28 +544,127 @@ def download_nada_paginated(
     }
 
 
+def discover_world_bank_bulk(
+    source: dict,
+    *,
+    opener: Callable = urlopen,
+) -> dict:
+    """Discover the current open Nigeria RTFP bulk file from the catalog API."""
+    retrieval = source.get("retrieval", {})
+    if retrieval.get("mode") != "world_bank_bulk_zip":
+        raise ValueError("World Bank adapter requires the bulk ZIP retrieval mode")
+    study_idno = str(retrieval.get("study_idno", "")).strip()
+    prefix = str(retrieval.get("expected_filename_prefix", "")).strip()
+    extensions = {str(item).lower() for item in retrieval.get("accepted_extensions", [])}
+    if not study_idno or not prefix or not extensions:
+        raise ValueError("World Bank bulk discovery contract is incomplete")
+    request = Request(source["download_url"], headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "application/json"})
+    with opener(request, timeout=60) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    if not isinstance(payload, dict) or payload.get("status") != "success" or not isinstance(payload.get("files"), list):
+        raise ValueError("World Bank bulk discovery returned an invalid response")
+    candidates = []
+    for item in payload["files"]:
+        if not isinstance(item, dict):
+            continue
+        filename = str(item.get("filename", "")).strip()
+        download_url = str((item.get("links") or {}).get("download", "")).strip()
+        if not filename.startswith(prefix) or Path(filename).suffix.lower() not in extensions:
+            continue
+        if str(item.get("study_idno", study_idno)) != study_idno or item.get("data_access_type") != "open":
+            continue
+        if not download_url.startswith("https://"):
+            continue
+        candidates.append(item)
+    if not candidates:
+        raise ValueError("expected at least one current open World Bank RTFP bulk file")
+    item = max(candidates, key=lambda value: (str(value.get("dcdate", "")), str(value.get("changed", "")), str(value.get("resource_id", ""))))
+    return {
+        "url": str(item["links"]["download"]),
+        "resource_id": item.get("resource_id"),
+        "filename": item.get("filename"),
+        "title": item.get("title"),
+        "version_date": item.get("dcdate"),
+        "last_modified": item.get("changed"),
+        "data_access_type": item.get("data_access_type"),
+        "catalog_url": source["url"],
+    }
+
+
+def download_world_bank_bulk(
+    source: dict,
+    target: Path,
+    *,
+    opener: Callable = urlopen,
+) -> dict:
+    """Retrieve and validate the current open World Bank Nigeria RTFP ZIP."""
+    discovery = discover_world_bank_bulk(source, opener=opener)
+    temporary = target.with_name(target.name + ".tmp")
+    request = Request(discovery["url"], headers={"User-Agent": "crop-value-predictor-stage1/1.0"})
+    with opener(request, timeout=120) as response, temporary.open("wb") as handle:
+        while chunk := response.read(1024 * 1024):
+            handle.write(chunk)
+    if not temporary.stat().st_size:
+        temporary.unlink()
+        raise ValueError("World Bank bulk response is empty")
+    rows = 0
+    date_values: list[str] = []
+    with zipfile.ZipFile(temporary) as archive:
+        members = [name for name in archive.namelist() if name.lower().endswith(".csv") and not name.endswith("/")]
+        if len(members) != 1:
+            raise ValueError(f"World Bank bulk ZIP must contain one CSV, found {len(members)}")
+        with archive.open(members[0]) as binary:
+            reader = csv.DictReader(line.decode("utf-8-sig") for line in binary)
+            if "ISO3" not in (reader.fieldnames or []) or "price_date" not in (reader.fieldnames or []):
+                raise ValueError("World Bank bulk CSV is missing ISO3 or price_date")
+            for row in reader:
+                if row.get("ISO3") != "NGA":
+                    raise ValueError("World Bank bulk CSV contains a non-Nigeria row")
+                rows += 1
+                if row.get("price_date"):
+                    date_values.append(str(row["price_date"])[:10])
+    if not rows:
+        temporary.unlink()
+        raise ValueError("World Bank bulk CSV contains zero Nigeria rows")
+    temporary.replace(target)
+    return {
+        "status": "downloaded", "path": target.name, "bytes": target.stat().st_size,
+        "sha256": sha256_file(target), "rows": rows, "csv_members": members,
+        "date_min": min(date_values) if date_values else None, "date_max": max(date_values) if date_values else None,
+        "url": discovery["url"], "catalog_url": discovery["catalog_url"],
+        "resource_id": discovery["resource_id"], "resource_filename": discovery["filename"],
+        "version_date": discovery["version_date"], "last_modified": discovery["last_modified"],
+        "data_access_type": discovery["data_access_type"],
+    }
+
+
 def download_fews_paginated(
     source: dict,
     target: Path,
     *,
+    cutoff_month: str | None = None,
     opener=urlopen,
     sleep: Callable[[float], None] = time.sleep,
     retries: int = 3,
 ) -> dict:
     """Download documented FEWS Data Explorer v3 pages, fail-closed.
 
-    The configured contract is deliberately narrow: a ``.json`` endpoint,
-    ``country=NG`` plus ``page_size``/``offset`` query parameters, and a
-    ``count``/``results`` response.  Alternate envelopes are not silently
-    accepted because they could change geography or pagination semantics.
+    The configured contract is deliberately narrow: the documented
+    ``marketpricefacts`` endpoint, an exact Nigeria filter, explicit JSON
+    format, ``page_size``/``offset`` pagination, and a ``count``/``results``
+    response. Alternate envelopes are not silently accepted because they could
+    change geography or pagination semantics.
     """
     retrieval = source.get("retrieval", {})
     if retrieval.get("mode") not in {None, "fews_v3_paginated_json"}:
         raise ValueError("FEWS adapter requires the documented v3 retrieval mode")
-    if not str(source.get("download_url", "")).endswith(".json"):
-        raise ValueError("FEWS adapter requires a .json endpoint")
-    if retrieval.get("country_parameter", "country") != "country" or retrieval.get("country_code") != "NG":
-        raise ValueError("FEWS adapter requires country=NG")
+    endpoint = str(source.get("download_url", ""))
+    if not endpoint.endswith(".json") and not endpoint.rstrip("/").endswith("/marketpricefacts"):
+        raise ValueError("FEWS adapter requires the documented marketpricefacts endpoint")
+    country_parameter = retrieval.get("country_parameter", "country_code")
+    country_value = retrieval.get("country_value", retrieval.get("country_code", "NG"))
+    if country_parameter not in {"country_code", "country"} or country_value != "NG":
+        raise ValueError("FEWS adapter requires an exact Nigeria country filter")
     if retrieval.get("page_size_parameter", "page_size") != "page_size" or retrieval.get("offset_parameter", "offset") != "offset":
         raise ValueError("FEWS adapter requires page_size and offset pagination")
     if retrieval.get("response_total_field", "count") != "count" or retrieval.get("response_rows_field", "results") != "results":
@@ -319,12 +674,31 @@ def download_fews_paginated(
         raise ValueError("FEWS page size is outside the safe range")
     request_timeout_seconds = int(retrieval.get("request_timeout_seconds", 30))
     retries = int(retrieval.get("retries", retries))
+    transient_statuses = {int(status) for status in retrieval.get("transient_statuses", [429, 500, 502, 503, 504])}
+    page_delay_seconds = float(retrieval.get("page_delay_seconds", 0))
+    if page_delay_seconds < 0 or page_delay_seconds > 10:
+        raise ValueError("FEWS page delay is outside the safe range")
     if not 1 <= request_timeout_seconds <= 120:
         raise ValueError("FEWS request timeout must be between 1 and 120 seconds")
     if not 1 <= retries <= 3:
         raise ValueError("FEWS retries must be between 1 and 3")
     offset_key = "offset"
-    query_base = {"country": "NG", "page_size": page_size}
+    query_base = {str(country_parameter): str(country_value), "page_size": page_size}
+    for key, value in (retrieval.get("query_parameters") or {}).items():
+        query_base[str(key)] = str(value)
+    format_parameter = retrieval.get("format_parameter")
+    if format_parameter:
+        if retrieval.get("format") != "json":
+            raise ValueError("FEWS adapter requires JSON format")
+        query_base[str(format_parameter)] = "json"
+    history_months = retrieval.get("history_months")
+    if history_months and cutoff_month and not retrieval.get("canary_start_date"):
+        history_months = int(history_months)
+        if history_months < 36:
+            raise ValueError("FEWS history window must cover at least 36 months")
+        query_base["start_date"] = f"{shift_month(cutoff_month, 1 - history_months)}-01"
+        end_day = calendar.monthrange(*map(int, cutoff_month.split("-")))[1]
+        query_base["end_date"] = f"{cutoff_month}-{end_day:02d}"
     for query_key, retrieval_key in (("start_date", "canary_start_date"), ("end_date", "canary_end_date")):
         if retrieval.get(retrieval_key):
             query_base[query_key] = str(retrieval[retrieval_key])
@@ -334,7 +708,8 @@ def download_fews_paginated(
     pages = 0
     while total is None or len(rows) < total:
         query = {**query_base, offset_key: offset}
-        url = f"{source['download_url']}?{urlencode(query)}"
+        separator = "&" if "?" in source["download_url"] else "?"
+        url = f"{source['download_url']}{separator}{urlencode(query)}"
         payload = None
         last_error: Exception | None = None
         for attempt in range(retries):
@@ -342,14 +717,14 @@ def download_fews_paginated(
                 request = Request(url, headers={"User-Agent": "crop-value-predictor-stage1/1.0", "Accept": "application/json"})
                 with opener(request, timeout=request_timeout_seconds) as response:
                     status = getattr(response, "status", 200)
-                    if status == 429 or status >= 500:
+                    if status in transient_statuses:
                         raise HTTPError(url, status, "transient HTTP response", hdrs=None, fp=None)
                     payload = json.loads(response.read().decode("utf-8"))
                 break
             except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError, UnicodeDecodeError) as error:
                 last_error = error
                 status = getattr(error, "code", None)
-                transient = isinstance(error, (TimeoutError, URLError, OSError)) or status == 429 or (status is not None and status >= 500)
+                transient = isinstance(error, (TimeoutError, URLError, OSError)) or status in transient_statuses
                 if not transient or attempt == retries - 1:
                     break
                 sleep(min(2 ** attempt, 4))
@@ -377,15 +752,17 @@ def download_fews_paginated(
         if len(rows) > total:
             raise ValueError("FEWS returned more rows than its reported total")
         offset += len(page_rows)
+        if page_delay_seconds and len(rows) < total:
+            sleep(page_delay_seconds)
     if total is None or len(rows) != total:
         raise ValueError("FEWS pagination ended before all rows were collected")
     temporary = target.with_name(target.name + ".tmp")
     temporary.write_text(json.dumps({"count": total, "results": rows}, separators=(",", ":")) + "\n", encoding="utf-8")
     temporary.replace(target)
-    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {"country": "NG"}, "requested_page_size": page_size, "request_timeout_seconds": request_timeout_seconds, "retries": retries}
+    return {"status": "downloaded", "path": target.name, "bytes": target.stat().st_size, "sha256": sha256_file(target), "pages": pages, "rows": len(rows), "source_total": total, "filter": {str(country_parameter): str(country_value)}, "requested_page_size": page_size, "request_timeout_seconds": request_timeout_seconds, "retries": retries}
 
 
-def download(source: dict, raw_dir: Path) -> dict:
+def download(source: dict, raw_dir: Path, cutoff_month: str | None = None) -> dict:
     started = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     record = {
         "source_id": source["source_id"],
@@ -394,8 +771,9 @@ def download(source: dict, raw_dir: Path) -> dict:
         "status": "skipped",
     }
     if source["download_url"] is None:
-        record["reason"] = "no public download URL; manual/API qualification required"
-        return record
+        if source.get("retrieval", {}).get("mode") != "fews_static_export":
+            record["reason"] = "no public download URL; manual/API qualification required"
+            return record
 
     suffix = {"json": ".json", "csv": ".csv", "zip_csv": ".zip", "pdf": ".pdf"}
     extension = suffix.get(source["formats"][0], ".bin")
@@ -407,12 +785,42 @@ def download(source: dict, raw_dir: Path) -> dict:
             record.update({"status": "failed", "error": str(error)})
         return record
 
+    if source.get("retrieval", {}).get("mode") == "world_bank_bulk_zip":
+        target = raw_dir / f"{source['source_id']}.zip"
+        try:
+            record.update(download_world_bank_bulk(source, target))
+        except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError, zipfile.BadZipFile, json.JSONDecodeError) as error:
+            record.update({"status": "failed", "error": str(error)})
+        return record
+
     if source.get("retrieval", {}).get("mode") == "fews_v3_paginated_json":
         target = raw_dir / f"{source['source_id']}.json"
         try:
-            record.update(download_fews_paginated(source, target))
+            record.update(download_fews_paginated(source, target, cutoff_month=cutoff_month))
         except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError) as error:
             record.update({"status": "failed", "error": str(error)})
+        return record
+
+    if source.get("retrieval", {}).get("mode") == "fews_static_export":
+        target = raw_dir / f"{source['source_id']}.csv"
+        retrieval = source["retrieval"]
+        for attempt in range(int(retrieval.get("retries", 1))):
+            try:
+                record.update(download_fews_static_export(
+                    source, target, cutoff_month=cutoff_month,
+                    timeout=int(retrieval.get("download_timeout_seconds", 120)),
+                    max_bytes=int(retrieval.get("max_bytes", 250_000_000)),
+                ))
+                record["url"] = record["resolved_export_url"]
+                record["retrieval_mode"] = "fews_static_export"
+                return record
+            except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError, csv.Error, UnicodeError) as error:
+                record.update({"status": "failed", "error": str(error), "retrieval_mode": "fews_static_export"})
+                status = getattr(error, "code", None)
+                transient = isinstance(error, (HTTPError, URLError, TimeoutError, OSError)) and (status is None or status == 429 or status >= 500)
+                if not transient or attempt == int(retrieval.get("retries", 1)) - 1:
+                    return record
+                time.sleep(min(2 ** attempt, 4))
         return record
 
     if source.get("retrieval", {}).get("mode") == "hdx_ckan_wfp_csv":
@@ -565,9 +973,13 @@ def profile_file(path: Path, cutoff_month: str | None = None) -> dict:
 
 
 def run_fetch(output_dir: Path, cutoff_month: str, sources: list[dict]) -> int:
+    source_ids = [source["source_id"] for source in sources]
+    if len(source_ids) != len(set(source_ids)):
+        raise ValueError("API and static FEWS retrievals cannot be stitched into one audit")
+    output_dir.mkdir(parents=True, exist_ok=True)
     raw_dir = output_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    records = [download(source, raw_dir) for source in sources]
+    records = [download(source, raw_dir, cutoff_month=cutoff_month) for source in sources]
     manifest = {
         "schema_version": "1.0.0",
         "cutoff_month": cutoff_month,
@@ -608,20 +1020,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("audit-output"))
     parser.add_argument("--cutoff-month", default=None)
     parser.add_argument("--source-id", action="append", default=[], help="source ID to retrieve; repeat to limit a reviewed run")
-    parser.add_argument("--fews-canary", action="store_true", help="fetch one bounded FEWS v3 canary page (requires --fetch)")
+    parser.add_argument("--fews-canary", action="store_true", help="backward-compatible alias for --fews-static-canary")
+    parser.add_argument("--fews-static-canary", action="store_true", help="fetch the official FEWS static CSV export (requires --fetch)")
+    parser.add_argument("--fews-api-canary", action="store_true", help="run the FEWS API adapter as a diagnostic only (requires --fetch)")
     parser.add_argument("--canary-start", help="optional FEWS v3 start_date YYYY-MM-DD")
     parser.add_argument("--canary-end", help="optional FEWS v3 end_date YYYY-MM-DD")
     parser.add_argument("--canary-page-size", type=int, default=25, help="bounded FEWS canary page size (1-100)")
     parser.add_argument("--canary-timeout-seconds", type=int, default=10, help="bounded FEWS canary request timeout (1-30 seconds)")
     args = parser.parse_args(argv)
     sources = load_register()
-    if args.fews_canary and not args.fetch:
-        parser.error("--fews-canary requires --fetch")
+    static_canary = args.fews_canary or args.fews_static_canary
+    if (static_canary or args.fews_api_canary) and not args.fetch:
+        parser.error("FEWS canaries require --fetch")
+    if static_canary and args.fews_api_canary:
+        parser.error("FEWS static and API canaries are separate runs")
     if not args.fetch:
         print(f"validated source register: {len(sources)} candidates")
         return 0
-    if args.fews_canary:
-        if not 1 <= args.canary_page_size <= 100:
+    if static_canary or args.fews_api_canary:
+        if args.fews_api_canary and not 1 <= args.canary_page_size <= 100:
             parser.error("--canary-page-size must be between 1 and 100")
         if not 1 <= args.canary_timeout_seconds <= 30:
             parser.error("--canary-timeout-seconds must be between 1 and 30")
@@ -629,14 +1046,24 @@ def main(argv: list[str] | None = None) -> int:
             if value and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
                 parser.error(f"{name} must be YYYY-MM-DD")
         sources = [source for source in sources if source["source_id"] == "fews-net"]
+        if not sources:
+            parser.error("FEWS source is missing from the source register")
         source = dict(sources[0]); source["retrieval"] = dict(source["retrieval"])
-        source["retrieval"]["page_size"] = args.canary_page_size
-        source["retrieval"]["request_timeout_seconds"] = args.canary_timeout_seconds
-        source["retrieval"]["retries"] = 1
-        # Date filters are part of the canary request contract only; normal
-        # audited retrieval remains governed by its immutable source register.
-        if args.canary_start: source["retrieval"]["canary_start_date"] = args.canary_start
-        if args.canary_end: source["retrieval"]["canary_end_date"] = args.canary_end
+        if args.fews_api_canary:
+            diagnostic = dict(source.get("diagnostic_retrieval") or {})
+            source["retrieval"] = diagnostic
+            source["download_url"] = diagnostic.get("endpoint")
+            source["formats"] = ["json"]
+            source["retrieval"]["page_size"] = args.canary_page_size
+            source["retrieval"]["request_timeout_seconds"] = args.canary_timeout_seconds
+            source["retrieval"]["retries"] = 1
+            # Date filters are diagnostic-only request parameters.
+            if args.canary_start: source["retrieval"]["canary_start_date"] = args.canary_start
+            if args.canary_end: source["retrieval"]["canary_end_date"] = args.canary_end
+        else:
+            source["retrieval"]["download_timeout_seconds"] = args.canary_timeout_seconds
+            source["retrieval"]["discovery_timeout_seconds"] = args.canary_timeout_seconds
+            source["retrieval"]["retries"] = 1
         sources = [source]
     if not args.cutoff_month or not MONTH_RE.fullmatch(args.cutoff_month):
         parser.error("--fetch requires --cutoff-month in YYYY-MM form")

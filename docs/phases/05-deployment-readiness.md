@@ -1,4 +1,4 @@
-# Stage 5 — Deployment and Farmer Readiness
+# Stage 5 — Web Deployment and Farmer Readiness
 
 **Status:** Approved — user accepted browser-evidence package 2026-09-07
 
@@ -8,7 +8,7 @@ gate.
 
 ## Boundary and objective
 
-Stage 5 covers a static, English, offline calculator pilot. It does not
+Stage 5 covers a static, English, offline web calculator pilot. It does not
 authorize automated prices, source-driven defaults, forecasts, accounts, cloud
 saves, scheduled refresh, deployment, or public launch. Calculator drafts stay
 in versioned `localStorage`. Any future automated-data path is separate and
@@ -22,7 +22,7 @@ calculator usable after one successful online load.
 
 1. Review the existing dirty implementation against `2e8802f` before accepting
    results. Inventory the manifest, service worker, registration, persistence,
-   UI, CSS, icons, scripts, and pilot protocol separately from recovery and
+   UI, CSS, icons, scripts, and deferred human-validation materials separately from recovery and
    source-remediation artifacts.
 2. Validate install/update in an isolated environment as needed. Finish the
    precache script, manifest, icons, service worker, registration, and base-path
@@ -39,8 +39,8 @@ calculator usable after one successful online load.
 5. Extend browser evidence for install/update/offline restart, persistence and
    selection errors, report parity, accessibility, mobile keyboard use, privacy,
    and declared throttling. Record first result time (target ≤5 seconds) with
-   device/profile assumptions. Label browser emulation separately from real
-   Android hardware.
+   device/profile assumptions. Desktop and mobile browser evidence is required;
+   Android hardware is optional and non-blocking.
 
 ## Evidence matrix
 
@@ -53,27 +53,30 @@ calculator usable after one successful online load.
 | Offline/report | controlled online load, SW control, restart, report, screen/report parity |
 | UX/privacy | storage/selection errors, accessibility, mobile keyboard, no third-party/user-data requests, declared throttle and ≤5-second first result |
 
-Evidence must identify browser, device/profile, network conditions, cache
-identity, and whether it used real Android or emulation. Physical Android and
-participant evidence are pending and do not block this plan.
+Evidence must identify browser, device/profile, network conditions, and cache
+identity. Browser emulation must be labelled as such. Participant validation is
+deferred and does not block this plan.
 
 ## Acceptance gate
 
-Install and offline flows must pass on agreed Android and desktop targets;
-cached calculation and reporting must require no network access; the first
-result must meet five seconds under a recorded throttling profile;
-accessibility must have no critical violations; and no personal data may leave
-the device. Device and throttling proposals remain provisional until agreed.
-Record real-device evidence separately from browser emulation and preserve a
-working prior cache when an update fails. Planning alone satisfies none of
-these implementation checks.
+The static web build must deploy to the approved Cloudflare Pages target;
+cached calculation and reporting must require no network access after the
+first successful load; the first result must meet five seconds under a
+recorded throttling profile; accessibility must have no critical violations;
+and no personal data may leave the device. Browser evidence must cover agreed
+desktop and mobile viewports. Preserve a working prior cache when an update
+fails. Android installation and hardware recovery are optional follow-up
+evidence and cannot block the web gate.
 
-## Pilot handoff
+## Stage 6 handoff
 
-Use untracked [`docs/pilot-protocol.md`](../pilot-protocol.md) as input for the
-future evidence package. Hosting/base URL, physical-device confirmation,
-participant sessions, and deployment approval remain future decisions. Do not
-mark Stage 5 `Gate review` or `Approved` from code presence or planning alone.
+Stage 6 now uses the literature-informed readiness package in
+[`../academic-evidence-review.md`](../academic-evidence-review.md) and
+[`../academic-evidence-matrix.csv`](../academic-evidence-matrix.csv). The
+participant protocol and session kit are retained as superseded, deferred
+human-validation materials. The Cloudflare Pages project/base URL and
+participant sessions, and deployment approval remain separate future decisions.
+Academic evidence must not be described as participant validation.
 
 ## Progress log
 
@@ -81,8 +84,9 @@ mark Stage 5 `Gate review` or `Approved` from code presence or planning alone.
 |---|---|---|
 | 2026-09-05 | Planning prepared; implementation verification pending. | No Stage 5 gate claim. Dirty implementation remains unverified on the primary workstation. |
 | 2026-09-07 | Implemented and reviewed calculator-only PWA readiness. The generated precache now uses an immutable, base-scoped hash; failed precache installation removes only its candidate cache, and activation removes only superseded Fieldmargin caches. Manifest, service-worker registration, and preview support both `/` and `/fieldmargin/`. Draft recovery now handles blocked storage, failed clears, empty selections, and retired crop IDs. | Automated browser evidence passed for desktop Chromium and iPhone 13 emulation. No physical-device, participant, deployment, or Stage 5 gate claim. |
-| 2026-09-07 | Added the browser evidence package: critical-only axe assertions for initial, completed, persistence-error, and mobile states; keyboard-only completion; a desktop Chromium Slow 4G measurement; and post-load no-third-party-request coverage through print/report. | Stage 5 is `Gate review`, awaiting the user's gate decision with the physical-Android exception stated below. |
-| 2026-09-07 | User directed the project to proceed to the next stage. | Stage 5 approved for the calculator-only moderated-pilot preparation; the physical-Android limitation remains recorded. |
+| 2026-09-07 | Added the browser evidence package: critical-only axe assertions for initial, completed, persistence-error, and mobile states; keyboard-only completion; a desktop Chromium Slow 4G measurement; and post-load no-third-party-request coverage through print/report. | Stage 5 is `Gate review`, awaiting the user's gate decision. |
+| 2026-09-07 | User directed the project to proceed to the next stage. | Stage 5 approved for calculator-only Stage 6 preparation. |
+| 2026-09-09 | The delivery plan was revised to make the static PWA the primary web product. | Android hardware evidence is optional and non-blocking; Cloudflare Pages is the target static host. |
 
 ## Verification evidence — 2026-09-07
 
@@ -92,10 +96,13 @@ mark Stage 5 `Gate review` or `Approved` from code presence or planning alone.
 - Formal axe evidence fails on any critical violation in the initial calculator, complete ranked result, blocked-storage persistence-error, and iPhone 13-emulation states. Keyboard-only entry completes a two-crop comparison and enables the print action.
 - The recorded performance target is final required input to visible ranked result. On desktop Chromium `151.0.7922.34` (`1280×720` CSS px), the CDP `Slow 4G (emulated)` profile used 150 ms latency, 1.6 Mbps download, and 768 Kbps upload. The recorded elapsed time was 194 ms; the test attaches this evidence and requires no more than 5,000 ms.
 - After the initial same-origin app load, the completed calculator and print/report flow are asserted to make no third-party requests. The test replaces only the browser print dialog for observation; it still checks the generated printable report.
-- Browser evidence is Chromium desktop and iPhone 13 emulation only. It is not physical Android validation. No hosted deployment, participant session, or Stage 6 work is claimed.
+- Browser evidence is Chromium desktop and iPhone 13 emulation only. No hosted deployment or participant session is claimed.
 
-The physical-device limitation remains: no real Android install/update/offline-recovery evidence exists. Participant pilot evidence, hosting, and deployment remain outside this completed browser-evidence stage. The approval is limited to proceeding with calculator-only Stage 6 preparation and must not be represented as physical-device validation.
+The current evidence is browser-only and does not establish hosted deployment or
+participant outcomes. The approval is limited to calculator-only web readiness
+and must not be represented as farmer validation.
 
 ## Next action
 
-Begin Stage 6's calculator-only moderated-pilot preparation. A real-Android evidence package may be requested separately; hosting, deployment, public launch, and participant contact require their own project-team authorization.
+Proceed to the Stage 1 web-first remediation gate. Hosting, deployment, public
+launch, and participant contact require their own project-team authorization.

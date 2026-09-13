@@ -1,4 +1,11 @@
-# Calculator-only farmer pilot protocol
+# Calculator-only farmer pilot protocol — superseded for current Stage 6
+
+> **Deferred future work.** This protocol is retained as a starting point for
+> separately authorized human validation. It is not active Stage 6 evidence,
+> does not supply a current participant denominator, and must not be used to
+> label the calculator farmer-validated. See
+> [Stage 6](./phases/06-pilot-validation.md) and
+> [academic evidence review](./academic-evidence-review.md).
 
 This protocol evaluates comprehension and usability of the approved,
 farmer-entered calculator. It does not evaluate forecast accuracy or approve

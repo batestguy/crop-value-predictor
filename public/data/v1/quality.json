@@ -1,6 +1,7 @@
 {
   "schema_version": "1.1.0",
   "snapshot_id": "calculator-only-2026-08-27",
-  "pipeline": {"status":"calculator_only","generated_at":"2026-08-27T06:00:00Z","source_count":0,"last_known_good":false},
-  "series": [{"series_id":"calculator-only","status":"blocked","message":"Stage 1 did not qualify a production price source."}]
+  "pipeline": {"status":"calculator_only_with_modeled_context","generated_at":"2026-09-09T04:32:38Z","source_count":0,"last_known_good":false},
+  "series": [{"series_id":"calculator-only","status":"blocked","message":"Observed-price Stage 1 did not qualify a production price source."}],
+  "modeled_estimate_lane": {"status":"enabled_as_context_only","source_id":"world-bank-rtfp","snapshot_id":"world-bank-modeled-2026-09-09","qualified_crop_count":6,"qualified_market_count":73,"latest_observation":"2026-08-01","transaction_type":"unknown","provenance":"modeled_month_close","warning":"Do not describe these values as observed retail, wholesale, or farmer selling prices."}
 }

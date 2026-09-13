@@ -194,7 +194,7 @@ ignore file; there are no whitespace errors.
 
 ## Important boundaries
 
-- Do not print, commit, or request the contents of `githubtoken.txt`.
+- Do not print, commit, or request the contents of any GitHub token file.
 - Do not stage `githubtoken.txt`, `audit-output-*`, `dist`, `.agents`, or npm
   cache directories.
 - Do not push, deploy, dispatch workflows, reopen source remediation, integrate
