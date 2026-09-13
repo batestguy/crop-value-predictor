@@ -19,15 +19,14 @@ the existing technical thresholds and the manual-input fallback intact.
 | Optional online research assist | Static calculator deployed; online Function disabled after 522 and key intentionally not uploaded | `docs/phases/03-online-research-assist.md`, `docs/deployment-runbook.md` |
 | Custom crop starting values | Implemented locally: farmer can add any crop/form and request Tavily starting price, yield, and available cost categories for review | `src/main.tsx`, `pipeline/online_estimate.py`, `tests/e2e/calculator.spec.ts` |
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
-| Browser verification | Complete: 19 passed, 1 intentional skip; Playwright also confirmed custom-crop research flow | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
+| Browser verification | Complete: 22 passed, 1 intentional skip; Playwright confirms custom-crop research and JJMB UI flows | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
 
 ## Newly documented UI/product proposal
 
 The proposal [`crop-expansion-and-nigeria-map.md`](./proposals/crop-expansion-and-nigeria-map.md)
-records the implemented **Other crop** option and the remaining local
-accessible Nigeria SVG map idea. Custom crops can request Tavily starting
-values, but they remain editable context and require confirmation; the map
-still requires a separate implementation decision.
+records the implemented **Other crop** option, Nigeria flag watermark, and the
+deferred interactive-map idea. Custom crops can request Tavily starting values,
+but they remain editable context and require confirmation.
 
 ## Ordered action sequence
 
@@ -84,7 +83,7 @@ Do not promote or alter the public snapshot. Phase 1 is closed as fallback;
 reopening requires a materially changed official access path or provider-supplied
 export URL, followed by a new immutable audit and two independent reviews.
 
-### 4. Phase 3A implementation — local and hosted adapter complete; deployment checks remain open
+### 4. Phase 3A implementation — local adapter complete; hosted deployment remains separate
 
 The optional hybrid research lane is documented in
 [`03-online-research-assist.md`](./phases/03-online-research-assist.md). It may

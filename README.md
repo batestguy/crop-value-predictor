@@ -34,6 +34,16 @@ in this repository, the browser bundle, command output, or a committed file.
 If no key is available, the app fails closed or shows only retained local price
 context; it does not invent the remaining assumptions.
 
+Newly added crops use the same research path. After entering a crop name and
+product form (for example, `Soybean` and `dry grain`), choose a Nigerian state
+and click **Find all starting values**. The request includes the custom crop
+name, form, and state, so Tavily can search that exact crop. Results remain
+editable context until the farmer clicks **Use this estimate**.
+
+The current release also includes a subtle local Nigeria flag watermark and a
+small JJMB About card. These are decorative UI elements only and do not add
+location tracking or change the calculator.
+
 For a production build:
 
 ```bash
@@ -74,7 +84,7 @@ retail, wholesale, or farmer selling price.
 - `pipeline/` — no-network snapshot validation and future source adapters
 - `IMPLEMENTATION_PLAN.md` — staged roadmap, source policy, and acceptance gates
 - `docs/proposals/crop-expansion-and-nigeria-map.md` — custom-crop implementation
-  notes and the remaining Nigeria-map UI proposal
+  notes and the deferred interactive-map concept
 
 The browser never calls upstream agricultural APIs. User-entered costs and
 yield overrides remain local to the device, and recommendations include source,

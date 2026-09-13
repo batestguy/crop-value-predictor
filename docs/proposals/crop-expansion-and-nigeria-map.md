@@ -1,7 +1,7 @@
 # Crop expansion and Nigeria map UI proposal
 
-**Status:** Custom-crop support is implemented locally. The Nigeria map remains
-a separate, unimplemented proposal.
+**Status:** Custom-crop support and the Nigeria flag watermark are implemented.
+The interactive Nigeria state map remains a separate, deferred proposal.
 
 **Date:** 2026-09-13
 
@@ -11,10 +11,9 @@ The current farmer can compare the crop forms already listed in the calculator.
 Some farmers will grow something else. Add an **Other crop** choice so they
 can enter a crop name and still compare it using their own numbers.
 
-Add a simple map of Nigeria to make the location step easier to understand and
-more memorable. The first map should be a visual state selector and orientation
-aid, not a price heatmap. It must not imply that the app has current prices for
-every state.
+Add a simple Nigeria visual treatment to make the product more memorable. The
+current release uses a flag watermark only. An interactive state map remains a
+future visual selector and orientation aid, not a price heatmap.
 
 ## Product behavior
 
@@ -156,14 +155,16 @@ over visual effects.
 - Existing tests remain green, and new behavior has focused unit and browser
   coverage before deployment.
 
-## Decision needed before coding
+## Decision record
 
-Approve or reject these two independent additions:
+The following decisions are recorded:
 
 1. **Custom crop support:** implemented locally, with optional Tavily starting
    values and manual fallback.
-2. **Nigeria map:** add a local accessible SVG state selector and visual field
-   context without price visualization.
+2. **Nigeria flag watermark:** implemented as a local, decorative,
+   accessibility-safe visual treatment without price visualization or
+   geographic interaction.
+3. **Interactive Nigeria map:** deferred; it is not part of this release.
 
 This proposal does not authorize online source expansion, automatic prices,
 GPS/location tracking, a third-party map service, or reopening Stage 1.

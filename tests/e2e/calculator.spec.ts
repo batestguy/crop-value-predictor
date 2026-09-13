@@ -450,3 +450,62 @@ test.describe('emulated mobile', () => {
     await expectNoCriticalAxeViolations(page)
   })
 })
+
+test('shows a local decorative Nigeria watermark and JJMB context without blocking the calculator', async ({ page }) => {
+  await page.goto('/')
+  const watermark = page.locator('.nigeria-watermark')
+  await expect(watermark).toBeVisible()
+  await expect(watermark).toHaveAttribute('src', `${basePath}nigeria-flag.svg`)
+  await expect(watermark).toHaveAttribute('aria-hidden', 'true')
+  await expect(page.getByRole('region', { name: 'JJMB' })).toContainText('Practical crop planning for Nigerian farms.')
+  await expect.poll(() => watermark.evaluate((element) => {
+    const styles = getComputedStyle(element)
+    return { pointerEvents: styles.pointerEvents, position: styles.position }
+  })).toEqual({ pointerEvents: 'none', position: 'absolute' })
+  await page.getByLabel('Area in hectares').fill('1')
+  await expect(page.getByLabel('Area in hectares')).toHaveValue('1')
+})
+
+test('shows the selected bag-size equivalent beside kilogram prices', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Bag size in kilograms').fill('50')
+  await page.getByLabel('Selling price NGN per kg').fill('800')
+  await expect(page.locator('.price-bag-equivalent')).toContainText('40,000')
+  await expect(page.locator('.price-bag-equivalent')).toContainText('50kg bag')
+})
+
+test('sends Soybean dry grain and Carrot fresh to the research API', async ({ page }) => {
+  const requests: Array<{ cropName: string; cropForm: string; cropId: string; researchAll: boolean }> = []
+  await page.route('**/api/price-research', async (route) => {
+    const request = route.request().postDataJSON()
+    requests.push({ cropName: request.cropName, cropForm: request.cropForm, cropId: request.cropId, researchAll: request.researchAll })
+    const isSoybean = request.cropName === 'Soybean'
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'web_fallback', crop_id: request.cropId, state: request.state, price_type: 'retail',
+        estimate_ngn_per_kg: isSoybean ? 1250 : 900, low_ngn_per_kg: isSoybean ? 1100 : 750, high_ngn_per_kg: isSoybean ? 1400 : 1050,
+        confidence: 'low', source_count: 2,
+        sources: [{ title: isSoybean ? 'Soybean source' : 'Carrot source', url: `https://example.com/${isSoybean ? 'soybean' : 'carrot'}` }],
+        warnings: ['Test response only.'],
+      }),
+    })
+  })
+  await page.goto('/')
+  await page.getByLabel('Farm state').fill('Bauchi')
+  await page.getByLabel('Other crop name').fill('Soybean')
+  await page.getByLabel('Other crop form').fill('dry grain')
+  await page.getByRole('button', { name: 'Add other crop' }).click()
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
+  await expect(page.getByText('1,250 / kg', { exact: false })).toBeVisible()
+  await page.getByLabel('Other crop name').fill('Carrot')
+  await page.getByLabel('Other crop form').fill('fresh')
+  await page.getByRole('button', { name: 'Add other crop' }).click()
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
+  await expect(page.getByText('900 / kg', { exact: false })).toBeVisible()
+  expect(requests).toEqual([
+    { cropName: 'Soybean', cropForm: 'dry grain', cropId: 'custom:soybean-dry-grain', researchAll: true },
+    { cropName: 'Carrot', cropForm: 'fresh', cropId: 'custom:carrot-fresh', researchAll: true },
+  ])
+})

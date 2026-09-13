@@ -8,6 +8,21 @@ Pages Function adapter, and calculator-only static deployment. The pre-existing
 the repository and is never committed.
 Branch at handoff: `stage1-adapter-fix`
 
+## Release slice update — 2026-09-13
+
+The JJMB visual release slice is implemented locally. It adds a local
+green-white-green Nigeria flag watermark, a compact accessible JJMB About card,
+and responsive field-notebook styling. The watermark is decorative, offline,
+non-interactive, hidden from assistive technology, and excluded from print.
+The interactive Nigeria state-map proposal remains deferred.
+
+The custom-crop Tavily path was verified with a real keyed smoke test for
+`Soybean` / `dry grain` in Bauchi. It returned a web fallback estimate of
+`NGN 150/kg`, `1.2 t/ha`, and eight sources. The key was read from its external
+path only and was not printed, stored, or committed. The browser test also
+confirms that Soybean and Carrot requests carry their crop names, forms, IDs,
+state, and `researchAll: true`.
+
 ## Latest handoff update — 2026-09-13
 
 ### Completed in this session
@@ -85,14 +100,14 @@ uncommitted.
 
 1. Read this handoff and run `git status --short`.
 2. Run `npm.cmd run dev` from `D:\Crop Value Predictor App`.
-3. Add a test custom crop, enter a Nigerian state, and click **Find internet
+3. Add a test custom crop, enter a Nigerian state, and click **Find all starting
    values**. The local keyed smoke test has already passed; use the existing
    mocked Playwright test for repeatable regression coverage.
 4. Do not deploy the hosted research Function or upload a key until the 522
    runtime issue, privacy/rate-limit controls, and hosted smoke test are
    explicitly reviewed.
-5. The Nigeria map remains a separate proposal and is not part of this
-   completed change.
+5. The interactive Nigeria map remains a separate proposal; the current
+   release uses only the local Nigeria flag watermark.
 
 ## Current disposition — 2026-09-13
 
