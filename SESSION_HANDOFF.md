@@ -36,6 +36,13 @@ The latest commit is the trusted implementation baseline for this session. Do
 not redo the academic review or World Bank adapter work unless a validation
 failure identifies a concrete defect.
 
+The latest user request is documented in
+[`docs/proposals/crop-expansion-and-nigeria-map.md`](./docs/proposals/crop-expansion-and-nigeria-map.md):
+custom **Other crop** scenarios with manual inputs, plus a local accessible
+Nigeria map for state selection/orientation and a more distinctive field-
+notebook visual direction. This is a proposal only; no implementation has been
+authorized yet.
+
 ## Current handoff — settled Stage 1 and completed local Phase 3A slice
 
 Stage 1 is settled as **Closed — fallback accepted**, not approved. The latest
@@ -240,8 +247,8 @@ passing with one intentional base-path skip in the existing environment.
 
 The next agent should report the evidence and gate state first, then make only
 the smallest change needed for the selected path. The project is not
-farmer-validated, not observed-price approved, not forecast-approved, and not
-deployed.
+farmer-validated, not observed-price approved, and not forecast-approved. The
+calculator-only static site is deployed; online retrieval remains disabled.
 
 ## Historical FEWS static-export handoff — superseded
 

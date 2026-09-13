@@ -20,6 +20,15 @@ the existing technical thresholds and the manual-input fallback intact.
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
 | Browser verification | Complete: 18 passed, 1 intentional skip; Playwright also confirmed research flow | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
 
+## Newly documented UI/product proposal
+
+The proposal [`crop-expansion-and-nigeria-map.md`](./proposals/crop-expansion-and-nigeria-map.md)
+records two possible additions: an **Other crop** option using manual values,
+and a local accessible Nigeria SVG map for state selection and orientation.
+Neither has been implemented. Both require approval before coding; neither
+changes the offline calculator boundary or authorizes GPS, remote map tiles,
+automatic prices, or online source expansion.
+
 ## Ordered action sequence
 
 ### 1. Close the browser verification gap — complete 2026-09-10

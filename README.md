@@ -50,6 +50,8 @@ retail, wholesale, or farmer selling price.
 - `public/data/v1/` — versioned static JSON interfaces
 - `pipeline/` — no-network snapshot validation and future source adapters
 - `IMPLEMENTATION_PLAN.md` — staged roadmap, source policy, and acceptance gates
+- `docs/proposals/crop-expansion-and-nigeria-map.md` — documented custom-crop
+  and Nigeria-map UI proposal; implementation remains unapproved
 
 The browser never calls upstream agricultural APIs. User-entered costs and
 yield overrides remain local to the device, and recommendations include source,
@@ -179,11 +181,12 @@ gh workflow run <workflow.yml> --repo batestguy/crop-value-predictor
 The app defaults to an offline calculator that compares complete farmer-entered
 crop scenarios. Stage 1 is closed as an accepted fallback, so observed automated
 prices and source-driven rankings are not published. Phase 3A Gate A is
-authorized and remains open for hosted use; a local development endpoint and
-review/confirmation flow are now implemented, but no deployment has occurred. A
+authorized and remains open for hosted use; the calculator-only static site is
+deployed, while the online Function remains disabled after a 522 and no Tavily
+key has been uploaded. A
 separate modeled-estimate context lane is enabled with explicit
 warnings and no Stage 1 approval effect. Stage 2 is **Approved** for calculator-only scenarios on validated
 implementation commit `2e8802f`, with documentation/evidence in `8ef54f5`.
 Clean-clone verification passed the npm, typecheck, build, six Chromium E2E,
 and Python validation checks. This approval does not unlock automated prices,
-defaults, forecasting, Stage 3/4, deployment, or public launch.
+defaults, forecasting, Stage 3/4, online retrieval, or public launch.
