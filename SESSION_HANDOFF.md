@@ -8,6 +8,76 @@ Pages Function adapter, and calculator-only static deployment. The pre-existing
 the repository and is never committed.
 Branch at handoff: `stage1-adapter-fix`
 
+## Latest handoff update — 2026-09-13
+
+### Completed in this session
+
+Custom crop support is implemented and committed. A farmer can enter any crop
+name and product form, add it to the shortlist, and compare it using the same
+calculator fields as the built-in crops. Custom crop names, forms, inputs, and
+confirmed research provenance persist in the local browser draft.
+
+For a custom crop, the local research adapter sends the crop name, product form,
+state, and retail basis to Tavily only after the farmer clicks the research
+button. The bounded request asks Tavily for a practical multi-source average
+and clearly labelled values for:
+
+- average selling price in NGN/kg, plus optional low/high bounds;
+- yield in tonnes/hectare; and
+- any available cost categories in NGN/hectare: land preparation, seed,
+  fertilizer, pesticide, labour, irrigation, transport, and storage.
+
+Returned values are shown as low-confidence, editable starting values. They do
+not change the scenario until the farmer explicitly confirms them. Missing
+categories stay blank for manual entry. A custom crop cannot rank until all
+required calculator fields are complete.
+
+### Key implementation commits
+
+- `ba500e8` — custom crop persistence, UI, local Vite route, Tavily request
+  fields, returned yield/cost values, and browser coverage.
+- `285201d` — explicit Tavily low/high price marker parsing.
+
+### Current deployment boundary
+
+The public site remains the calculator-only static deployment at
+`https://crop-value-predictor.pages.dev/`. The hosted Pages Function is not
+active because its earlier deployment returned Cloudflare 522, and the Tavily
+key was intentionally not uploaded. The custom Tavily path is therefore ready
+for local development only until the hosted Function issue is separately
+resolved and a server-side secret is explicitly configured.
+
+Never place the Tavily key in the repository, browser bundle, command output,
+or a Cloudflare deployment without a new explicit decision. The existing
+`debug.log` modification is pre-existing and remains intentionally
+uncommitted.
+
+### Validation evidence
+
+- `npm.cmd test` — 4 passed.
+- `npm.cmd run typecheck` — passed.
+- `npm.cmd run build` — passed.
+- `python -m unittest discover -s tests -v` — 61 passed.
+- `npm.cmd run test:e2e` — 19 passed, 1 intentional base-path skip.
+- `npx.cmd tsc --noEmit functions/api/price-research.ts --target es2020 --module esnext --lib es2020,dom --skipLibCheck` — passed.
+- `pipeline\agent_preflight.ps1` — passed with an external temporary token
+  path because the configured GitHub token path was access-denied to the
+  sandbox; no token was read or printed.
+
+### Next session: most logical next action
+
+1. Read this handoff and run `git status --short`.
+2. Run `npm.cmd run dev` from `D:\Crop Value Predictor App`.
+3. Add a test custom crop, enter a Nigerian state, and click **Find internet
+   values**. If the external Tavily key is available to the local process,
+   verify the real response sources and units; otherwise use the existing
+   mocked Playwright test.
+4. Do not deploy the hosted research Function or upload a key until the 522
+   runtime issue, privacy/rate-limit controls, and hosted smoke test are
+   explicitly reviewed.
+5. The Nigeria map remains a separate proposal and is not part of this
+   completed change.
+
 ## Current disposition — 2026-09-13
 
 The reviewed static-export implementation was committed as `cbb9e3c` and
