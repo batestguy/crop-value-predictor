@@ -37,6 +37,23 @@ required calculator fields are complete.
 - `ba500e8` — custom crop persistence, UI, local Vite route, Tavily request
   fields, returned yield/cost values, and browser coverage.
 - `285201d` — explicit Tavily low/high price marker parsing.
+- `a25d8fd` — natural-language Tavily cost extraction for answers such as
+  “NGN 50,000 for land preparation”.
+
+### Real local Tavily smoke test
+
+The keyed local Vite endpoint was tested without exposing or moving the key.
+For `custom:soybean-dry-grain` in Bauchi, Tavily returned eight source links
+and the adapter produced:
+
+- price: `NGN 100/kg`;
+- yield: `1.5 t/ha`;
+- land preparation: `NGN 50,000/ha`; and
+- seed: `NGN 30,000/ha`.
+
+The response was successfully parsed after the natural-language cost fix.
+The result is still low-confidence research context and requires farmer
+confirmation before use.
 
 ### Current deployment boundary
 
@@ -69,9 +86,8 @@ uncommitted.
 1. Read this handoff and run `git status --short`.
 2. Run `npm.cmd run dev` from `D:\Crop Value Predictor App`.
 3. Add a test custom crop, enter a Nigerian state, and click **Find internet
-   values**. If the external Tavily key is available to the local process,
-   verify the real response sources and units; otherwise use the existing
-   mocked Playwright test.
+   values**. The local keyed smoke test has already passed; use the existing
+   mocked Playwright test for repeatable regression coverage.
 4. Do not deploy the hosted research Function or upload a key until the 522
    runtime issue, privacy/rate-limit controls, and hosted smoke test are
    explicitly reviewed.
