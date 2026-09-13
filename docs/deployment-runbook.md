@@ -19,7 +19,7 @@ must never be placed in the browser bundle, repository, or command arguments.
   publish a price snapshot and it does not change `stage_1_approved`.
 - The calculator-only static production deployment and hosted Function are live
   at `https://crop-value-predictor.pages.dev/`.
-- The production deployment `fba35fc6` was verified with Playwright on
+- The production deployment `16323e9b` was verified with Playwright on
   2026-09-13. A custom Soybean / dry grain request for Bauchi returned
   `NGN 110/kg`, a `NGN 100-120/kg` range, `2.5 t/ha`, and eight source links.
 - `TAVILY_API_KEY` is configured only as an encrypted production Pages secret.

@@ -34,7 +34,7 @@ hosted research Function was excluded from that initial upload.
 
 The hosted Pages Function is now deployed to the `main` production branch at
 `https://crop-value-predictor.pages.dev/`. Cloudflare deployment ID:
-`fba35fc6` (source commit `cb90b5c`). `TAVILY_API_KEY` is configured only as an
+`16323e9b` (source commit `5048a26`). `TAVILY_API_KEY` is configured only as an
 encrypted production secret; the key was read from its external path and was
 never printed, committed, or placed in browser code.
 
