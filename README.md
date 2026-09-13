@@ -10,7 +10,7 @@ assumptions before you plant.
   <a href="https://crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
   &nbsp; | &nbsp;
   <a href="./SESSION_HANDOFF.md">Read the project handoff</a>
-  &nbsp; · &nbsp;
+  &nbsp; | &nbsp;
   <a href="./docs/deployment-runbook.md">Deployment runbook</a>
 </p>
 
@@ -24,6 +24,15 @@ assumptions before you plant.
 <p align="center">
   <img src="./docs/screenshots/fieldmargin-overview.png" alt="Fieldmargin overview showing the field setup, crop shortlist, margin view, custom crop form, and JJMB about card" width="960">
 </p>
+
+## Live demo
+
+**[Launch the Fieldmargin demo](https://crop-value-predictor.pages.dev/)**
+
+The production demo includes the offline calculator, custom crops, bag
+equivalents, and optional Quick Research through the server-side Tavily route.
+
+`https://crop-value-predictor.pages.dev/`
 
 ## Why it exists
 
