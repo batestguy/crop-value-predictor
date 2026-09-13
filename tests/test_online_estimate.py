@@ -73,6 +73,8 @@ class OnlineEstimateTests(unittest.TestCase):
         self.assertEqual(result["yield_t_per_ha"], 2.4)
         self.assertEqual(result["costs_per_ha"]["land_preparation"], 180000)
         self.assertEqual(result["costs_per_ha"]["labour"], 90000)
+        natural = parse_tavily_response({"answer": "Average farm yield is 1.5 tonnes per hectare. Retail market price is NGN 100 per kilogram. Production costs per hectare include NGN 50,000 for land preparation and NGN 30,000 for seeds."}, "custom:soybean-dry-grain", "Bauchi", "Retail", custom_crop=True)
+        self.assertEqual(natural["costs_per_ha"], {"land_preparation": 50000, "seed": 30000})
 
     def test_credential_path_inside_workspace_is_rejected(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:

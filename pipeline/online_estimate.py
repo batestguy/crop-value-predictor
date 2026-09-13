@@ -190,7 +190,12 @@ def _custom_input_estimates(answer: str) -> tuple[float | None, dict[str, float]
             costs[category] = marked
             continue
         alternatives = "|".join(re.escape(term) for term in terms.split()) if category == "labour" else re.escape(terms)
-        match = re.search(rf"(?:{alternatives})[^0-9]{{0,80}}(?:NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|/)\s*(?:ha|hectare)", answer, re.IGNORECASE)
+        patterns = (
+            rf"(?:{alternatives})[^0-9]{{0,80}}(?:NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|/)\s*(?:ha|hectare)",
+            rf"(?:NGN|Naira|N)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:for|of|on)\s+(?:the\s+)?(?:{alternatives})s?",
+            rf"(?:{alternatives})s?[^0-9]{{0,80}}(?:NGN|Naira|N)\s*([0-9][0-9,]*(?:\.[0-9]+)?)",
+        )
+        match = next((re.search(pattern, answer, re.IGNORECASE) for pattern in patterns if re.search(pattern, answer, re.IGNORECASE)), None)
         value = _parse_number(match.group(1)) if match else None
         if value is not None:
             costs[category] = value
