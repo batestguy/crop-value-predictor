@@ -14,8 +14,9 @@ recommendations. Stage 1 is therefore **Closed — fallback accepted**, not
 Approved. The prior audit remains immutable; the new remediation run is
 tracked separately below.
 
-Stage 1 remediation is now reopened using the unchanged source gates. The
-authorized product target is the existing static React/TypeScript PWA as a
+The 2026-09-13 Stage 1 remediation is now closed after one bounded static
+export canary failed closed. The authorized product target remains the existing
+static React/TypeScript PWA as a
 web-first application. It must rank only complete farmer-entered scenarios
 until a new Stage 1 qualification report is explicitly approved. No seed
 forecast, inferred market price, unqualified yield, or unqualified cost default
