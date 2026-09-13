@@ -1,233 +1,175 @@
-# Fieldmargin Crop Value Planner
+# fieldmargin
 
-An offline-first, anonymous crop comparison tool for Nigerian farmers. The
-current UI is the strict calculator-only fallback defined by the delivery plan in
-[`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md).
+> A calmer way to plan a season.
+
+Fieldmargin is an offline-first crop comparison tool for Nigerian farmers. It
+helps you test a season using your own land, yield, selling price, and cost
+assumptions before you plant.
+
+<p align="center">
+  <a href="https://crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
+  &nbsp; | &nbsp;
+  <a href="./SESSION_HANDOFF.md">Read the project handoff</a>
+  &nbsp; · &nbsp;
+  <a href="./docs/deployment-runbook.md">Deployment runbook</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/works-offline-17483f?style=flat-square" alt="Works offline">
+  <img src="https://img.shields.io/badge/React-18-17483f?style=flat-square" alt="React 18">
+  <img src="https://img.shields.io/badge/TypeScript-checked-17483f?style=flat-square" alt="TypeScript checked">
+  <img src="https://img.shields.io/badge/status-live-f26b4f?style=flat-square" alt="Live status">
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/fieldmargin-overview.png" alt="Fieldmargin overview showing the field setup, crop shortlist, margin view, custom crop form, and JJMB about card" width="960">
+</p>
+
+## Why it exists
+
+Farm decisions often begin with incomplete information. Fieldmargin makes the
+assumptions visible, lets you change them, and shows the effect on your margin.
+The calculator stays useful without an internet connection, while an optional
+research button can find a starting point when you want outside context.
+
+## What you can do
+
+| | Capability | What it means in practice |
+| --- | --- | --- |
+| **01** | Compare crops | Enter one field and compare a shortlist using the same calculation rules. |
+| **02** | Add any crop | Add a crop name and product form, such as `Soybean` + `dry grain` or `Carrot` + `fresh`. |
+| **03** | Research assumptions | Ask for a price, range, yield, and available cost categories for a Nigerian state. |
+| **04** | Think in local units | See price in NGN/kg and the equivalent value for your bag size. |
+| **05** | Keep control | Review every returned value and choose **Use this estimate** before it changes your scenario. |
+| **06** | Work privately | Drafts stay in the browser on the device; the calculator itself works offline. |
+
+## See it in action
+
+### A complete research result
+
+The research output appears directly below the button that requested it. It
+shows the estimate, range, yield, available costs, warning, and evidence links.
+
+<p align="center">
+  <img src="./docs/screenshots/research-output.png" alt="Filled Soybean assumptions with a visible Quick Research Output panel" width="960">
+</p>
+
+### The public release
+
+The live release includes the field-notebook interface, Nigeria watermark, JJMB
+about card, custom crop form, and calculator-only default.
+
+<p align="center">
+  <img src="./docs/screenshots/public-research-release.png" alt="Public Fieldmargin release showing the field setup and crop comparison layout" width="960">
+</p>
+
+## How Quick Research works
+
+Quick Research is an optional assistant, not an automatic price feed.
+
+```mermaid
+flowchart LR
+    A[Farmer enters crop, form, and state] --> B{Usable retained local data?}
+    B -- Yes --> C[Prepare local starting values]
+    B -- No --> D[One bounded Tavily search]
+    D --> E[Parse price, range, yield, costs, and sources]
+    C --> F[Show editable research output]
+    E --> F
+    F --> G{Farmer clicks Use this estimate?}
+    G -- No --> H[Keep manual values]
+    G -- Yes --> I[Apply selected starting values]
+```
+
+The public route is a Cloudflare Pages Function at
+`/api/price-research`. The Tavily credential is stored as an encrypted
+server-side secret and never shipped to the browser. The request is bounded and
+the response is labelled low-confidence. A missing, malformed, or unsupported
+answer fails safely back to manual entry.
+
+## Try a custom crop
+
+1. Open the [live app](https://crop-value-predictor.pages.dev/).
+2. Enter your land area and a Nigerian state, for example `Bauchi`.
+3. Under **Another crop**, enter a crop name and its product form.
+4. Add it to the shortlist and complete the crop assumptions.
+5. Click **Find all starting values** to see the research package below the
+   button.
+6. Check the source, unit, date, and warning. Click **Use this estimate** only
+   when the values are suitable as your starting assumptions.
+
+For example, the deployed flow was tested with `Soybean` / `dry grain` in
+`Bauchi` and returned a low-confidence `NGN 110/kg` midpoint from an
+`NGN 100-120/kg` range, `2.5 t/ha`, and eight source links.
 
 ## Run locally
 
-```bash
-npm install
-npm run dev
-```
+### Requirements
 
-### Quick Research for all assumptions
+- Node.js with npm
+- Python 3 for the local research helper and validation suite
 
-During local development, the optional **Find all starting values** action can
-search the selected crop and Nigerian state through the Tavily adapter. It asks
-for a practical average of:
-
-- selling price and optional low/high range in NGN/kg;
-- yield in tonnes/hectare; and
-- available production costs in NGN/hectare: land preparation, seed,
-  fertilizer, pesticide, labour, irrigation, transport, and storage.
-
-The returned package appears directly below the button in the crop editor under
-**QUICK RESEARCH OUTPUT**. It includes the price, any returned yield/costs,
-warnings, and source links. Nothing changes in the calculator until the farmer
-clicks **Use this estimate**. Missing values remain blank for manual entry.
-
-The local route reads Tavily credentials only from the `TAVILY_API_KEY`
-process environment or the external file
-`%USERPROFILE%\\.config\\crop-value-predictor\\tavily-key.txt`. Never put a key
-in this repository, the browser bundle, command output, or a committed file.
-If no key is available, the app fails closed or shows only retained local price
-context; it does not invent the remaining assumptions.
-
-The public production site also exposes the same bounded route at
-`https://crop-value-predictor.pages.dev/api/price-research`. Its Tavily key is
-held only as an encrypted Cloudflare Pages secret. The hosted route is optional,
-does not publish a price snapshot, and does not change the Stage 1 decision.
-
-Newly added crops use the same research path. After entering a crop name and
-product form (for example, `Soybean` and `dry grain`), choose a Nigerian state
-and click **Find all starting values**. The request includes the custom crop
-name, form, and state, so Tavily can search that exact crop. Results remain
-editable context until the farmer clicks **Use this estimate**.
-
-The current release also includes a subtle local Nigeria flag watermark and a
-small JJMB About card. These are decorative UI elements only and do not add
-location tracking or change the calculator.
-
-For a production build:
-
-```bash
-npm run build
-python pipeline/validate.py
-```
-
-### npm on the managed Windows workspace
-
-The repository uses the project-scoped cache configured in `.npmrc`:
-
-```text
-.npm-cache
-```
-
-This portable, project-scoped path avoids intermittent Windows `EPERM` errors
-when npm writes temporary files in the user-profile cache and works in GitHub
-Actions. Confirm the active cache with:
+Install dependencies and start the development server:
 
 ```powershell
-npm config get cache
-npm view react version
+npm.cmd install
+npm.cmd run dev
 ```
 
-If the dependency install is interrupted, rerun `npm install` from the project
-root. Do not delete the user-wide npm cache or change global npm settings.
+Open the local URL printed by Vite. The offline calculator works without a
+Tavily key. For local Quick Research, provide `TAVILY_API_KEY` only to the
+server process or use the documented external credential path; never commit a
+key, put it in browser code, or paste it into a repository file.
 
-The PWA caches its static shell and snapshot files through `public/sw.js`. The
-observed-price snapshot remains calculator-only. The browser may load the
-separately labelled World Bank modeled-estimate artifact as editable context;
-it never calls an upstream market API, and the artifact is not an observed
-retail, wholesale, or farmer selling price.
+## Validate a change
 
-## Project layout
+Run the smallest relevant checks while developing, then the full suite before
+release:
 
-- `src/` — responsive React/TypeScript decision interface and pure calculations
-- `public/data/v1/` — versioned static JSON interfaces
-- `pipeline/` — no-network snapshot validation and future source adapters
-- `IMPLEMENTATION_PLAN.md` — staged roadmap, source policy, and acceptance gates
-- `docs/proposals/crop-expansion-and-nigeria-map.md` — custom-crop implementation
-  notes and the deferred interactive-map concept
-
-The browser never calls upstream agricultural APIs. User-entered costs and
-yield overrides remain local to the device, and recommendations include source,
-freshness, price type, uncertainty, and fallback context.
-
-## Development checks
-
-The calculator arithmetic is isolated in `src/calculations.ts` and covered by
-the TypeScript tests in `src/calculations.test.ts`:
-
-```bash
-npm test
-python pipeline/validate.py
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run test:e2e
 python -m unittest discover -s tests -v
 ```
 
-## Agent operating model
+The current release has passed the calculation tests, TypeScript check, Vite
+build, browser tests, Python validation suite, and a public Playwright smoke
+test against the production research route.
 
-Repository-specific agent rules live in [`AGENTS.md`](./AGENTS.md). Start with
-[`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md), then use the active phase
-contract. The delegation roles, concurrency limit, handoff fields, and secret
-boundary are recorded in [`.agents/agent-policy.toml`](./.agents/agent-policy.toml)
-and [`docs/agent-handoff-template.md`](./docs/agent-handoff-template.md).
+## Project map
 
-Run `pipeline\agent_preflight.ps1` before a handoff or credentialed artifact
-operation. It checks the setup without contacting GitHub or printing secrets.
+The main code is organized into `src/` for the React calculator,
+`functions/` for the hosted research endpoint, `pipeline/` for local data
+helpers, `public/data/` for versioned context artifacts, and `docs/` for phase
+contracts, deployment notes, and screenshots.
 
-Stage 1 is **Closed — fallback accepted**, with observed prices unapproved.
-Do not repeat the failed FEWS API/static-export procedure. Until the unchanged
-five-crop technical and rights gate, two independent reviews, and explicit
-promotion approval all pass, the shipped calculator remains driven by complete
-farmer-entered scenarios. Suggestions are editable context, never forecasts or
-automatic recommendations. The operational status is in
-[`docs/next-actions.md`](./docs/next-actions.md).
+## Product boundaries
 
-## Active next move
+- The calculator is offline-first and manual-input-first.
+- Research suggestions are editable context, not observed prices or forecasts.
+- Online values never automatically rank crops or become default assumptions.
+- The hosted route does not publish a price snapshot or reopen Stage 1.
+- Stage 1 remains **Closed - fallback accepted**, with observed-price approval
+  unresolved.
+- Automated data integration and forecasting remain separately gated.
 
-Stage 6 is **Approved — literature-informed readiness**. The current release
-target is a browser-first static PWA, not an Android-only application.
-The protocol, search log, screening record, 20-source matrix, claim tiers, and
-concern-to-requirement map are in
-[`docs/academic-evidence-review.md`](./docs/academic-evidence-review.md) and
-[`docs/academic-evidence-matrix.csv`](./docs/academic-evidence-matrix.csv).
-The retained participant protocol and session kit are superseded for this
-milestone and remain deferred future human-validation materials.
+These boundaries are intentional: a quick web answer can be stale, use the
+wrong unit, or describe a different market. The farmer remains the final
+decision-maker.
 
-The copy-ready handoff is [`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md). The
-Stage 6 gate is complete. Gate A for the optional online research assist is
-authorized; the bounded hosted lane is deployed and the remaining source,
-rights, privacy, and rate-limit review is documented in
-[`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md);
-it is not an observed-price data feed. Human validation, data promotion,
-automated defaults, or another scoped milestone still requires separate
-authorization. The calculator-only static release is deployed at
-`https://crop-value-predictor.pages.dev/`.
-Literature-informed readiness must not be described as farmer-validated.
+## Documentation
 
-The Stage 1 audit closed on 2026-09-13 after the authorized static-export
-canary found no official Nigeria CSV link; it remains an accepted fallback, not
-an approval. The calculator remains manual-input-only by default. The optional
-online research assist may return a confirmed, editable internet aggregate
-estimate with its supporting evidence, but it cannot reopen Stage 1 or
-automatically rank a scenario.
+- [Next-session handoff](./SESSION_HANDOFF.md)
+- [Project progress](./PROJECT_PROGRESS.md)
+- [Next actions and gates](./docs/next-actions.md)
+- [Offline calculator phase](./docs/phases/02-offline-calculator.md)
+- [Online research-assist phase](./docs/phases/03-online-research-assist.md)
+- [Deployment runbook](./docs/deployment-runbook.md)
+- [Custom crop and Nigeria visual proposal](./docs/proposals/crop-expansion-and-nigeria-map.md)
 
-Production data integration, Stages 3 and 4, and a broader public launch
-remain blocked until their separate gates pass. The optional hosted research
-assist is available only through an explicit user action and confirmation.
+## About
 
-Stage 2 is **Approved** on commit `2e8802f`: clean-clone
-verification passed npm tests, typecheck, build, six Chromium E2E scenarios,
-and the Python validation suite. The primary
-workstation's partial `node_modules` is an operational limitation and is
-excluded from the product checkout.
-
-## Delivery progress
-
-Implementation follows the review-gated stages in
-[`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md). The live status dashboard
-is [`PROJECT_PROGRESS.md`](./PROJECT_PROGRESS.md), with an evidence record for
-each baseline and delivery stage under [`docs/phases/`](./docs/phases/).
-
-The prototype release architecture is documented in
-[`docs/batch-training-architecture.md`](./docs/batch-training-architecture.md),
-and the historical Stage 1 source register is
-[`docs/source-register.md`](./docs/source-register.md).
-
-Cloud execution rules are documented in
-[`docs/cloud-compute.md`](./docs/cloud-compute.md). GitHub Actions is the
-authoritative environment for data processing, forecasting, validation, tests,
-and production builds; the browser performs only the small deterministic
-scenario calculation required for offline use.
-
-## GitHub Actions access for agents
-
-The verified agent recovery procedure is documented in
-[`docs/agent-stage1-automation.md`](./docs/agent-stage1-automation.md) and
-[`GITHUB_ACCESS_RECOVERY.md`](./GITHUB_ACCESS_RECOVERY.md).
-
-When `GH_TOKEN` is loaded in its own process, the agent has verified that it
-can authenticate as `batestguy`, list repository workflows and recent Actions
-runs, inspect the pinned Stage 1 run and artifact, and download and qualify the
-artifact.
-
-Every agent must be started through a process that loads the token; logging in
-from an unrelated terminal does not make the credential visible to isolated
-agents:
-
-```powershell
-$env:GH_TOKEN = (Get-Content -Raw "C:\secure\github-token.txt").Trim()
-gh api user --jq .login
-gh workflow list --repo batestguy/crop-value-predictor
-gh run list --repo batestguy/crop-value-predictor
-```
-
-Use a repository-scoped fine-grained token. Actions and Contents read-only
-permissions are sufficient for inspection and artifact downloads. Never print
-or commit the token; store it outside the workspace at the documented external
-path. The legacy `githubtoken.txt` pattern remains ignored as defense in depth,
-but an ignored in-repository token is not an accepted storage location.
-
-Workflow dispatch, rerun, cancellation, approvals, pushes, and other write
-actions have not been verified. They require appropriate write permissions and
-must be tested explicitly through the same agent launcher:
-
-```powershell
-gh workflow run <workflow.yml> --repo batestguy/crop-value-predictor
-```
-# Current delivery boundary (2026-09-13)
-
-The app defaults to an offline calculator that compares complete farmer-entered
-crop scenarios. Stage 1 is closed as an accepted fallback, so observed automated
-prices and source-driven rankings are not published. Phase 3A Gate A is
-authorized and remains open for hosted use; the calculator-only static site is
-deployed, while the online Function remains disabled after a 522 and no Tavily
-key has been uploaded. A
-separate modeled-estimate context lane is enabled with explicit
-warnings and no Stage 1 approval effect. Stage 2 is **Approved** for calculator-only scenarios on validated
-implementation commit `2e8802f`, with documentation/evidence in `8ef54f5`.
-Clean-clone verification passed the npm, typecheck, build, six Chromium E2E,
-and Python validation checks. This approval does not unlock automated prices,
-defaults, forecasting, Stage 3/4, online retrieval, or public launch.
+Fieldmargin is the JJMB crop-planning project: practical planning support for
+Nigerian farms, with clear assumptions and a gentler path from uncertainty to a
+decision.
