@@ -4,7 +4,7 @@
 **Plan date:** 2026-08-24  
 **Original specification:** `Crop Value Predictor App.txt`, version 1.0
 
-## Current delivery outcome — 2026-09-09
+## Current delivery outcome — 2026-09-10
 
 Stage 1 completed its audit and evidence review, but the production-price gate
 did not pass. The authenticated qualification report selected zero crop forms:
@@ -28,6 +28,20 @@ lane. Its 438 suggestions are source-aligned and editable, but carry
 `modeled_estimate` provenance and are not observed retail, wholesale, or farmer
 selling prices. This lane does not change `stage_1_approved`, does not unlock
 forecasting, and does not satisfy the observed-price gate.
+
+The fresh 2026-09-10 FEWS/WFP remediation run failed closed because FEWS
+returned HTTP 403 after bounded retries. The evidence is retained in the new
+immutable audit directory, and the ordered follow-up sequence is documented in
+[`docs/next-actions.md`](./docs/next-actions.md).
+
+Phase 1 is sequential and fail-closed: technical series and crop qualification
+comes first, including three reviewed canonical markets per selected crop.
+Rights approval, mapping checksum/version review, and two distinct reviews
+bound to the immutable raw manifest are a separate gate; only then is a report
+review-ready, never approved or promotable by itself. Explicit user approval
+remains the final authorization. The current result has not passed any of
+these later gates: `stage_1_approved` remains false and the calculator-only
+posture remains in force.
 
 ## 1. Delivery decision
 

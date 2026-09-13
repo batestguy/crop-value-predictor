@@ -33,21 +33,44 @@
       "name": "FEWS NET Nigeria staple prices",
       "role": "market_price_primary_candidate",
       "status": "candidate",
-      "url": "https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-2",
-      "download_url": "https://fdw.fews.net/api/marketpricefacts/",
+      "url": "https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-1",
+      "download_url": null,
       "terms_url": "https://help.fews.net/fde/v3/export-data",
       "auth_mode": "public_without_authentication",
       "cadence": "weekly aggregated to monthly",
-      "formats": ["json"],
+      "formats": ["csv"],
       "price_types": ["retail", "wholesale", "producer"],
       "units": ["kg", "local_source_units_pending"],
       "coverage": {"country": "NGA", "markets_expected": "to_profile", "start": "2003-01"},
       "attribution": "FEWS NET Nigeria Weekly Staple Food Price Data.",
       "redistribution_decision": "pending_explicit_stage_1_review",
       "required_for_gate": true,
-      "evidence_urls": ["https://help.fews.net/fde/v3/fews-net-api"],
+      "evidence_urls": ["https://help.fews.net/fde/v3/fews-net-api", "https://help.fews.net/fde/v3/export-data"],
       "retrieval": {
+        "mode": "fews_static_export",
+        "discovery_page": "https://fews.net/nigeria-weekly-fews-net-staple-food-price-data-1",
+        "allowed_hosts": ["fews.net", "www.fews.net", "fdw.fews.net"],
+        "required_link_label": "Nigeria Weekly FEWS NET Staple Food Price Data",
+        "accepted_extensions": [".csv"],
+        "required_columns": {
+          "country": ["country"],
+          "date": ["period_date", "date", "date_start"],
+          "market": ["market"],
+          "product": ["product"],
+          "price": ["value", "price"],
+          "price_type": ["price_type"],
+          "unit": ["unit"],
+          "currency": ["currency"],
+          "public_usage": ["data_usage_policy", "usage_policy", "access"]
+        },
+        "download_timeout_seconds": 120,
+        "discovery_timeout_seconds": 60,
+        "max_bytes": 250000000,
+        "retries": 3
+      },
+      "diagnostic_retrieval": {
         "mode": "fews_v3_paginated_json",
+        "endpoint": "https://fdw.fews.net/api/marketpricefacts/",
         "country_parameter": "country",
         "country_value": "NG",
         "query_parameters": {
@@ -67,7 +90,7 @@
         "format_parameter": "format",
         "format": "json",
         "row_country_fields": ["country_code", "country"],
-        "query_contract": "FEWS Data Explorer v3 marketpricefacts endpoint with dataset=FEWS_NET_Staple_Food_Price_Data, country=NG, format=json, page_size, and offset"
+        "query_contract": "Diagnostic only: FEWS Data Explorer v3 marketpricefacts endpoint with dataset=FEWS_NET_Staple_Food_Price_Data, country=NG, format=json, page_size, and offset; never stitched with the static export"
       }
     },
     {

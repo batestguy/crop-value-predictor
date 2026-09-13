@@ -5,10 +5,11 @@
 > handoff for the active milestone; this document describes artifact recovery
 > and fail-closed qualification only.
 
-This is the repeatable procedure for resuming Stage 1. It verifies the exact
-GitHub Actions run and artifact recorded in `AGENT_RESUME_INSTRUCTIONS.md`,
-downloads the artifact into the audit directory, checks the required files, and
-runs the project qualification script.
+This is the repeatable procedure for resuming Stage 1. It verifies an
+explicitly supplied GitHub Actions run and its evidence artifact, downloads the
+artifact into the audit directory, checks the current static-export layout and
+manifest hash/size, and runs the project qualification script. The FEWS API is
+diagnostic only; it is never merged with the static export.
 
 ## Required tools
 
@@ -20,45 +21,62 @@ runs the project qualification script.
   Contents read-only access.
 
 The token must be stored outside the repository. The automation loads it into
-`GH_TOKEN` for one PowerShell process and never prints or persists it.
+`GH_TOKEN` for one PowerShell process and never prints or persists it. The
+default location is `%USERPROFILE%\.config\crop-value-predictor\github-token.txt`.
 
 ## Run
 
 From any directory:
 
 ```powershell
-& "D:\Crop Value Predictor App\pipeline\resume_stage1.ps1"
+& "D:\Crop Value Predictor App\pipeline\resume_stage1.ps1" -RunId 123456789
 ```
 
 To force a fresh download:
 
 ```powershell
-& "D:\Crop Value Predictor App\pipeline\resume_stage1.ps1" -ForceDownload
+& "D:\Crop Value Predictor App\pipeline\resume_stage1.ps1" -RunId 123456789 -ForceDownload
 ```
 
-The default token path is `D:\Crop Value Predictor App\githubtoken.txt`.
-Override it when needed:
+Override the default token path when needed:
 
 ```powershell
-& "D:\Crop Value Predictor App\pipeline\resume_stage1.ps1" -TokenFile "C:\secure\github-token.txt"
+& "D:\Crop Value Predictor App\pipeline\resume_stage1.ps1" -RunId 123456789 -TokenFile "C:\secure\github-token.txt"
+```
+
+The script rejects any token file located inside the project workspace, even
+when supplied through `-TokenFile`. Run the non-network preflight before an
+artifact operation:
+
+```powershell
+& "D:\Crop Value Predictor App\pipeline\agent_preflight.ps1"
 ```
 
 ## Automated checks
 
 The script stops on failure if authentication, repository metadata, run status,
-branch, commit SHA, artifact ID, digest, expiry, required files, or World Bank
-profile is incorrect. It then runs:
+optional caller-supplied commit/branch/artifact metadata, expiry, required
+files, FEWS provenance, or the static file's byte count/SHA-256 is incorrect.
+The current required layout is:
+
+- `raw_manifest.json`
+- `source_profile.json`
+- `qualification_report.json`
+- `raw/fews-net.csv`
+
+The FEWS manifest record must contain the discovery page, resolved export URL,
+filename/content type, cutoff month, byte count, and SHA-256. It then runs:
 
 ```powershell
-python pipeline\qualification.py --audit-dir audit-output-cloud-auth --cutoff-month 2026-07
+python pipeline\qualification.py --audit-dir audit-output-cloud-static --cutoff-month 2026-08
 ```
 
 The final JSON summary records the workflow conclusion, artifact metadata,
-profile counts, qualification status, selected crop count, and the Stage 1
-decision. `gate_review_rights_and_transaction_type_pending` is not approval:
-the rights and transaction-type gates still require review. If fewer than five
-crops qualify technically, the result is `calculator_only_fallback` and no
-automated price claims are permitted.
+static-export provenance, qualification status, selected crop count, and the
+Stage 1 decision. `gate_review_rights_and_transaction_type_pending` is not
+approval: the rights and transaction-type gates still require review. If fewer
+than five crops qualify technically, the result is `calculator_only_fallback`
+and no automated price claims are permitted.
 
 ## Agent stop rules
 
@@ -70,9 +88,9 @@ automated price claims are permitted.
   directory instead of broader repository credentials.
 - Rotate any token exposed in chat, logs, screenshots, or command history.
 
-## Latest verification result
+## Historical verification result
 
-On 2026-08-26, the authenticated artifact regeneration verified:
+The prior authenticated artifact regeneration verified:
 
 - GitHub login: `batestguy`.
 - Workflow `32812781709`: completed successfully on branch
@@ -86,9 +104,8 @@ On 2026-08-26, the authenticated artifact regeneration verified:
 - Qualification: `calculator_only_fallback`, zero selected crops, zero
   eligible series; best FEWS recent completeness is 69.4%.
 
-The resulting historical decision is `calculator_only_fallback`: artifact
-access and manifest verification succeeded, but the technical crop gate did
-not reach five selected crops. Rights and transaction-type review also remain
-pending. The 2026-09-09 remediation attempts likewise failed closed on FEWS
-retrieval; agents may work on the strict farmer-input web calculator, but must
-not publish automated price claims or begin Stage 3 from any fallback result.
+That historical decision was `calculator_only_fallback`: artifact access and
+manifest verification succeeded, but the technical crop gate did not reach
+five selected crops. It is not a substitute for the current static-export
+artifact. If the static export is unavailable or fails schema checks, retain
+the calculator-only product and record the exact fail-closed reason.

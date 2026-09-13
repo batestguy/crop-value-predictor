@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse, calendar, csv, hashlib, io, json, re, zipfile
 from collections import Counter, defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 try:
@@ -16,6 +16,8 @@ DEFAULT_AUDIT = ROOT / "audit-output-local"
 FRESHNESS_DAYS = 75
 MIN_HISTORY = 36
 RECENT_WINDOW = 36
+MIN_COMPARABLE_MARKETS = 3
+GATE_REVIEW_FILENAME = "stage_1_gate_review.json"
 
 
 def month(value: object) -> str | None:
@@ -285,6 +287,98 @@ def _sha(path: Path) -> str:
     return digest.hexdigest()
 
 
+def canonical_digest(value: object) -> str:
+    """Hash structured evidence independently of local JSON whitespace."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def report_digest(report: dict) -> str:
+    """Hash a qualification result without its derived digest field."""
+    return canonical_digest({key: value for key, value in report.items() if key != "qualification_digest"})
+
+
+def _aware_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None and parsed.utcoffset() is not None else None
+
+
+def _manifest_boundary(manifest_path: Path) -> datetime | None:
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    values = [manifest.get("generated_at"), *(record.get("retrieved_at") for record in manifest.get("records", []) if isinstance(record, dict))]
+    timestamps = [_aware_timestamp(value) for value in values if value is not None]
+    return max(timestamps) if timestamps and len(timestamps) == len(values) else None
+
+
+def gate_review_evidence(audit_dir: Path, mappings: dict, manifest_path: Path,
+                         now: datetime | None = None) -> dict:
+    """Validate local review evidence; it is never a Stage 1 trust authority."""
+    target = audit_dir / GATE_REVIEW_FILENAME
+    result = {"artifact": GATE_REVIEW_FILENAME, "status": "missing", "rights_approved": False,
+              "mapping_reviewed": False, "two_distinct_reviews": False,
+              "trust_authority": False, "rejection_reasons": []}
+    if not target.is_file():
+        result["rejection_reasons"].append("gate_review_artifact_missing")
+        return result
+    try:
+        artifact = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        result["status"] = "invalid"; result["rejection_reasons"].append("gate_review_artifact_invalid_json")
+        return result
+    if not isinstance(artifact, dict):
+        result["status"] = "invalid"; result["rejection_reasons"].append("gate_review_artifact_not_object")
+        return result
+    required = {"schema_version", "rights_approved", "mapping_reviewed", "mapping_version", "mapping_sha256", "audit_manifest_sha256", "review_records"}
+    missing = sorted(required - set(artifact))
+    if missing: result["rejection_reasons"].append("gate_review_metadata_missing:" + ",".join(missing))
+    contract = mappings.get("release_mapping_contract", {})
+    result["rights_approved"] = artifact.get("rights_approved") is True
+    result["mapping_reviewed"] = artifact.get("mapping_reviewed") is True
+    if not result["rights_approved"]: result["rejection_reasons"].append("rights_not_explicitly_approved")
+    if not result["mapping_reviewed"]: result["rejection_reasons"].append("mapping_not_explicitly_reviewed")
+    if artifact.get("mapping_version") != contract.get("mapping_version"): result["rejection_reasons"].append("mapping_version_mismatch")
+    if artifact.get("mapping_sha256") != _sha(ROOT / "config/mappings.json"): result["rejection_reasons"].append("mapping_checksum_mismatch")
+    manifest_sha = _sha(manifest_path)
+    if artifact.get("audit_manifest_sha256") != manifest_sha: result["rejection_reasons"].append("audit_manifest_checksum_mismatch")
+    boundary = _manifest_boundary(manifest_path)
+    if boundary is None:
+        result["rejection_reasons"].append("manifest_generation_or_retrieval_timestamp_invalid")
+    reference = now or datetime.now(timezone.utc)
+    if reference.tzinfo is None or reference.utcoffset() is None:
+        raise ValueError("review validation now must be timezone-aware")
+    reviews = artifact.get("review_records") if isinstance(artifact.get("review_records"), list) else []
+    fields = {"review_id", "reviewer_id", "reviewed_at", "scope", "decision", "audit_manifest_sha256"}
+    valid, reviewers, review_ids = [], set(), set()
+    for review in reviews:
+        if not isinstance(review, dict) or not fields.issubset(review): continue
+        reviewed_at = _aware_timestamp(review["reviewed_at"])
+        if reviewed_at is None:
+            result["rejection_reasons"].append("reviewed_at_must_be_timezone_aware_iso8601")
+            continue
+        if reviewed_at > reference:
+            result["rejection_reasons"].append("reviewed_at_is_in_the_future")
+            continue
+        if boundary is None or reviewed_at < boundary:
+            result["rejection_reasons"].append("reviewed_at_precedes_manifest_generation_or_retrieval")
+            continue
+        reviewer, review_id = str(review["reviewer_id"]).strip(), str(review["review_id"]).strip()
+        if not reviewer or not review_id or review.get("scope") != "source_rights_mapping_and_claims" or review.get("decision") != "pass" or review.get("audit_manifest_sha256") != manifest_sha: continue
+        valid.append({key: review[key] for key in sorted(fields)}); reviewers.add(reviewer); review_ids.add(review_id)
+    result["valid_review_records"] = valid
+    result["two_distinct_reviews"] = len(valid) >= 2 and len(reviewers) >= 2 and len(review_ids) >= 2
+    if not result["two_distinct_reviews"]: result["rejection_reasons"].append("two_distinct_valid_review_records_required")
+    result["rejection_reasons"] = sorted(set(result["rejection_reasons"]))
+    result["status"] = "passed" if not result["rejection_reasons"] else "failed"
+    return result
+
+
 def verify_manifest(audit_dir: Path, manifest: dict) -> list[dict]:
     evidence, errors = [], []
     for record in manifest.get("records", []):
@@ -370,7 +464,8 @@ def _write_profile(audit_dir: Path, manifest: dict, cutoff: str, world_rows: lis
 
 def build_report(audit_dir: Path = DEFAULT_AUDIT, cutoff: str = "2026-07") -> dict:
     if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", cutoff): raise ValueError("cutoff must be YYYY-MM")
-    manifest = json.loads((audit_dir / "raw_manifest.json").read_text(encoding="utf-8"))
+    manifest_path = audit_dir / "raw_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("cutoff_month") != cutoff: raise ValueError("cutoff does not match immutable manifest")
     integrity = verify_manifest(audit_dir, manifest)
     mappings = json.loads((ROOT / "config/mappings.json").read_text(encoding="utf-8"))
@@ -408,24 +503,60 @@ def build_report(audit_dir: Path = DEFAULT_AUDIT, cutoff: str = "2026-07") -> di
         ratio = max(primary["value"], cross["value"]) / min(primary["value"], cross["value"])
         agreements.append({"canonical_crop_id": key[0], "canonical_market_id": key[1], "price_type": key[2], "fews_value_ngn_per_kg": primary["value"], "wfp_value_ngn_per_kg": cross["value"], "ratio": round(ratio, 6), "status": "agree" if ratio <= 1.5 else "disagree"})
     disagreeing = {(item["canonical_crop_id"], item["canonical_market_id"], item["price_type"]) for item in agreements if item["status"] == "disagree"}
-    publishable_series = [item for item in eligible if item.get("canonical_market_id") and (item["canonical_crop_id"], item["canonical_market_id"], item["price_type"]) not in disagreeing]
+    candidate_publishable_series = [item for item in eligible if item.get("canonical_market_id") and (item["canonical_crop_id"], item["canonical_market_id"], item["price_type"]) not in disagreeing]
+    # A national median is defined within one transaction type.  Retail and
+    # wholesale markets must never be pooled to meet the three-market gate.
     crop_series = defaultdict(lambda: {"markets": set(), "series": []})
-    for series in publishable_series: crop_series[series["canonical_crop_id"]]["markets"].add(series["canonical_market_id"]); crop_series[series["canonical_crop_id"]]["series"].append(series)
-    ranked = []
-    for crop_id, values in crop_series.items(): ranked.append({"canonical_crop_id": crop_id, "qualified_market_count": len(values["markets"]), "qualified_series_count": len(values["series"]), "recent_completeness": min(s["recent_completeness"] for s in values["series"]), "history_length": min(s["months"] for s in values["series"])})
-    ranked.sort(key=lambda r: (-r["qualified_market_count"], -r["recent_completeness"], -r["history_length"], r["canonical_crop_id"]))
+    for series in candidate_publishable_series:
+        key = (series["canonical_crop_id"], series["price_type"])
+        crop_series[key]["markets"].add(series["canonical_market_id"])
+        crop_series[key]["series"].append(series)
+    ranked, crop_gate_rejections = [], []
+    for (crop_id, price_type), values in crop_series.items():
+        candidate = {"canonical_crop_id": crop_id, "price_type": price_type,
+                     "qualified_canonical_market_ids": sorted(values["markets"]),
+                     "qualified_market_count": len(values["markets"]),
+                     "minimum_comparable_markets": MIN_COMPARABLE_MARKETS,
+                     "qualified_series_count": len(values["series"]),
+                     "recent_completeness": min(s["recent_completeness"] for s in values["series"]),
+                     "history_length": min(s["months"] for s in values["series"])}
+        if candidate["qualified_market_count"] < MIN_COMPARABLE_MARKETS:
+            crop_gate_rejections.append({**candidate, "rejection_reasons": ["comparable_canonical_markets_under_3_for_price_type"]})
+        else:
+            ranked.append(candidate)
+    ranked.sort(key=lambda r: (-r["qualified_market_count"], -r["recent_completeness"], -r["history_length"], r["canonical_crop_id"], r["price_type"]))
     technical = [{**item, "status": "price_technically_qualified"} for item in ranked]
-    selected = technical[:8] if len(technical) >= 5 else []
+    # The five-crop gate is five distinct crop forms, not five transaction
+    # cohorts.  Choose at most one price type for each crop deterministically.
+    selected, selected_crop_ids = [], set()
+    for cohort in technical:
+        if cohort["canonical_crop_id"] in selected_crop_ids:
+            continue
+        selected.append(cohort)
+        selected_crop_ids.add(cohort["canonical_crop_id"])
+        if len(selected) == 8:
+            break
+    if len(selected_crop_ids) < 5:
+        selected = []
+    allowed_selected_cohorts = {(item["canonical_crop_id"], item["price_type"]) for item in selected}
+    # Do not carry technically eligible but unselected crop/type cohorts into
+    # the release-facing series list.
+    publishable_series = [item for item in candidate_publishable_series
+                          if (item["canonical_crop_id"], item["price_type"]) in allowed_selected_cohorts]
     source_date = _retrieval_date(manifest, "fews-net") if fews_record else date.today()
+    technical_gate_passed = len(selected) >= 5
+    review_evidence = gate_review_evidence(audit_dir, mappings, manifest_path)
+    local_review_complete = technical_gate_passed and review_evidence["status"] == "passed"
     report = {
-        "schema_version": "1.3.0", "status": "gate_review" if len(selected) >= 5 else "calculator_only_fallback", "stage_1_approved": False, "stage_2_status": "in_progress_calculator_only", "cutoff_month": cutoff, "snapshot_date": source_date.isoformat(), "snapshot_source": "fews-net", "freshness_rule_days": FRESHNESS_DAYS,
-        "selected_crops": selected, "ranked_technically_qualified_crops": technical, "minimum_crops_required": 5, "technical_gate_passed": len(selected) >= 5, "price_technical_gate_passed": len(selected) >= 5, "price_rights_gate_passed": False, "price_source_qualified": len(selected) >= 5, "recommendation_defaults_qualified": False, "stage_1_decision": "explicit_review_required" if len(selected) >= 5 else "calculator_only_fallback", "eligible_series": eligible, "publishable_series": publishable_series, "rejected_series": rejected_series,
+        "schema_version": "1.5.0", "status": "external_protected_approval_required" if local_review_complete else ("technical_review_required" if technical_gate_passed else "calculator_only_fallback"), "stage_1_approved": False, "stage_2_status": "in_progress_calculator_only", "cutoff_month": cutoff, "snapshot_date": source_date.isoformat(), "snapshot_source": "fews-net", "freshness_rule_days": FRESHNESS_DAYS,
+        "selected_crops": selected, "ranked_technically_qualified_crops": technical, "crop_gate_rejections": crop_gate_rejections, "minimum_crops_required": 5, "minimum_comparable_markets": MIN_COMPARABLE_MARKETS, "technical_gate_passed": technical_gate_passed, "price_technical_gate_passed": technical_gate_passed, "price_rights_gate_passed": False, "review_gate_passed": review_evidence["two_distinct_reviews"], "local_review_complete": local_review_complete, "approval_ready": False, "price_source_qualified": False, "promotion_permitted": False, "recommendation_defaults_qualified": False, "stage_1_decision": "protected_external_approval_required" if local_review_complete else ("explicit_rights_mapping_and_two_review_records_required" if technical_gate_passed else "calculator_only_fallback"), "eligible_series": eligible, "publishable_series": publishable_series, "rejected_series": rejected_series,
         "fews_row_quality": {"raw_rows": len(accepted) + len(rejected_rows), "normalized_rows": len(accepted), "qualified_series": len(eligible), "rejections": _rejection_evidence(rejected_rows), "normalization": "original NGN package value divided by explicit source-package kilograms", "transaction_types_retained_separately": ["retail", "wholesale"]},
         "wfp_row_quality": {"raw_rows": len(wfp_accepted) + len(wfp_rejected_rows), "normalized_rows": len(wfp_accepted), "qualified_series": len(wfp_eligible), "rejections": _rejection_evidence(wfp_rejected_rows), "normalization": "explicit source mass divided by explicit source-package kilograms", "transaction_types_retained_separately": ["retail", "wholesale"]},
         "cross_source_check": {"source": "wfp-hdx", "status": "comparable" if agreements else ("not_comparable" if wfp_record else "unavailable"), "agreements": agreements, "disagreement_count": len(disagreeing), "rule": "comparison requires reviewed canonical-market crosswalks and matching qualified FEWS/WFP series; WFP never fills FEWS history"},
-        "rights_decisions": {"fews-net": "public rows are technical evidence only; redistribution and Stage 1 review remain required", "wfp-hdx": "independent cross-check only; never a fallback or merged series"},
-        "manifest_integrity": {"status": "passed", "records": integrity}, "known_limitations": ["No yield or cost defaults are qualified.", "No browser API calls are allowed.", "Stage 6 human-comprehension pilot remains independent and in progress.", "Stage 1 requires an explicit review artifact before promotion."]
+        "rights_decisions": {"fews-net": "public rows are technical evidence only; redistribution and Stage 1 review remain required", "wfp-hdx": "independent cross-check only; never a fallback or merged series"}, "gate_review_evidence": review_evidence,
+        "manifest_integrity": {"status": "passed", "records": integrity}, "known_limitations": ["No yield or cost defaults are qualified.", "No browser API calls are allowed.", "Stage 6 human-comprehension pilot remains independent and in progress.", "stage_1_gate_review.json is local evidence, not a trust authority. Promotion requires a separately protected, cryptographically verifiable external approval bound to immutable hashes."]
     }
+    report["qualification_digest"] = report_digest(report)
     return report
 
 

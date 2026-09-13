@@ -12,11 +12,5 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 export default defineConfig({
   testDir: './tests/e2e',
   use: { baseURL: `http://127.0.0.1:${port}` },
-  webServer: {
-    command: `npm run build && npm run preview -- --host 127.0.0.1 --port ${port}`,
-    env: { VITE_BASE_PATH: basePath },
-    url: `http://127.0.0.1:${port}${basePath}`,
-    reuseExistingServer: false,
-  },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 })

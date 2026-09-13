@@ -2,14 +2,14 @@
 
 **Plan:** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)  
 **Workflow:** sequential delivery with a user review at every acceptance gate  
-**Last updated:** 2026-09-09
+**Last updated:** 2026-09-10
 
 ## Current status
 
 | Stage | Status | Evidence record | Gate condition |
 |---|---|---|---|
 | 0. Baseline and tracking setup | Approved | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
-| 1. Source and feasibility audit | In progress — web-first remediation | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | Fresh FEWS/WFP audit must pass unchanged technical and rights gates |
+| 1. Source and feasibility audit | In progress — observed retrieval blocked | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | Fresh FEWS/WFP audit must pass unchanged technical and rights gates |
 | 2. Offline decision calculator | Approved | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
 | 3. Automated data pipeline | Blocked | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Unchanged Stage 1 source gate blocks automated data |
 | 4. Forecasting and validation | Blocked | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Unchanged Stage 1/Stage 3 dependency blocks forecasting |
@@ -336,3 +336,47 @@ through `modeled_price_suggestions.json`, with a separate snapshot ID,
 `modeled_estimate` price type, source hash, and explicit “not observed” warning.
 The observed Stage 1 gate remains false; no forecast, observed-price approval,
 or farmer-validation claim was made.
+
+## Stage 1 fresh audit — 2026-09-10
+
+The next-stage observed-price audit was executed into the new immutable
+directory `audit-output-remediation-2026-09-10` using the unchanged August
+2026 cutoff. FEWS NET returned HTTP 403 after its bounded retries, so the
+required-source retrieval gate failed closed. World Bank, WFP/HDX, FAOSTAT,
+and NBS artifacts were retrieved and their manifest checksums passed.
+
+Qualification recorded `calculator_only_fallback`, with zero FEWS eligible
+series, zero WFP eligible series, and zero selected crop forms. No public data
+artifact changed; `stage_1_approved` remains false, and Stages 3 and 4 remain
+blocked. The next actionable step is an authorized retrieval origin that can
+reach the FEWS endpoint, or a separate focused review of the already isolated
+modeled-estimate context lane.
+
+The ordered follow-up sequence is maintained in
+[`docs/next-actions.md`](./docs/next-actions.md). The modeled-context browser
+verification is now complete: the full suite passed 17 tests with one
+intentional base-path skip and exited cleanly. The next decision is whether to
+remain calculator-only or authorize a retrieval origin that can reach FEWS;
+observed-price retrieval remains an externally authorized decision, not a
+local retry loop.
+
+## Authorized cloud FEWS investigation — 2026-09-10
+
+The user authorized an external/cloud retrieval origin. Two bounded canaries
+and the full read-only Stage 1 workflow were dispatched on
+`stage1-adapter-fix`:
+
+- Canaries `34434267144` and `34434497826` tested August and June windows.
+  August returned no positive total; June returned HTTP 403.
+- Full audit `34434760861` completed with the required-source retrieval step
+  failed closed on FEWS HTTP 403. Its artifact was downloaded into the new
+  immutable directory `audit-output-fews-cloud-full-20260910-34434760861`.
+- The cloud qualification report is `calculator_only_fallback`, with zero
+  FEWS eligible series, zero selected crops, and `stage_1_approved: false`.
+  WFP, FAOSTAT, and NBS manifest hashes passed; World Bank used the older
+  remote-branch endpoint and returned zero rows.
+
+The cloud origin is reachable, but no observed-price evidence passed the
+unchanged gates. No public artifact changed, no promotion was attempted, and
+Stages 3 and 4 remain blocked. Further FEWS work requires a justified adapter
+or endpoint-contract change, not repeated retrieval of the same failing path.

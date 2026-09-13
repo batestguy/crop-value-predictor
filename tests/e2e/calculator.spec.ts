@@ -87,6 +87,30 @@ test('uses an approved same-origin suggestion as an editable, persisted prefill'
   await expect(page.getByText('User-entered value', { exact: true })).toBeVisible()
 })
 
+test('labels modeled context as editable and never as a qualified price', async ({ page }) => {
+  const snapshotId = 'world-bank-modeled-test-2026-09-10'
+  const snapshot = { schema_version: '1.1.0', snapshot_id: snapshotId, mapping_version: 'modeled-lane-1.0.0', lane: 'world-bank-modeled-estimates', warning: 'Modeled estimates are not observed retail, wholesale, or farmer selling prices.', suggestions: [{ suggestion_id: 'world-bank:gari:kano:2026-08-01', crop_id: 'gari-white', crop_form_id: 'gari-white', mapping_version: 'modeled-lane-1.0.0', canonical_market_id: 'world-bank:kano', market_id: 'world-bank:kano', market_name: 'Kano', price_type: 'modeled_estimate', observation_date: '2026-08-01', value_ngn_per_kg: 716.71, source: { source_id: 'world-bank-rtfp', attribution: 'World Bank Real-Time Food Prices, Nigeria, modeled monthly close estimate.', raw_artifact_sha256: 'b'.repeat(64), commodity_id: 'gari_fao', commodity_label: 'gari_fao' }, freshness: { snapshot_date: '2026-09-09', age_days: 39, limit_days: 75 }, provenance: { source_row: 1, normalized_from_unit: '1 Kg' } }] }
+  await page.addInitScript(({ id, modeledSnapshot }) => {
+    const nativeFetch = window.fetch.bind(window)
+    window.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : input.url
+      if (url.endsWith('/data/v1/manifest.json')) return new Response(JSON.stringify({ stage_1_approved: false, modeled_estimates_enabled: true, modeled_estimate_snapshot_id: id, artifacts: ['modeled_price_suggestions.json'] }), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (url.endsWith('/data/v1/modeled_price_suggestions.json')) return new Response(JSON.stringify(modeledSnapshot), { status: 200, headers: { 'content-type': 'application/json' } })
+      return nativeFetch(input, init)
+    }
+  }, { id: snapshotId, modeledSnapshot: snapshot })
+  await page.goto('/')
+  await expect(page.getByText('Optional modeled estimates are shown as editable context only.')).toBeVisible()
+  await page.getByLabel('White gari').check()
+  await page.getByLabel('Crop being edited').selectOption({ label: 'White gari' })
+  await expect(page.getByLabel('Covered market')).toBeEnabled()
+  await expect(page.getByText('Selecting a market fills an editable modeled estimate.')).toBeVisible()
+  await expect(page.getByText('latest qualified price')).toHaveCount(0)
+  await page.getByLabel('Covered market').selectOption('world-bank:gari:kano:2026-08-01')
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('716.71')
+  await expect(page.getByText('Modeled estimate · Kano · not observed')).toBeVisible()
+})
+
 test('has no critical accessibility violations before and after a ranked result', async ({ page }) => {
   await page.goto('/')
   await expectNoCriticalAxeViolations(page)

@@ -66,6 +66,17 @@ python pipeline/validate.py
 python -m unittest discover -s tests -v
 ```
 
+## Agent operating model
+
+Repository-specific agent rules live in [`AGENTS.md`](./AGENTS.md). Start with
+[`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md), then use the active phase
+contract. The delegation roles, concurrency limit, handoff fields, and secret
+boundary are recorded in [`.agents/agent-policy.toml`](./.agents/agent-policy.toml)
+and [`docs/agent-handoff-template.md`](./docs/agent-handoff-template.md).
+
+Run `pipeline\agent_preflight.ps1` before a handoff or credentialed artifact
+operation. It checks the setup without contacting GitHub or printing secrets.
+
 Stage 1 is **reopened for a web-first zero-secret FEWS NET/WFP qualification
 attempt**. Until the five-crop technical gate, rights review, cross-check
 review, two independent review passes, and explicit promotion approval all
@@ -73,6 +84,8 @@ pass, the shipped web calculator remains manual-price only. Suggestions are
 editable local prefills, never forecasts or recommendations.
 The operational response to failed, stale, malformed, or unqualified upstream
 data is documented in the [upstream fallback runbook](./docs/upstream-fallback-runbook.md).
+The ordered current action sequence is documented in
+[`docs/next-actions.md`](./docs/next-actions.md).
 
 ## Active next move
 
@@ -90,6 +103,11 @@ Stage 6 gate is complete; the next active milestone is the Stage 1 web-first
 remediation. Human validation, data promotion, deployment, or another scoped
 milestone still requires separate authorization.
 Literature-informed readiness must not be described as farmer-validated.
+
+The latest fresh Stage 1 audit on 2026-09-10 failed closed because FEWS NET
+returned HTTP 403 after bounded retries. World Bank, WFP/HDX, FAOSTAT, and NBS
+artifacts were retained as immutable evidence, but qualification selected zero
+crops. The calculator remains manual-input-only.
 
 Production data integration, Stage 3, deployment, and public launch remain
 blocked until their separate gates pass.
@@ -142,8 +160,9 @@ gh run list --repo batestguy/crop-value-predictor
 
 Use a repository-scoped fine-grained token. Actions and Contents read-only
 permissions are sufficient for inspection and artifact downloads. Never print
-or commit the token; an external secure location is preferred. The local
-`githubtoken.txt` filename is ignored by `.gitignore`.
+or commit the token; store it outside the workspace at the documented external
+path. The legacy `githubtoken.txt` pattern remains ignored as defense in depth,
+but an ignored in-repository token is not an accepted storage location.
 
 Workflow dispatch, rerun, cancellation, approvals, pushes, and other write
 actions have not been verified. They require appropriate write permissions and
@@ -152,13 +171,13 @@ must be tested explicitly through the same agent launcher:
 ```powershell
 gh workflow run <workflow.yml> --repo batestguy/crop-value-predictor
 ```
-# Current delivery boundary (2026-09-04)
+# Current delivery boundary (2026-09-10)
 
 The app is calculator-only: it compares complete farmer-entered crop scenarios
-offline. WFP/HDX remediation is closed after failing the unchanged technical
-qualification gate, so observed automated prices and source-driven rankings are
-not published. A separate modeled-estimate context lane is enabled with
-explicit warnings and no Stage 1 approval effect. Stage 2 is **Approved** for calculator-only scenarios on validated
+offline. The latest FEWS/WFP remediation audit failed closed on FEWS HTTP 403
+and the unchanged technical gate, so observed automated prices and source-driven
+rankings are not published. A separate modeled-estimate context lane is enabled
+with explicit warnings and no Stage 1 approval effect. Stage 2 is **Approved** for calculator-only scenarios on validated
 implementation commit `2e8802f`, with documentation/evidence in `8ef54f5`.
 Clean-clone verification passed the npm, typecheck, build, six Chromium E2E,
 and Python validation checks. This approval does not unlock automated prices,

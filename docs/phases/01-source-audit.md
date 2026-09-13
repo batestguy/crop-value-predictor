@@ -58,6 +58,26 @@ no-secret price path works, units and price types resolve without guessing, and
 national medians have at least three comparable markets. Otherwise document the
 calculator-only fallback and stop automated-price claims.
 
+## Sequential gate record
+
+Technical qualification is only the first Phase 1 gate: each FEWS series must
+pass the unchanged history, completeness, freshness, unit, transaction, and
+forecast-origin rules; each selected crop and price type must have at least
+three reviewed canonical markets; and at least five crops must pass. The local
+`stage_1_gate_review.json` binds evidence, mappings, and two distinct,
+timezone-aware post-retrieval review records to the immutable raw-manifest
+checksum. It is evidence only, not a trust authority: anyone able to write the
+audit directory can fabricate it. It cannot approve Stage 1 or permit
+promotion. Final promotion requires a separately protected/external approval
+artifact cryptographically bound to the immutable manifest, recomputed
+qualification digest, and selected-series digest. No signing verifier is
+configured in this repository, so promotion fails closed rather than treating
+local reviewer IDs or hashes as trusted.
+
+The current cloud audit remains `calculator_only_fallback` after FEWS HTTP 403,
+with zero eligible series and zero selected crops. `stage_1_approved` remains
+false; automated prices, forecasting, and Stages 3–4 remain blocked.
+
 ## Progress log
 
 ### 2026-08-25 — audit opened
@@ -248,3 +268,57 @@ This artifact is enabled only as editable context. It has a separate snapshot
 ID and manifest flag; `stage_1_approved` remains false, observed
 `price_suggestions.json` remains unavailable, and no forecast or public
 observed-price claim is unlocked.
+
+### 2026-09-10 — fresh remediation audit failed closed
+
+- A new immutable audit was written to
+  `audit-output-remediation-2026-09-10` with the unchanged August 2026 cutoff.
+- FEWS NET returned HTTP 403 after the configured bounded retries. World Bank,
+  WFP/HDX, FAOSTAT, and NBS artifacts were retrieved and their manifest hashes
+  verified.
+- Qualification recorded `calculator_only_fallback`: zero FEWS eligible
+  series, zero WFP eligible series, and zero selected crop forms. WFP produced
+  12,742 normalized rows but no series passed the unchanged gates.
+- `stage_1_approved` remains false, no public data changed, and Stages 3 and 4
+  remain blocked. This is an upstream retrieval-availability blocker, not a
+  relaxed threshold or an observed-price approval.
+
+### 2026-09-10 — modeled context product and rights review
+
+- The World Bank catalog identifies the RTFP dataset as open data and provides
+  a required citation. Its dataset terms permit copying, adapting, displaying,
+  and including the data in other products subject to attribution, no
+  endorsement, and checking any restricted third-party material.
+- The modeled artifact already carries the required source attribution, source
+  hash, dataset reference, source-aligned crop forms, modeled provenance, and
+  an explicit not-observed warning. Its values remain editable prefills and do
+  not drive a separate data source, forecast, or Stage 1 decision.
+- Product review is accepted for the narrow context-only lane. Redistribution
+  remains provisional until any third-party restrictions are confirmed; this
+  review does not approve observed prices, change `stage_1_approved`, or unlock
+  Stages 3 or 4.
+
+### 2026-09-10 — authorized cloud FEWS investigation
+
+- The user authorized an external/cloud retrieval origin for further FEWS
+  investigation. Two evidence-only canaries were run: August 2026 returned no
+  positive result total, while June 2026 returned HTTP 403.
+- Full read-only Stage 1 audit [run 34434760861](https://github.com/batestguy/crop-value-predictor/actions/runs/34434760861)
+  completed with FEWS HTTP 403 after bounded retries. The uploaded artifact
+  was downloaded to `audit-output-fews-cloud-full-20260910-34434760861`.
+- The cloud qualification report is `calculator_only_fallback`, with zero
+  FEWS eligible series and zero selected crop forms. WFP, FAOSTAT, and NBS
+  manifest hashes passed; the remote branch's older World Bank endpoint
+  returned zero rows.
+- The downloaded WFP, FAOSTAT, and NBS files match their recorded byte sizes
+  and SHA-256 values. The qualification-report SHA-256 is
+  `db2eb66f0bf4c8d71238e1452ed13031af553910ef9c4c015cf29a1d7af35484`.
+- The official API documentation confirms that market-price JSON uses
+  `country_code`, `page_size`/`offset`, and a `count`/`results` envelope:
+  [`FEWS NET API`](https://help.fews.net/fde/v3/fews-net-api). The adapter
+  remains fail-closed when FEWS returns 403 or an empty/nonconforming payload.
+
+Stage 1 remains unapproved, the public snapshot is unchanged, and no
+promotion was attempted. The next FEWS action must be a justified
+endpoint-contract or access-path change, not repeated requests against the
+same failing path.

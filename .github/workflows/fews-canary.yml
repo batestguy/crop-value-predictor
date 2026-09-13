@@ -1,4 +1,4 @@
-name: FEWS v3 canary (evidence only)
+name: FEWS static export canary (evidence only)
 
 on:
   workflow_dispatch:
@@ -8,21 +8,11 @@ on:
         required: true
         type: string
         default: '2026-08'
-      start_date:
-        description: FEWS canary start date (YYYY-MM-DD)
+      timeout_seconds:
+        description: Bounded static discovery/download timeout (1-30 seconds)
         required: true
         type: string
-        default: '2026-08-01'
-      end_date:
-        description: FEWS canary end date (YYYY-MM-DD)
-        required: true
-        type: string
-        default: '2026-08-31'
-      page_size:
-        description: Bounded FEWS page size (1-100)
-        required: true
-        type: string
-        default: '25'
+        default: '30'
 
 permissions:
   contents: read
@@ -40,21 +30,16 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Retrieve bounded FEWS v3 evidence
+      - name: Retrieve official FEWS static export evidence
         shell: bash
         env:
           CUTOFF_MONTH: ${{ inputs.cutoff_month }}
-          CANARY_START: ${{ inputs.start_date }}
-          CANARY_END: ${{ inputs.end_date }}
-          CANARY_PAGE_SIZE: ${{ inputs.page_size }}
+          CANARY_TIMEOUT: ${{ inputs.timeout_seconds }}
         run: |
           set -o pipefail
-          python pipeline/source_audit.py --fetch --fews-canary \
+          python pipeline/source_audit.py --fetch --fews-static-canary \
             --cutoff-month "$CUTOFF_MONTH" \
-            --canary-start "$CANARY_START" \
-            --canary-end "$CANARY_END" \
-            --canary-page-size "$CANARY_PAGE_SIZE" \
-            --canary-timeout-seconds 10 \
+            --canary-timeout-seconds "$CANARY_TIMEOUT" \
             --output-dir audit-output-fews-canary \
             2>&1 | tee fews-canary.log
       - name: Upload FEWS canary evidence
