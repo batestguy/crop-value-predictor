@@ -16,7 +16,7 @@ the existing technical thresholds and the manual-input fallback intact.
 | Offline calculator | Approved and validated | `docs/phases/02-offline-calculator.md` |
 | Observed-price Stage 1 | Closed — fallback accepted; retrieval unavailable | `audit-output-fews-canary-20260913-34731386407` |
 | Modeled context lane | Provisionally retained as editable context | `public/data/v1/modeled_price_suggestions.json` |
-| Optional online research assist | Local development slice implemented; hosted Gate A open | `docs/phases/03-online-research-assist.md` |
+| Optional online research assist | Local slice plus hosted Pages Function adapter implemented; deployment checks open | `docs/phases/03-online-research-assist.md`, `docs/deployment-runbook.md` |
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
 | Browser verification | Complete: 18 passed, 1 intentional skip; Playwright also confirmed research flow | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
 
@@ -75,7 +75,7 @@ Do not promote or alter the public snapshot. Phase 1 is closed as fallback;
 reopening requires a materially changed official access path or provider-supplied
 export URL, followed by a new immutable audit and two independent reviews.
 
-### 4. Phase 3A local implementation — completed; hosted gate remains open
+### 4. Phase 3A implementation — local and hosted adapter complete; deployment checks remain open
 
 The optional hybrid research lane is documented in
 [`03-online-research-assist.md`](./phases/03-online-research-assist.md). It may
@@ -86,9 +86,11 @@ AI free-tier viability, Tavily Search free-tier viability, aggregation rules,
 privacy/security controls, and the
 candidate contract. The local Vite endpoint, Python estimator, review UI, and
 draft provenance are now implemented and tested. No production refresh, live
-snapshot, automatic default, or unconfirmed ranking input is authorized. A
-hosted endpoint still requires the source-rights, free-tier, privacy, and
-deployment decisions described in the Phase 3A document.
+snapshot, automatic default, or unconfirmed ranking input is authorized. The
+hosted Pages Function adapter and `wrangler.toml` now exist. A real hosted
+endpoint still requires Cloudflare account/project access, server-side secret
+configuration, source-rights/free-tier/privacy/rate-limit review, and a hosted
+browser smoke test. See `docs/deployment-runbook.md` for the exact sequence.
 
 ### 5. Continue calculator-only readiness
 

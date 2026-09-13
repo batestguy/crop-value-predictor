@@ -1,7 +1,9 @@
 # Phase 3A — Optional Online Internet Aggregate Estimate
 
 **Status:** Gate A authorized; local development slice implemented and verified.
-Hosted deployment and production use remain separately blocked.
+The local development slice and hosted Pages Function adapter are implemented
+and verified locally. Cloudflare account setup, secret configuration, hosted
+smoke testing, and production use remain open.
 
 **Gate A authorization date:** 2026-09-13
 
@@ -342,7 +344,21 @@ Nigerian state, and use **Find internet estimate**. The retained raw artifact
 must exist for the local-first branch. A missing artifact, unavailable provider,
 timeout, or malformed answer leaves the calculator in manual-entry mode.
 
-This slice is not a production endpoint: it does not provide rate limiting,
+### 5.4 Hosted deployment adapter
+
+The production-shaped adapter is present at
+`functions/api/price-research.ts`. It accepts the same small request, keeps
+the Tavily secret in the Pages Function environment, limits the request to one
+bounded Tavily call, parses only an explicitly stated price, and returns a
+low-confidence result with source URLs or a fail-closed error. `wrangler.toml`
+sets the Pages output directory to `dist/`.
+
+This adapter is deployable code, not evidence that a hosted deployment has
+occurred. It does not publish the retained WFP snapshot or reopen Stage 1. The
+deployment checklist and stop conditions are in
+[`docs/deployment-runbook.md`](../deployment-runbook.md).
+
+The local slice is not a production endpoint: it does not provide rate limiting,
 an approved hosted source allowlist, Cloudflare deployment, Workers AI model
 extraction, or shared caching. Those remain Gate B/D work and require a
 separate deployment decision.

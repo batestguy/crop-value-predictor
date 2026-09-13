@@ -2,9 +2,10 @@
 
 Updated: 2026-09-13
 Repository: `D:\Crop Value Predictor App`
-This handoff records the completed local Phase 3A implementation slice in this
-session commit. The pre-existing `debug.log` change remains uncommitted. The
-external Tavily key remains outside the repository and is never committed.
+This handoff records the completed local Phase 3A implementation slice and the
+hosted Pages Function adapter in this session commit. The pre-existing
+`debug.log` change remains uncommitted. The external Tavily key remains outside
+the repository and is never committed.
 Branch at handoff: `stage1-adapter-fix`
 
 ## Current disposition — 2026-09-13
@@ -49,9 +50,9 @@ authorized the local Phase 3A implementation slice. The Vite development
 server now has a guarded same-origin research route, the Python helper reads
 the retained raw CSV first and uses Tavily only for a missing-location
 fallback, and the UI requires review and explicit confirmation before changing
-a scenario. There is no hosted endpoint, production source allowlist,
-deployment, or production approval. Phase 3A Gate A remains open for those
-decisions.
+a scenario. The hosted Pages Function adapter is now in source, but there is
+no Cloudflare deployment, production source allowlist, or production approval.
+Phase 3A Gate A/D remains open for those decisions.
 
 ## Current project status
 
@@ -127,15 +128,15 @@ change Stage 1 or automatic ranking.
 1. Keep using the local app for manual and confirmed research-assisted
    scenarios. Start it with the external key loaded only into the server
    process; do not put the key in the repository or browser.
-2. Complete the hosted Phase 3A Gate A evidence review. Resolve source rights,
-   source allowlisting, provider terms/free quota, data retention, rate limits,
-   timeout behavior, and the final response contract.
-3. Add the hosted service layer and its deterministic validation tests. Include
-   malformed, stale, conflicting, timeout, quota, and no-evidence cases.
-4. Run a fresh accessibility/browser review against the hosted endpoint.
-5. Request separate deployment authorization. Do not reopen Stage 1, promote
-   online results into `public/data`, enable automatic price defaults, or start
-   Stage 3/4 as part of this path.
+2. Authenticate Wrangler to the intended Cloudflare account and identify the
+   Pages project/domain. Follow `docs/deployment-runbook.md`.
+3. Configure `TAVILY_API_KEY` as a Pages secret from the external credential
+   path, never in repository files or browser code.
+4. Run the hosted Gate A/D review: source/terms, free quota, privacy,
+   rate-limit, timeout, malformed/no-evidence behavior, and browser smoke test.
+5. Deploy only the committed `dist/` build after those checks. Do not reopen
+   Stage 1, promote online results into `public/data`, enable automatic price
+   defaults, or start Stage 3/4 as part of this path.
 
 ### Stage 1 reopening boundary
 
