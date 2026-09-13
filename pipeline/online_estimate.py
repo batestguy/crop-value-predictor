@@ -37,6 +37,17 @@ CROP_COMMODITIES = {
     "gari-white": {"Gari (white)"},
 }
 
+COST_SEARCH_TERMS = {
+    "land_preparation": "land preparation",
+    "seed": "seed",
+    "fertilizer": "fertilizer",
+    "pesticide": "pesticide",
+    "labour": "labour labor",
+    "irrigation": "irrigation",
+    "transport": "transport",
+    "storage": "storage",
+}
+
 
 def parse_mass_unit(unit: str) -> float | None:
     """Return package mass in kg, or None for units needing crop rules."""
@@ -157,7 +168,36 @@ def _parse_number(value: str) -> float | None:
     return number if math.isfinite(number) and number > 0 else None
 
 
-def parse_tavily_response(payload: dict[str, Any], crop_id: str, state: str, price_type: str) -> dict[str, Any] | None:
+def _marked_number(answer: str, marker: str, allow_zero: bool = False) -> float | None:
+    match = re.search(rf"{re.escape(marker)}\s*[:=]\s*(?:NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)", answer, re.IGNORECASE)
+    if not match:
+        return None
+    value = _parse_number(match.group(1))
+    if value is None or (not allow_zero and value <= 0):
+        return None
+    return value
+
+
+def _custom_input_estimates(answer: str) -> tuple[float | None, dict[str, float]]:
+    yield_value = _marked_number(answer, "YIELD_T_PER_HA")
+    if yield_value is None:
+        match = re.search(r"(?:yield|production|harvest)[^0-9]{0,100}([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:t/ha|tonnes?\s+per\s+hectare|tons?\s+per\s+hectare)", answer, re.IGNORECASE)
+        yield_value = _parse_number(match.group(1)) if match else None
+    costs: dict[str, float] = {}
+    for category, terms in COST_SEARCH_TERMS.items():
+        marked = _marked_number(answer, f"COST_{category.upper()}_NGN_PER_HA", allow_zero=True)
+        if marked is not None:
+            costs[category] = marked
+            continue
+        alternatives = "|".join(re.escape(term) for term in terms.split()) if category == "labour" else re.escape(terms)
+        match = re.search(rf"(?:{alternatives})[^0-9]{{0,80}}(?:NGN|Naira|N)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|/)\s*(?:ha|hectare)", answer, re.IGNORECASE)
+        value = _parse_number(match.group(1)) if match else None
+        if value is not None:
+            costs[category] = value
+    return yield_value, costs
+
+
+def parse_tavily_response(payload: dict[str, Any], crop_id: str, state: str, price_type: str, custom_crop: bool = False) -> dict[str, Any] | None:
     answer = payload.get("answer")
     if not isinstance(answer, str):
         return None
@@ -180,6 +220,7 @@ def parse_tavily_response(payload: dict[str, Any], crop_id: str, state: str, pri
     range_divisor = 1000.0 if range_match and range_match.group("range_unit").casefold() not in {"kg", "kilogram"} else 1.0
     low = _parse_number(range_match.group(1)) / range_divisor if range_match else None
     high = _parse_number(range_match.group(2)) / range_divisor if range_match else None
+    yield_value, costs = _custom_input_estimates(answer) if custom_crop else (None, {})
     return {
         "status": "web_fallback",
         "estimate_ngn_per_kg": round(estimate / divisor, 2),
@@ -192,13 +233,25 @@ def parse_tavily_response(payload: dict[str, Any], crop_id: str, state: str, pri
         "source_count": len(sources),
         "sources": sources[:8],
         "answer": answer,
+        **({"yield_t_per_ha": round(yield_value, 2)} if yield_value is not None else {}),
+        **({"costs_per_ha": {key: round(value, 2) for key, value in costs.items()}} if costs else {}),
         "warnings": ["No usable local observation was found; this is a web-grounded estimate and requires farmer confirmation."] + (["The provider returned a metric-ton value; it was converted to NGN/kg by dividing by 1,000."] if divisor == 1000.0 else []),
     }
 
 
-def tavily_fallback(crop_id: str, state: str, price_type: str, tavily_key: str, timeout_seconds: int = 30) -> dict[str, Any] | None:
+def tavily_fallback(crop_id: str, state: str, price_type: str, tavily_key: str, timeout_seconds: int = 30, crop_name: str | None = None, crop_form: str | None = None) -> dict[str, Any] | None:
     search_terms = {"maize-white": "white maize", "rice": "rice", "rice-milled": "milled rice", "yam": "yam", "sorghum": "sorghum", "millet": "millet", "gari-white": "white gari", "cassava": "cassava"}
-    query = f"{state} {search_terms.get(crop_id, crop_id)} market price Nigeria 2026 {price_type.lower()} per kilogram"
+    if crop_name and crop_form:
+        cost_markers = ", ".join(f"COST_{category.upper()}_NGN_PER_HA" for category in COST_SEARCH_TERMS)
+        query = (
+            f"{state} Nigeria {crop_name} {crop_form} average farm yield tonnes per hectare "
+            f"{price_type.lower()} market price NGN per kilogram production cost per hectare 2026. "
+            "Use multiple recent sources and give a practical average, not a single quote. "
+            "Return clearly labelled values: ESTIMATE_NGN_PER_KG, LOW_NGN_PER_KG, HIGH_NGN_PER_KG, "
+            f"YIELD_T_PER_HA, and any available {cost_markers}. Use NGN/kg and NGN/ha; omit values you cannot support."
+        )
+    else:
+        query = f"{state} {search_terms.get(crop_id, crop_id)} market price Nigeria 2026 {price_type.lower()} per kilogram"
     payload = {
         "query": query,
         "search_depth": "basic",
@@ -209,7 +262,7 @@ def tavily_fallback(crop_id: str, state: str, price_type: str, tavily_key: str, 
     request = urllib.request.Request(TAVILY_URL, data=json.dumps(payload).encode("utf-8"), headers={"Authorization": f"Bearer {tavily_key}", "Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
         document = json.loads(response.read().decode("utf-8"))
-    return parse_tavily_response(document, crop_id, state, price_type)
+    return parse_tavily_response(document, crop_id, state, price_type, custom_crop=bool(crop_name and crop_form))
 
 
 def read_external_key(path: Path) -> str:
@@ -222,14 +275,14 @@ def read_external_key(path: Path) -> str:
     return value
 
 
-def estimate(raw_path: Path, crop_id: str, state: str, price_type: str = "Retail", as_of: date | None = None, max_age_days: int = 365, tavily_key: str | None = None) -> dict[str, Any]:
+def estimate(raw_path: Path, crop_id: str, state: str, price_type: str = "Retail", as_of: date | None = None, max_age_days: int = 365, tavily_key: str | None = None, crop_name: str | None = None, crop_form: str | None = None) -> dict[str, Any]:
     local = local_estimate(raw_path, crop_id, state, price_type, as_of, max_age_days)
     if local is not None:
         return local
     if not tavily_key:
         return {"status": "no_estimate", "crop_id": crop_id, "state": state, "price_type": price_type.lower(), "warnings": ["No usable local observation and no web-search credential was supplied."]}
     try:
-        result = tavily_fallback(crop_id, state, price_type, tavily_key)
+        result = tavily_fallback(crop_id, state, price_type, tavily_key, crop_name=crop_name, crop_form=crop_form)
     except Exception:
         result = None
     return result or {"status": "no_estimate", "crop_id": crop_id, "state": state, "price_type": price_type.lower(), "warnings": ["Web search returned no parseable price evidence within the bounded request."]}
@@ -242,12 +295,14 @@ def main() -> int:
     parser.add_argument("--price-type", choices=["Retail", "Wholesale"], default="Retail")
     parser.add_argument("--raw", type=Path, default=DEFAULT_RAW)
     parser.add_argument("--api-key-file", type=Path, default=DEFAULT_KEY)
+    parser.add_argument("--crop-name")
+    parser.add_argument("--crop-form")
     parser.add_argument("--as-of", type=date.fromisoformat)
     args = parser.parse_args()
     key = os.environ.get("TAVILY_API_KEY")
     if key is None and args.api_key_file.exists():
         key = read_external_key(args.api_key_file)
-    print(json.dumps(estimate(args.raw, args.crop, args.state, args.price_type, args.as_of, tavily_key=key), indent=2))
+    print(json.dumps(estimate(args.raw, args.crop, args.state, args.price_type, args.as_of, tavily_key=key, crop_name=args.crop_name, crop_form=args.crop_form), indent=2))
     return 0
 
 

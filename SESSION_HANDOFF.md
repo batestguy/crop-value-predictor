@@ -40,8 +40,8 @@ The latest user request is documented in
 [`docs/proposals/crop-expansion-and-nigeria-map.md`](./docs/proposals/crop-expansion-and-nigeria-map.md):
 custom **Other crop** scenarios with manual inputs, plus a local accessible
 Nigeria map for state selection/orientation and a more distinctive field-
-notebook visual direction. This is a proposal only; no implementation has been
-authorized yet.
+notebook visual direction. The custom-crop slice is now implemented locally;
+the Nigeria map remains a separate proposal.
 
 ## Current handoff — settled Stage 1 and completed local Phase 3A slice
 
@@ -56,8 +56,9 @@ Stage 2 is approved for complete farmer-entered offline scenarios. The user
 authorized the local Phase 3A implementation slice. The Vite development
 server now has a guarded same-origin research route, the Python helper reads
 the retained raw CSV first and uses Tavily only for a missing-location
-fallback, and the UI requires review and explicit confirmation before changing
-a scenario. The hosted Pages Function adapter is now in source, but there is
+fallback, and custom crops can request starting price, yield, and available
+cost categories. The UI requires review and explicit confirmation before
+changing a scenario. The hosted Pages Function adapter is now in source, but there is
 no Cloudflare deployment, production source allowlist, or production approval.
 The calculator-only static deployment is live at
 `https://crop-value-predictor.pages.dev/`, but the Function bundle returned
@@ -183,7 +184,7 @@ static-export implementation and must not be treated as the new static result.
 
 Follow the ordered sequence in [`docs/next-actions.md`](./docs/next-actions.md).
 The modeled-context boundary and explicit online confirmation flow are covered
-by clean browser-suite evidence: 18 tests passed with one intentional base-path
+by clean browser-suite evidence: 19 tests passed with one intentional base-path
 skip. Playwright also completed a live local Bauchi lookup and confirmation.
 Do not repeat local FEWS retrieval; further observed-source work requires an
 explicitly authorized cloud retrieval origin.
@@ -263,7 +264,7 @@ Evidence from this session:
 - `python pipeline/source_audit.py` validates the six-source register.
 - `python pipeline/validate.py` passes the calculator-only snapshot.
 - `npm.cmd test`, `npm.cmd run typecheck`, and `npm.cmd run build` pass.
-- `npm.cmd run test:e2e` passes 17 tests with one intentional base-path skip.
+- `npm.cmd run test:e2e` passes 19 tests with one intentional base-path skip.
 - Workflow YAML parses and `git diff --check` passes.
 - A local static canary with a one-second bound failed closed with
   `The read operation timed out`; its temporary manifest recorded the exact

@@ -138,6 +138,48 @@ test('reviews and explicitly confirms an online estimate before saving it', asyn
   await expect(page.getByText('Internet estimate · Lagos · confirmed')).toBeVisible()
 })
 
+test('adds an other crop and reviews Tavily starting values before applying them', async ({ page }) => {
+  await page.route('**/api/price-research', async (route) => {
+    const request = route.request().postDataJSON()
+    expect(request.cropId).toBe('custom:soybean-dry-grain')
+    expect(request.cropName).toBe('Soybean')
+    expect(request.cropForm).toBe('dry grain')
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'web_fallback', crop_id: 'custom:soybean-dry-grain', state: 'Bauchi', price_type: 'retail',
+        estimate_ngn_per_kg: 1250, low_ngn_per_kg: 1100, high_ngn_per_kg: 1400,
+        yield_t_per_ha: 2.4,
+        costs_per_ha: { land_preparation: 180000, seed: 50000, fertilizer: 120000, labour: 90000 },
+        confidence: 'low', source_count: 1,
+        sources: [{ title: 'Example agronomy source', url: 'https://example.com/soybean' }],
+        warnings: ['No usable local observation was found.'],
+      }),
+    })
+  })
+  await page.goto('/')
+  await page.getByLabel('Other crop name').fill('Soybean')
+  await page.getByLabel('Other crop form').fill('dry grain')
+  await page.getByRole('button', { name: 'Add other crop' }).click()
+  await expect(page.getByLabel('Soybean')).toBeChecked()
+  await expect(page.getByLabel('Crop being edited')).toHaveValue('custom:soybean-dry-grain')
+  await page.getByLabel('Farm state').fill('Bauchi')
+  await page.getByRole('button', { name: 'Find internet values' }).click()
+  await expect(page.getByText('₦1,250 / kg', { exact: true })).toBeVisible()
+  await expect(page.getByText('Starting values found:', { exact: false })).toBeVisible()
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('')
+  await page.getByRole('button', { name: 'Use this estimate' }).click()
+  await expect(page.getByLabel('Yield tonnes per hectare')).toHaveValue('2.4')
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('1250')
+  await expect(page.getByLabel('Land prep')).toHaveValue('180000')
+  await expect(page.getByText(/Internet estimate .* Bauchi .* confirmed/)).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel('Other crop name')).toHaveValue('')
+  await expect(page.getByLabel('Crop being edited')).toHaveValue('custom:soybean-dry-grain')
+  await expect(page.getByLabel('Yield tonnes per hectare')).toHaveValue('2.4')
+})
+
 test('has no critical accessibility violations before and after a ranked result', async ({ page }) => {
   await page.goto('/')
   await expectNoCriticalAxeViolations(page)

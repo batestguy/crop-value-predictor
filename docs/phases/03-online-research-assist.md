@@ -348,11 +348,12 @@ timeout, or malformed answer leaves the calculator in manual-entry mode.
 ### 5.4 Hosted deployment adapter
 
 The production-shaped adapter is present at
-`functions/api/price-research.ts`. It accepts the same small request, keeps
-the Tavily secret in the Pages Function environment, limits the request to one
-bounded Tavily call, parses only an explicitly stated price, and returns a
-low-confidence result with source URLs or a fail-closed error. `wrangler.toml`
-sets the Pages output directory to `dist/`.
+`functions/api/price-research.ts`. It accepts the same small request, including
+validated custom crop name/form fields, keeps the Tavily secret in the Pages
+Function environment, limits the request to one bounded Tavily call, parses
+explicit price/yield/cost markers, and returns a low-confidence result with
+source URLs or a fail-closed error. `wrangler.toml` sets the Pages output
+directory to `dist/`.
 
 This adapter is deployable code, not evidence that a hosted deployment has
 occurred. It does not publish the retained WFP snapshot or reopen Stage 1. The

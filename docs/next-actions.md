@@ -17,17 +17,17 @@ the existing technical thresholds and the manual-input fallback intact.
 | Observed-price Stage 1 | Closed — fallback accepted; retrieval unavailable | `audit-output-fews-canary-20260913-34731386407` |
 | Modeled context lane | Provisionally retained as editable context | `public/data/v1/modeled_price_suggestions.json` |
 | Optional online research assist | Static calculator deployed; online Function disabled after 522 and key intentionally not uploaded | `docs/phases/03-online-research-assist.md`, `docs/deployment-runbook.md` |
+| Custom crop starting values | Implemented locally: farmer can add any crop/form and request Tavily starting price, yield, and available cost categories for review | `src/main.tsx`, `pipeline/online_estimate.py`, `tests/e2e/calculator.spec.ts` |
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
-| Browser verification | Complete: 18 passed, 1 intentional skip; Playwright also confirmed research flow | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
+| Browser verification | Complete: 19 passed, 1 intentional skip; Playwright also confirmed custom-crop research flow | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
 
 ## Newly documented UI/product proposal
 
 The proposal [`crop-expansion-and-nigeria-map.md`](./proposals/crop-expansion-and-nigeria-map.md)
-records two possible additions: an **Other crop** option using manual values,
-and a local accessible Nigeria SVG map for state selection and orientation.
-Neither has been implemented. Both require approval before coding; neither
-changes the offline calculator boundary or authorizes GPS, remote map tiles,
-automatic prices, or online source expansion.
+records the implemented **Other crop** option and the remaining local
+accessible Nigeria SVG map idea. Custom crops can request Tavily starting
+values, but they remain editable context and require confirmation; the map
+still requires a separate implementation decision.
 
 ## Ordered action sequence
 
@@ -40,7 +40,7 @@ waits for readiness, runs Playwright, and cleans up child processes.
 Acceptance evidence:
 
 - modeled-context test passes;
-- `npm.cmd run test:e2e` exits successfully with 17 passing tests and 1
+- `npm.cmd run test:e2e` exits successfully with 19 passing tests and 1
   intentional skip;
 - the suite confirms warning visibility, editable prefill behavior, no
   “qualified price” wording for modeled values, offline restart, print parity,
@@ -88,7 +88,10 @@ export URL, followed by a new immutable audit and two independent reviews.
 
 The optional hybrid research lane is documented in
 [`03-online-research-assist.md`](./phases/03-online-research-assist.md). It may
-The user authorized the local implementation slice. Gate A is still reviewing
+The user authorized the local implementation slice. Custom crop support now
+uses the same explicit-review boundary: Tavily may suggest a price, yield, and
+available cost categories, but the farmer must confirm them and missing values
+remain blank. Gate A is still reviewing
 a multi-source internet aggregate,
 including a candidate Hugging Face WFP/HDX snapshot, Cloudflare Workers/Workers
 AI free-tier viability, Tavily Search free-tier viability, aggregation rules,

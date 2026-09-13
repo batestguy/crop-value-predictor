@@ -52,6 +52,26 @@ class OnlineEstimateTests(unittest.TestCase):
         self.assertIn("metric-ton", metric_result["warnings"][1])
         self.assertIsNone(parse_tavily_response({"answer": "No reliable value."}, "maize-white", "Lagos", "Retail"))
 
+    def test_custom_tavily_answer_returns_price_yield_and_cost_starting_values(self):
+        payload = {
+            "answer": (
+                "Average soybean dry grain values in Bauchi. "
+                "ESTIMATE_NGN_PER_KG: 1250; YIELD_T_PER_HA: 2.4; "
+                "COST_LAND_PREPARATION_NGN_PER_HA: 180000; "
+                "COST_SEED_NGN_PER_HA: 50000; "
+                "COST_FERTILIZER_NGN_PER_HA: 120000; "
+                "COST_LABOUR_NGN_PER_HA: 90000"
+            ),
+            "results": [{"title": "Example agronomy source", "url": "https://example.test/soybean"}],
+        }
+        result = parse_tavily_response(payload, "custom:soybean-dry-grain", "Bauchi", "Retail", custom_crop=True)
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result["estimate_ngn_per_kg"], 1250)
+        self.assertEqual(result["yield_t_per_ha"], 2.4)
+        self.assertEqual(result["costs_per_ha"]["land_preparation"], 180000)
+        self.assertEqual(result["costs_per_ha"]["labour"], 90000)
+
     def test_credential_path_inside_workspace_is_rejected(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder:
             path = Path(folder) / "key.txt"

@@ -1,7 +1,11 @@
+import { COST_CATEGORIES } from './calculations'
+
 export type OnlineEstimateRequest = {
   cropId: string
   state: string
   priceType?: 'retail' | 'wholesale'
+  cropName?: string
+  cropForm?: string
 }
 
 export type OnlineEstimateSource = { title: string; url: string }
@@ -14,6 +18,8 @@ export type OnlineEstimate = {
   estimate_ngn_per_kg?: number
   low_ngn_per_kg?: number
   high_ngn_per_kg?: number
+  yield_t_per_ha?: number
+  costs_per_ha?: Partial<Record<'land_preparation' | 'seed' | 'fertilizer' | 'pesticide' | 'labour' | 'irrigation' | 'transport' | 'storage', number>>
   observation_count?: number
   market_count?: number
   date_from?: string
@@ -33,6 +39,8 @@ function isEstimate(value: unknown): value is OnlineEstimate {
   if (!['local', 'web_fallback', 'no_estimate'].includes(value.status) || !['retail', 'wholesale'].includes(value.price_type)) return false
   if (!value.warnings.every((warning) => typeof warning === 'string')) return false
   if (value.status !== 'no_estimate' && (typeof value.estimate_ngn_per_kg !== 'number' || !Number.isFinite(value.estimate_ngn_per_kg) || value.estimate_ngn_per_kg <= 0)) return false
+  if (value.yield_t_per_ha !== undefined && (typeof value.yield_t_per_ha !== 'number' || !Number.isFinite(value.yield_t_per_ha) || value.yield_t_per_ha <= 0)) return false
+  if (value.costs_per_ha !== undefined && (!isRecord(value.costs_per_ha) || Object.entries(value.costs_per_ha).some(([key, cost]) => !COST_CATEGORIES.includes(key as typeof COST_CATEGORIES[number]) || typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0))) return false
   if (value.sources !== undefined && (!Array.isArray(value.sources) || !value.sources.every((source) => isRecord(source) && typeof source.title === 'string' && typeof source.url === 'string'))) return false
   return true
 }

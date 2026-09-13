@@ -1,7 +1,7 @@
 # Crop expansion and Nigeria map UI proposal
 
-**Status:** Documented proposal only; no code or visual assets have been
-changed.
+**Status:** Custom-crop support is implemented locally. The Nigeria map remains
+a separate, unimplemented proposal.
 
 **Date:** 2026-09-13
 
@@ -42,11 +42,17 @@ be ranked alongside built-in crops. The calculation must use the farmer's
 inputs only; the app must not invent yield, cost, price, unit conversions, or
 profit assumptions.
 
-Other crops do not receive an approved snapshot prefill or online price lookup
-by default. Adding a crop-specific research mapping requires a separate review
-of product form, search terms, units, evidence, and source behavior. Until
-then, the research button should either remain unavailable for that crop or
-clearly say that the farmer must enter a price manually.
+Other crops do not receive an approved snapshot prefill. They may request a
+bounded Tavily starting-value search using the farmer's crop name, product form,
+and state. The response can provide an average selling price, yield, and any
+production-cost categories that the provider can support. Every returned value
+is low-confidence, editable context; missing categories remain blank, and
+nothing enters the calculator until the farmer explicitly confirms it. Tavily
+credentials remain server-side and outside the repository.
+
+The custom-crop search is an optional local research adapter. The deployed
+static calculator remains calculator-only while the hosted research function
+and external secret are not active.
 
 Persist the custom name and form with the local draft. Use a stable sanitized
 identifier derived from the name and form, and handle duplicate names without
@@ -120,10 +126,10 @@ over visual effects.
 
 ## Proposed implementation waves
 
-1. **Data contract:** define custom-crop IDs, name/form validation, persistence,
-   duplicate handling, and manual-only price behavior.
-2. **Calculator integration:** add Other crop to selection, editing, ranking,
-   printing, reset, and malformed-draft recovery.
+1. **Data contract:** complete custom-crop IDs, name/form validation,
+   persistence, duplicate handling, and malformed-draft recovery.
+2. **Calculator integration:** complete Other crop selection, editing, ranking,
+   printing, reset, and explicit Tavily confirmation for starting values.
 3. **Map asset:** select a licensed local SVG/GeoJSON source, record attribution,
    implement accessible state selection, and preserve the text fallback.
 4. **Visual refinement:** apply the field-notebook/map composition to the
@@ -136,12 +142,15 @@ over visual effects.
 
 - A farmer can add and compare a crop not in the built-in list.
 - A custom crop cannot rank until all required fields are complete.
-- Custom crops use manual farmer inputs and receive no invented defaults.
+- Custom crops use manual farmer inputs unless the farmer explicitly confirms a
+  low-confidence Tavily starting-value response; missing values stay manual.
 - Custom crop names/forms survive reload and do not corrupt existing drafts.
 - The map and state control select the same Nigerian state value.
 - The map is optional, keyboard accessible, usable offline, and has a text
   alternative.
 - No price heatmap or geographic claim is shown.
+- A custom Tavily response cannot change fields before explicit confirmation,
+  and its price, yield, and costs remain visibly editable.
 - The visual changes preserve current warnings, explicit research confirmation,
   offline operation, print parity, and the calculator-only production boundary.
 - Existing tests remain green, and new behavior has focused unit and browser
@@ -151,7 +160,8 @@ over visual effects.
 
 Approve or reject these two independent additions:
 
-1. **Custom crop support:** allow an Other crop with manual values only.
+1. **Custom crop support:** implemented locally, with optional Tavily starting
+   values and manual fallback.
 2. **Nigeria map:** add a local accessible SVG state selector and visual field
    context without price visualization.
 

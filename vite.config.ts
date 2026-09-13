@@ -21,9 +21,15 @@ function onlineEstimateApi() {
           try { input = JSON.parse(body) } catch { return sendJson(response, 400, { error: 'The research request was not valid JSON.' }) }
           const crop = typeof input?.cropId === 'string' ? input.cropId : ''
           const state = typeof input?.state === 'string' ? input.state.trim() : ''
+          const cropName = typeof input?.cropName === 'string' ? input.cropName.trim() : ''
+          const cropForm = typeof input?.cropForm === 'string' ? input.cropForm.trim() : ''
           const priceType = input?.priceType === 'wholesale' ? 'Wholesale' : input?.priceType === 'retail' ? 'Retail' : ''
-          if (!supportedCrops.has(crop) || !/^[A-Za-z][A-Za-z .'-]{1,79}$/.test(state) || !priceType) return sendJson(response, 400, { error: 'Choose a supported crop, Nigerian state, and price type.' })
-          const child = spawn(process.env.PYTHON || 'python', [resolve(process.cwd(), 'pipeline', 'online_estimate.py'), '--crop', crop, '--state', state, '--price-type', priceType], { cwd: process.cwd(), env: process.env })
+          const isCustomCrop = /^custom:[a-z0-9-]{1,100}$/.test(crop)
+          const validCustomDetails = /^[A-Za-z0-9][A-Za-z0-9 .()/'-]{1,79}$/.test(cropName) && /^[A-Za-z0-9][A-Za-z0-9 .()/'-]{1,79}$/.test(cropForm)
+          if ((!supportedCrops.has(crop) && !isCustomCrop) || (isCustomCrop && !validCustomDetails) || !/^[A-Za-z][A-Za-z .'-]{1,79}$/.test(state) || !priceType) return sendJson(response, 400, { error: 'Choose a supported crop, Nigerian state, and price type.' })
+          const args = [resolve(process.cwd(), 'pipeline', 'online_estimate.py'), '--crop', crop, '--state', state, '--price-type', priceType]
+          if (isCustomCrop) args.push('--crop-name', cropName, '--crop-form', cropForm)
+          const child = spawn(process.env.PYTHON || 'python', args, { cwd: process.cwd(), env: process.env })
           let output = ''
           let finished = false
           const finish = (status: number, payload: unknown) => { if (finished) return; finished = true; clearTimeout(timer); sendJson(response, status, payload) }

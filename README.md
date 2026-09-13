@@ -50,8 +50,8 @@ retail, wholesale, or farmer selling price.
 - `public/data/v1/` — versioned static JSON interfaces
 - `pipeline/` — no-network snapshot validation and future source adapters
 - `IMPLEMENTATION_PLAN.md` — staged roadmap, source policy, and acceptance gates
-- `docs/proposals/crop-expansion-and-nigeria-map.md` — documented custom-crop
-  and Nigeria-map UI proposal; implementation remains unapproved
+- `docs/proposals/crop-expansion-and-nigeria-map.md` — custom-crop implementation
+  notes and the remaining Nigeria-map UI proposal
 
 The browser never calls upstream agricultural APIs. User-entered costs and
 yield overrides remain local to the device, and recommendations include source,
