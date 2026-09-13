@@ -87,6 +87,113 @@ test('uses an approved same-origin suggestion as an editable, persisted prefill'
   await expect(page.getByText('User-entered value', { exact: true })).toBeVisible()
 })
 
+test('labels modeled context as editable and never as a qualified price', async ({ page }) => {
+  const snapshotId = 'world-bank-modeled-test-2026-09-10'
+  const snapshot = { schema_version: '1.1.0', snapshot_id: snapshotId, mapping_version: 'modeled-lane-1.0.0', lane: 'world-bank-modeled-estimates', warning: 'Modeled estimates are not observed retail, wholesale, or farmer selling prices.', suggestions: [{ suggestion_id: 'world-bank:gari:kano:2026-08-01', crop_id: 'gari-white', crop_form_id: 'gari-white', mapping_version: 'modeled-lane-1.0.0', canonical_market_id: 'world-bank:kano', market_id: 'world-bank:kano', market_name: 'Kano', price_type: 'modeled_estimate', observation_date: '2026-08-01', value_ngn_per_kg: 716.71, source: { source_id: 'world-bank-rtfp', attribution: 'World Bank Real-Time Food Prices, Nigeria, modeled monthly close estimate.', raw_artifact_sha256: 'b'.repeat(64), commodity_id: 'gari_fao', commodity_label: 'gari_fao' }, freshness: { snapshot_date: '2026-09-09', age_days: 39, limit_days: 75 }, provenance: { source_row: 1, normalized_from_unit: '1 Kg' } }] }
+  await page.addInitScript(({ id, modeledSnapshot }) => {
+    const nativeFetch = window.fetch.bind(window)
+    window.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : input.url
+      if (url.endsWith('/data/v1/manifest.json')) return new Response(JSON.stringify({ stage_1_approved: false, modeled_estimates_enabled: true, modeled_estimate_snapshot_id: id, artifacts: ['modeled_price_suggestions.json'] }), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (url.endsWith('/data/v1/modeled_price_suggestions.json')) return new Response(JSON.stringify(modeledSnapshot), { status: 200, headers: { 'content-type': 'application/json' } })
+      return nativeFetch(input, init)
+    }
+  }, { id: snapshotId, modeledSnapshot: snapshot })
+  await page.goto('/')
+  await expect(page.getByText('Optional modeled estimates are shown as editable context only.')).toBeVisible()
+  await page.getByLabel('White gari').check()
+  await page.getByLabel('Crop being edited').selectOption({ label: 'White gari' })
+  await expect(page.getByLabel('Covered market')).toBeEnabled()
+  await expect(page.getByText('Selecting a market fills an editable modeled estimate.')).toBeVisible()
+  await expect(page.getByText('latest qualified price')).toHaveCount(0)
+  await page.getByLabel('Covered market').selectOption('world-bank:gari:kano:2026-08-01')
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('716.71')
+  await expect(page.getByText('Modeled estimate · Kano · not observed')).toBeVisible()
+})
+
+test('reviews and explicitly confirms an online estimate before saving it', async ({ page }) => {
+  await page.route('**/api/price-research', async (route) => {
+    const request = route.request().postDataJSON()
+    expect(request.cropName).toBe('White maize')
+    expect(request.cropForm).toBe('dry grain')
+    expect(request.researchAll).toBe(true)
+    await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      status: 'web_fallback', crop_id: 'maize-white', state: 'Lagos', price_type: 'retail',
+      estimate_ngn_per_kg: 816, low_ngn_per_kg: 349, high_ngn_per_kg: 816,
+      yield_t_per_ha: 2,
+      costs_per_ha: { land_preparation: 100000, seed: 40000 },
+      confidence: 'low', source_count: 2,
+      sources: [{ title: 'Example market report', url: 'https://example.com/market-report' }],
+      warnings: ['No usable local observation was found.'],
+    }),
+    })
+  })
+  await page.goto('/')
+  await page.getByLabel('Farm state').fill('Lagos')
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
+  await expect(page.getByText('₦816 / kg', { exact: true })).toBeVisible()
+  await expect(page.getByText('QUICK RESEARCH OUTPUT', { exact: true })).toBeVisible()
+  await expect(page.getByText('Starting values found:', { exact: false })).toBeVisible()
+  await expect(page.getByText('This is a starting point, not a guarantee.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Use this estimate' })).toBeVisible()
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('')
+  await page.getByRole('button', { name: 'Use this estimate' }).click()
+  await expect(page.getByLabel('Yield tonnes per hectare')).toHaveValue('2')
+  await expect(page.getByLabel('Land prep')).toHaveValue('100000')
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('816')
+  await expect(page.getByText('Internet estimate · Lagos · confirmed')).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('816')
+  await expect(page.getByText('Internet estimate · Lagos · confirmed')).toBeVisible()
+})
+
+test('adds an other crop and reviews Tavily starting values before applying them', async ({ page }) => {
+  await page.route('**/api/price-research', async (route) => {
+    const request = route.request().postDataJSON()
+    expect(request.cropId).toBe('custom:soybean-dry-grain')
+    expect(request.cropName).toBe('Soybean')
+    expect(request.cropForm).toBe('dry grain')
+    expect(request.researchAll).toBe(true)
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'web_fallback', crop_id: 'custom:soybean-dry-grain', state: 'Bauchi', price_type: 'retail',
+        estimate_ngn_per_kg: 1250, low_ngn_per_kg: 1100, high_ngn_per_kg: 1400,
+        yield_t_per_ha: 2.4,
+        costs_per_ha: { land_preparation: 180000, seed: 50000, fertilizer: 120000, labour: 90000 },
+        confidence: 'low', source_count: 1,
+        sources: [{ title: 'Example agronomy source', url: 'https://example.com/soybean' }],
+        warnings: ['No usable local observation was found.'],
+      }),
+    })
+  })
+  await page.goto('/')
+  await expect(page.getByPlaceholder('e.g. dry grain')).toBeVisible()
+  await page.getByLabel('Other crop name').fill('Soybean')
+  await page.getByLabel('Other crop form').fill('dry grain')
+  await page.getByRole('button', { name: 'Add other crop' }).click()
+  await expect(page.getByLabel('Soybean')).toBeChecked()
+  await expect(page.getByLabel('Crop being edited')).toHaveValue('custom:soybean-dry-grain')
+  await page.getByLabel('Farm state').fill('Bauchi')
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
+  await expect(page.getByText('₦1,250 / kg', { exact: true })).toBeVisible()
+  await expect(page.getByText('Starting values found:', { exact: false })).toBeVisible()
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('')
+  await page.getByRole('button', { name: 'Use this estimate' }).click()
+  await expect(page.getByLabel('Yield tonnes per hectare')).toHaveValue('2.4')
+  await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('1250')
+  await expect(page.getByLabel('Land prep')).toHaveValue('180000')
+  await expect(page.getByText(/Internet estimate .* Bauchi .* confirmed/)).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel('Other crop name')).toHaveValue('')
+  await expect(page.getByLabel('Crop being edited')).toHaveValue('custom:soybean-dry-grain')
+  await expect(page.getByLabel('Yield tonnes per hectare')).toHaveValue('2.4')
+})
+
 test('has no critical accessibility violations before and after a ranked result', async ({ page }) => {
   await page.goto('/')
   await expectNoCriticalAxeViolations(page)
@@ -342,4 +449,63 @@ test.describe('emulated mobile', () => {
     await expect(page.getByLabel('Yield tonnes per hectare')).toBeVisible()
     await expectNoCriticalAxeViolations(page)
   })
+})
+
+test('shows a local decorative Nigeria watermark and JJMB context without blocking the calculator', async ({ page }) => {
+  await page.goto('/')
+  const watermark = page.locator('.nigeria-watermark')
+  await expect(watermark).toBeVisible()
+  await expect(watermark).toHaveAttribute('src', `${basePath}nigeria-flag.svg`)
+  await expect(watermark).toHaveAttribute('aria-hidden', 'true')
+  await expect(page.getByRole('region', { name: 'JJMB' })).toContainText('Practical crop planning for Nigerian farms.')
+  await expect.poll(() => watermark.evaluate((element) => {
+    const styles = getComputedStyle(element)
+    return { pointerEvents: styles.pointerEvents, position: styles.position }
+  })).toEqual({ pointerEvents: 'none', position: 'absolute' })
+  await page.getByLabel('Area in hectares').fill('1')
+  await expect(page.getByLabel('Area in hectares')).toHaveValue('1')
+})
+
+test('shows the selected bag-size equivalent beside kilogram prices', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Bag size in kilograms').fill('50')
+  await page.getByLabel('Selling price NGN per kg').fill('800')
+  await expect(page.locator('.price-bag-equivalent')).toContainText('40,000')
+  await expect(page.locator('.price-bag-equivalent')).toContainText('50kg bag')
+})
+
+test('sends Soybean dry grain and Carrot fresh to the research API', async ({ page }) => {
+  const requests: Array<{ cropName: string; cropForm: string; cropId: string; researchAll: boolean }> = []
+  await page.route('**/api/price-research', async (route) => {
+    const request = route.request().postDataJSON()
+    requests.push({ cropName: request.cropName, cropForm: request.cropForm, cropId: request.cropId, researchAll: request.researchAll })
+    const isSoybean = request.cropName === 'Soybean'
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'web_fallback', crop_id: request.cropId, state: request.state, price_type: 'retail',
+        estimate_ngn_per_kg: isSoybean ? 1250 : 900, low_ngn_per_kg: isSoybean ? 1100 : 750, high_ngn_per_kg: isSoybean ? 1400 : 1050,
+        confidence: 'low', source_count: 2,
+        sources: [{ title: isSoybean ? 'Soybean source' : 'Carrot source', url: `https://example.com/${isSoybean ? 'soybean' : 'carrot'}` }],
+        warnings: ['Test response only.'],
+      }),
+    })
+  })
+  await page.goto('/')
+  await page.getByLabel('Farm state').fill('Bauchi')
+  await page.getByLabel('Other crop name').fill('Soybean')
+  await page.getByLabel('Other crop form').fill('dry grain')
+  await page.getByRole('button', { name: 'Add other crop' }).click()
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
+  await expect(page.getByText('1,250 / kg', { exact: false })).toBeVisible()
+  await page.getByLabel('Other crop name').fill('Carrot')
+  await page.getByLabel('Other crop form').fill('fresh')
+  await page.getByRole('button', { name: 'Add other crop' }).click()
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
+  await expect(page.getByText('900 / kg', { exact: false })).toBeVisible()
+  expect(requests).toEqual([
+    { cropName: 'Soybean', cropForm: 'dry grain', cropId: 'custom:soybean-dry-grain', researchAll: true },
+    { cropName: 'Carrot', cropForm: 'fresh', cropId: 'custom:carrot-fresh', researchAll: true },
+  ])
 })

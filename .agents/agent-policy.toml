@@ -1,0 +1,45 @@
+version = 1
+fork_turns = "none"
+max_concurrent_subagents = 2
+recursive_delegation = false
+default_role = "terra_executor"
+
+[roles.sol_planner]
+model = "gpt-5.6-sol"
+reasoning = "high"
+mode = "read-only planning"
+
+[roles.terra_executor]
+model = "gpt-5.6-terra"
+reasoning = "medium"
+mode = "implementation and validation"
+
+[roles.luna_worker]
+model = "gpt-5.6-luna"
+reasoning = "medium"
+mode = "narrow mechanical work"
+
+[roles.terra_reviewer]
+model = "gpt-5.6-terra"
+reasoning = "high"
+mode = "fresh read-only review"
+
+[roles.sol_reviewer]
+model = "gpt-5.6-sol"
+reasoning = "high"
+mode = "methodology, security, or architecture review"
+
+[roles.astra_planner]
+model = "gpt-6-astra"
+reasoning = "low"
+mode = "exceptional hardest problems only"
+
+[handoff]
+required_fields = ["objective", "acceptance_criteria", "scope", "constraints", "known_risks", "validation"]
+review_findings_order = "severity"
+review_findings_require_file_and_line = true
+
+[security]
+credential_storage = "outside_workspace"
+github_access = "repository_scoped_read_only"
+write_actions_require_explicit_authorization = true

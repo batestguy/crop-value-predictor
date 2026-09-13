@@ -13,9 +13,9 @@ from datetime import date
 from pathlib import Path
 
 try:
-    from pipeline.qualification import _downloaded_record, _retrieval_date, normalize_fews, qualify_series
+    from pipeline.qualification import _downloaded_record, _retrieval_date, build_report, canonical_digest, gate_review_evidence, normalize_fews, qualify_series, report_digest
 except ModuleNotFoundError:
-    from qualification import _downloaded_record, _retrieval_date, normalize_fews, qualify_series
+    from qualification import _downloaded_record, _retrieval_date, build_report, canonical_digest, gate_review_evidence, normalize_fews, qualify_series, report_digest
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA = ROOT / "public" / "data" / "v1"
@@ -36,8 +36,9 @@ def read_json(path: Path) -> dict:
     return value
 
 
-def _validate_approval(approval: dict, report_path: Path, report: dict, mappings: dict) -> None:
-    required = {"stage_1_approved", "rights_approved", "allow_price_suggestions", "reviewer", "reviewed_at", "qualification_report_sha256", "mapping_version", "mapping_sha256", "mapping_reviewed"}
+def _validate_approval(audit_dir: Path, approval: dict, report_path: Path, report: dict,
+                       recomputed: dict, mappings: dict) -> None:
+    required = {"approval_type", "stage_1_approved", "rights_approved", "allow_price_suggestions", "reviewer", "reviewed_at", "qualification_report_sha256", "qualification_digest", "audit_manifest_sha256", "selected_series_sha256", "mapping_version", "mapping_sha256", "mapping_reviewed"}
     if not required.issubset(approval):
         raise ValueError("approval is missing an explicit review field")
     if approval["stage_1_approved"] is not True or approval["rights_approved"] is not True or approval["allow_price_suggestions"] is not True:
@@ -46,6 +47,17 @@ def _validate_approval(approval: dict, report_path: Path, report: dict, mappings
         raise ValueError("approval reviewer and reviewed_at are required")
     if approval["qualification_report_sha256"] != sha256(report_path):
         raise ValueError("approval is not bound to this qualification report")
+    if report.get("qualification_digest") != report_digest(report):
+        raise ValueError("supplied qualification report digest is invalid")
+    if report_digest(report) != report_digest(recomputed) or report.get("publishable_series") != recomputed.get("publishable_series"):
+        raise ValueError("supplied qualification report does not match current manifest-bound raw inputs")
+    manifest_path = audit_dir / "raw_manifest.json"
+    if approval["qualification_digest"] != report_digest(recomputed):
+        raise ValueError("approval is not bound to the recomputed qualification digest")
+    if approval["audit_manifest_sha256"] != sha256(manifest_path):
+        raise ValueError("approval is not bound to the immutable raw manifest")
+    if approval["selected_series_sha256"] != canonical_digest(recomputed.get("publishable_series", [])):
+        raise ValueError("approval is not bound to the recomputed selected series")
     contract = mappings.get("release_mapping_contract", {})
     if contract.get("review_required_in_approval") is not True or approval["mapping_reviewed"] is not True:
         raise ValueError("reviewed crop/form and market mapping approval is required")
@@ -53,12 +65,21 @@ def _validate_approval(approval: dict, report_path: Path, report: dict, mappings
         raise ValueError("approval mapping version does not match the release contract")
     if approval["mapping_sha256"] != sha256(ROOT / "config" / "mappings.json"):
         raise ValueError("approval is not bound to this mappings registry")
-    if not report.get("technical_gate_passed") or len(report.get("selected_crops", [])) < 5:
-        raise ValueError("Stage 1 technical five-crop gate did not pass")
-    if report.get("cross_source_check", {}).get("disagreement_count", 0):
+    if not recomputed.get("technical_gate_passed") or not recomputed.get("local_review_complete") or len(recomputed.get("selected_crops", [])) < 5:
+        raise ValueError("Stage 1 technical, rights, mapping, and two-review gate did not pass")
+    review = gate_review_evidence(audit_dir, mappings, manifest_path)
+    if review["status"] != "passed":
+        raise ValueError("manifest-bound rights, mapping, and two-review evidence is required")
+    if recomputed.get("cross_source_check", {}).get("disagreement_count", 0):
         raise ValueError("cross-source disagreement prevents promotion")
-    if report.get("cross_source_check", {}).get("status") != "comparable":
+    if recomputed.get("cross_source_check", {}).get("status") != "comparable":
         raise ValueError("cross-source evidence is not comparable through reviewed market crosswalks")
+    # This repository intentionally has no protected signing key or external
+    # approval verifier.  A local JSON file can be fabricated, regardless of
+    # its reviewer ID or hash fields, so do not promote on that representation.
+    if approval["approval_type"] != "protected_external_signed":
+        raise ValueError("a protected external signed approval artifact is required")
+    raise ValueError("protected external approval signature verification is not configured; promotion fails closed")
 
 
 def build_price_suggestions(audit_dir: Path, report: dict, catalog: dict) -> list[dict]:
@@ -69,7 +90,13 @@ def build_price_suggestions(audit_dir: Path, report: dict, catalog: dict) -> lis
     mappings = read_json(ROOT / "config" / "mappings.json")
     accepted, _ = normalize_fews(audit_dir / "raw" / fews["path"], report["cutoff_month"], mappings)
     eligible, _ = qualify_series(accepted, report["cutoff_month"], _retrieval_date(manifest, "fews-net"))
-    selected = {(item["canonical_crop_id"], item.get("canonical_market_id"), item["price_type"]) for item in report.get("publishable_series", [])}
+    selected_cohorts = {(item["canonical_crop_id"], item["price_type"])
+                        for item in report.get("selected_crops", [])}
+    selected = {(item["canonical_crop_id"], item.get("canonical_market_id"), item["price_type"])
+                for item in report.get("publishable_series", [])}
+    if not selected_cohorts or any((crop_id, price_type) not in selected_cohorts
+                                   for crop_id, _market_id, price_type in selected):
+        raise ValueError("report publishable series are not limited to selected crop/type cohorts")
     eligible_keys = {(item["canonical_crop_id"], item.get("canonical_market_id"), item["price_type"]) for item in eligible}
     if not selected or not selected.issubset(eligible_keys):
         raise ValueError("report references missing or no-longer-qualified primary series")
@@ -111,10 +138,11 @@ def promote(audit_dir: Path, approval_path: Path, data_dir: Path = DEFAULT_DATA)
     report_path = audit_dir / "qualification_report.json"
     report, approval = read_json(report_path), read_json(approval_path)
     mappings = read_json(ROOT / "config" / "mappings.json")
-    _validate_approval(approval, report_path, report, mappings)
+    recomputed = build_report(audit_dir, report.get("cutoff_month", ""))
+    _validate_approval(audit_dir, approval, report_path, report, recomputed, mappings)
     current_manifest, catalog = read_json(data_dir / "manifest.json"), read_json(data_dir / "catalog.json")
-    suggestions = build_price_suggestions(audit_dir, report, catalog)
-    snapshot_id = f"price-suggestions-{report['snapshot_date']}"
+    suggestions = build_price_suggestions(audit_dir, recomputed, catalog)
+    snapshot_id = f"price-suggestions-{recomputed['snapshot_date']}"
     price_document = {"schema_version": "1.1.0", "snapshot_id": snapshot_id, "mapping_version": mappings["release_mapping_contract"]["mapping_version"], "suggestions": suggestions}
     markets = {item["canonical_market_id"]: {"market_id": item["canonical_market_id"], "canonical_market_id": item["canonical_market_id"], "market_name": item["market_name"], "covered_crop_ids": []} for item in suggestions}
     for item in suggestions:

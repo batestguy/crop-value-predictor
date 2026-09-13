@@ -4,20 +4,72 @@
 **Plan date:** 2026-08-24  
 **Original specification:** `Crop Value Predictor App.txt`, version 1.0
 
-## Current delivery outcome — 2026-08-27
+## Current delivery outcome — 2026-09-13
 
 Stage 1 completed its audit and evidence review, but the production-price gate
 did not pass. The authenticated qualification report selected zero crop forms:
 the best recent FEWS NET completeness was 69.4%, below the required 80%, and
 the remaining rights and transaction-type questions do not support automated
 recommendations. Stage 1 is therefore **Closed — fallback accepted**, not
-Approved.
+Approved. The prior audit remains immutable; the new remediation run is
+tracked separately below.
 
-The authorized next milestone is the calculator-only form of Stage 2. It must
-rank only complete farmer-entered scenarios. No seed forecast, inferred market
-price, unqualified yield, or unqualified cost default may drive a ranking. The
-detailed execution contract and acceptance evidence are maintained in
+The 2026-09-13 Stage 1 remediation is now closed after one bounded static
+export canary failed closed. The authorized product target remains the existing
+static React/TypeScript PWA as a
+web-first application. It must rank only complete farmer-entered scenarios
+until a new Stage 1 qualification report is explicitly approved. No seed
+forecast, inferred market price, unqualified yield, or unqualified cost default
+may drive a ranking. The detailed execution contract and acceptance evidence
+are maintained in
 [`docs/phases/02-offline-calculator.md`](./docs/phases/02-offline-calculator.md).
+
+The World Bank bulk file now has a separately labelled modeled-estimate context
+lane. Its 438 suggestions are source-aligned and editable, but carry
+`modeled_estimate` provenance and are not observed retail, wholesale, or farmer
+selling prices. This lane does not change `stage_1_approved`, does not unlock
+forecasting, and does not satisfy the observed-price gate.
+
+The fresh 2026-09-10 FEWS/WFP remediation run failed closed because FEWS
+returned HTTP 403 after bounded retries. The evidence is retained in the new
+immutable audit directory, and the ordered follow-up sequence is documented in
+[`docs/next-actions.md`](./docs/next-actions.md).
+
+Phase 1 is sequential and fail-closed: technical series and crop qualification
+comes first, including three reviewed canonical markets per selected crop.
+Rights approval, mapping checksum/version review, and two distinct reviews
+bound to the immutable raw manifest are a separate gate; only then is a report
+review-ready, never approved or promotable by itself. Explicit user approval
+remains the final authorization. The current result has not passed any of
+these later gates: `stage_1_approved` remains false and the calculator-only
+posture remains in force.
+
+The corrected static-export canary ran once from reviewed commit `cbb9e3c` as
+[34731386407](https://github.com/batestguy/crop-value-predictor/actions/runs/34731386407)
+and found zero official CSV links on the Nigeria FEWS page. The exact manifest
+failure is `expected exactly one official Nigeria FEWS CSV link, found 0`.
+Phase 1 is now **Closed — fallback accepted**. It is not approved, and no
+additional attempt against the same page or obsolete API path is planned.
+
+## Proposed Phase 3A — Online Research Assist
+
+The product direction includes an optional online research assist alongside the
+default offline calculator. Gate A was authorized for review on 2026-09-13;
+the feature is not implemented and deployment is not authorized. A farmer may
+eventually provide a Nigerian state and crop so a server-side/edge service can
+search an approved, rights-compatible multi-source allowlist and return a
+transparent aggregate estimate, range, and supporting evidence for explicit
+confirmation.
+Confirmed estimates remain editable with provenance; only complete scenarios rank.
+
+The full future-phase contract is
+[`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+It defines source policy, model limits, privacy/security controls, the
+three-minute timeout target, partial/failure behavior, free-tier verification,
+acceptance evidence, and stop conditions. This lane does not reopen Stage 1,
+approve observed prices, change static snapshots, unlock Stages 3/4, or make
+online evidence an automatic ranking input. Model-only estimates remain context
+only.
 
 ## 1. Delivery decision
 
@@ -47,7 +99,7 @@ fallback status.
 | Price basis | Keep farm-gate, wholesale, and retail series separate; prefer farm-gate, then wholesale, for farmer revenue |
 | Costs | Manual farmer inputs in NGN per hectare, prefilled only with dated, sourced defaults; every default remains editable |
 | Yield | Dated sourced default in tonnes per hectare, with manual override; national values are never presented as local agronomic advice |
-| Architecture | Static React/TypeScript PWA, static versioned JSON, one-time remote Kaggle training orchestrated by GitHub Actions, and GitHub Pages |
+| Architecture | Static React/TypeScript PWA, static versioned JSON, one-time remote Kaggle training orchestrated by GitHub Actions, and Cloudflare Pages |
 | Offline behaviour | Full calculation and recommendations from cached forecasts/defaults; no network call is required after a successful first load |
 | Language | English-first UI with all visible strings externalized into locale JSON; Pidgin, Hausa, Yoruba, and Igbo follow validation |
 | Forecasts | One- and three-month monthly forecasts; cached forecast records, not browser-cached Python models |
@@ -357,6 +409,13 @@ dataset and definitions are approved.
   rejected crop/market series with reasons.
 - Test FAOSTAT yield extraction and NBS cost-default extraction separately from
   price ingestion.
+- Re-run FEWS NET and WFP/HDX in a new immutable, date-specific audit directory;
+  retain FEWS as the primary candidate and WFP as an independent cross-check.
+- Preserve the existing 36-month, 80%-completeness, 75-day-freshness,
+  three-market, six-origin, unit, transaction-type, and rights gates. Do not
+  stitch sources together to make an incomplete series eligible.
+- Require two independent review passes for source eligibility, extraction,
+  rights, and claim wording before Gate review and explicit user approval.
 
 **Deliverables:** source register, raw-data manifest, mapping files, data profile,
 and the selected 5–8 pilot crops and covered markets.
@@ -364,8 +423,9 @@ and the selected 5–8 pilot crops and covered markets.
 **Acceptance gate:** at least five crops pass every qualification and rights
 check; at least one repeatable no-secret price ingestion path works; all units
 and price types are resolvable; national medians can be computed with at least
-three markets; otherwise the project stops at a calculator with farmer-entered
-sale prices and makes no automated price claim.
+three markets; the audit package has stable checksums and two review passes; and
+the result is explicitly approved. Otherwise the project remains a static web
+calculator with farmer-entered sale prices and makes no automated price claim.
 
 ### Stage 2 — Offline decision calculator
 
@@ -391,6 +451,20 @@ qualified production prices, this gate is implemented with user-entered area,
 yield, sale price, and costs only. Optional user-entered low/high prices produce
 the interval. At least two complete crop scenarios are required before any
 ranking, recommendation label, or printable report is available.
+
+### Phase 3A — Optional online research assist (local slice implemented; separately gated)
+
+See [`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+This lane is deliberately separate from the automated pipeline below. Gate A
+is authorized but not passed for hosted use. The local development route uses
+the retained raw snapshot first and a bounded Tavily fallback only when local
+evidence is unavailable. Its entry evidence must include a
+multi-source Nigeria-focused allowlist and rights review, aggregation rules,
+privacy/security design, free-tier verification, and a chosen edge/server-side
+runtime. It returns a provenance-labelled aggregate and supporting evidence for
+explicit user confirmation only; it never supplies
+automatic ranking inputs or production snapshots. Deployment is separately
+authorized.
 
 ### Stage 3 — Automated data pipeline
 
@@ -432,14 +506,15 @@ naive baseline and has acceptable interval coverage. The original MAPE below
 20% remains a target, not a blanket release promise; failures stay labeled
 `baseline` or `experimental` and are disclosed in the UI.
 
-### Stage 5 — Deployment and farmer readiness
+### Stage 5 — Web deployment and farmer readiness
 
 **Work**
 
 - Add the web app manifest, service worker, offline fallback, atomic snapshot
   update, install prompt, and cache-version cleanup.
-- Deploy the static build to Cloudflare Pages and schedule the data job in the
-  public repository. Monitor free-tier limits; do not enable billable Functions.
+- Deploy the static build to Cloudflare Pages and keep data workflows manually
+  dispatched until the release gates pass. Monitor free-tier limits; do not
+  enable billable Functions.
 - Complete English microcopy, accessibility labels, keyboard navigation,
   responsive layout, low-bandwidth assets, source panels, and error messages.
 - Externalize all text in `locales/en.json`; test pseudo-localization before
@@ -447,32 +522,48 @@ naive baseline and has acceptable interval coverage. The original MAPE below
 - Verify that the downloadable report works online and offline and carries the
   same snapshot ID, inputs, sources, dates, intervals, and disclaimers as the UI.
 
-**Acceptance gate:** install and offline flows pass on a low-end Android target
-and a desktop browser; cached calculation and PDF/report generation make no
-network request; a throttled first result is available within five seconds on
-the agreed 3G test profile; automated accessibility checks have no critical
-violations; no personal data leaves the device.
+**Acceptance gate:** the static build is Cloudflare Pages-compatible; browser
+offline flows pass on agreed desktop and mobile viewports; cached calculation
+and report generation make no network request after first load; a throttled
+first result is available within five seconds on the agreed profile;
+automated accessibility checks have no critical violations; and no personal
+data leaves the device. Android installation and hardware recovery are
+optional, non-blocking follow-up evidence.
 
-### Stage 6 — Pilot validation and expansion
+### Stage 6 — Literature-informed calculator readiness
 
 **Work**
 
-- Run moderated sessions with at least 10 farmers and 3 extension agents across
-  more than one covered market.
-- Test comprehension of `NGN/kg`, `NGN/ha`, yield, price type, national median,
-  forecast range, stale data, and the non-guarantee message.
-- Compare forecast snapshots with later observed prices and maintain a public
-  model/data card per release.
-- Prioritize expansion by observed demand and the same data qualification gate,
-  not by an arbitrary top-30 label.
-- Translate with native-speaker review only after the English decision flow is
-  stable.
+- Conduct a rapid scoping review across Nigerian/SSA agricultural technology,
+  LMIC literacy/access/offline research, usability and accessibility methods,
+  and evidence-synthesis guidance. Report the review with PRISMA 2020 and JBI
+  scoping-review guidance.
+- Preserve the review question, databases, search dates, exact strings,
+  inclusion/exclusion criteria, screening counts, quality/context judgments,
+  extraction matrix, stable source links, and limitations in
+  [`docs/academic-evidence-review.md`](./docs/academic-evidence-review.md) and
+  [`docs/academic-evidence-matrix.csv`](./docs/academic-evidence-matrix.csv).
+- Map units, input validation, ranking interpretation, price-range meaning,
+  offline persistence, low bandwidth, accessibility, language, and claim
+  boundaries to a requirement, warning, automated test, or unresolved risk.
+- Keep the participant protocol and session kit as deferred future human-
+  validation materials. They are superseded for this milestone and do not
+  provide active gate evidence.
+- Keep automated prices, source-driven rankings, forecast comparisons,
+  deployment, public launch, and participant validation separately gated and
+  unchanged. Android hardware testing is optional and non-blocking.
 
-**Acceptance gate:** at least 80% of moderated participants complete a valid
-comparison without facilitator correction, no critical unit or certainty
-misunderstanding remains, at least 70% rate the result helpful, and forecast
-performance/failure cases are documented. Expansion is approved one crop,
-market, or language at a time only when its evidence gate passes.
+**Acceptance gate:** the review protocol, search log, screening record,
+extraction matrix, references, stable links, quality/context judgments, and two
+review passes are complete; every major product claim is labelled direct,
+transferable, contextual, or insufficient; and the concern-to-requirement map
+produces concrete tests, warnings, or deferred risks. No literature finding may
+be represented as proof of Nigerian farmer comprehension, usefulness, completion
+rate, offline recovery, or real-device performance. The participant-based 80%
+completion and 70% helpfulness thresholds do not apply because there is no
+participant denominator. After the evidence package is reviewed and explicitly
+approved, mark the stage **Approved — literature-informed readiness**, never
+farmer-validated.
 
 ## 8. Required changes to specification version 1.0
 
@@ -571,7 +662,7 @@ market, or language at a time only when its evidence gate passes.
 - A data or model failure reduces scope or falls back transparently; it never
   invents a crop, market, conversion, price, yield, cost, or confidence claim.
 
-## 11. Deferred features
+## 11. Deferred features and proposed Phase 3A boundary
 
 The following are explicitly outside the pilot and require a later evidence,
 cost, privacy, or usability decision:
@@ -580,9 +671,11 @@ cost, privacy, or usability decision:
 - agro-ecological-zone, state-wide, LGA-wide, or market-town estimates without
   qualified observations;
 - one-week forecasts from monthly data;
-- live browser calls to agricultural, weather, or foreign-exchange APIs;
-- an always-on FastAPI service, PostgreSQL, Celery, paid hosting, or server-side
-  model inference;
+- background or automatic browser calls to agricultural, weather, or
+  foreign-exchange APIs;
+- an always-on FastAPI service, PostgreSQL, Celery, paid hosting, or permanent
+  cloud scenario storage;
+- server-side model inference as an automatic source of prices;
 - accounts, cloud scenario history, admin dashboards, and personal-data sync;
 - Pidgin, Hausa, Yoruba, and Igbo releases before reviewed translation and field
   validation;
@@ -592,13 +685,27 @@ cost, privacy, or usability decision:
 - automatic adoption of ADIP, Coldtivate, Farm Price API, Kaggle mirrors,
   AfroTools, or any new source before it passes the same source gate.
 
+The separately proposed Phase 3A lane is documented in
+[`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+It is the only planned exception to the otherwise offline-only interaction
+model, and it remains disabled until its own authorization, source/rights,
+privacy/security, free-tier, service, evidence, and deployment gates pass.
+It may return provenance-labelled aggregate estimates and their underlying
+evidence for explicit farmer confirmation;
+it may not create automated defaults, live snapshots, automatic rankings,
+forecasts, or Stage 3/4 inputs.
+
 ## 12. Delivery completion definition
 
-The public pilot is complete only when all six stage gates pass; the current
+The public pilot is complete only when the applicable stage gates pass; the current
 static JSON contract is published; the PWA performs the full decision flow
 offline; every recommendation is reproducible from its snapshot and inputs; all
 source, freshness, price-basis, uncertainty, and fallback labels are visible;
-and the pilot findings and limitations are documented.
+the literature-informed readiness decision and limitations are documented; and
+any later participant, physical-device, deployment, forecast, or optional online
+research evidence has passed its own gate. Phase 3A is not required for the
+offline calculator release. Literature-informed readiness does not mean
+farmer-validated.
 
 If fewer than five crops pass the source audit, a useful offline calculator may
 still be released, but it is not branded as a crop value predictor and it uses
@@ -620,16 +727,16 @@ farmer-entered expected sale prices instead of automated forecasts.
 - [Cloudflare Pages free-plan limits](https://developers.cloudflare.com/pages/platform/limits/)
 - [GitHub Actions billing and free public-repository usage](https://docs.github.com/en/actions/concepts/billing-and-usage)
 - [web.dev: offline PWA data with Cache Storage and IndexedDB](https://web.dev/learn/pwa/offline-data)
-# Verification boundary — 2026-09-04
+# Verification boundary — 2026-09-13
 
-Stage 1 is `Closed — fallback accepted`: WFP/HDX produced zero qualified price
-series, and automated prices remain blocked. Stage 2 is `Approved` for
+The prior Stage 1 audit is `Closed — fallback accepted`: observed prices remain
+unapproved and automated prices remain blocked. No repeat of the failed API or
+static-export path is active. Stage 2 is `Approved` for
 calculator-only scenarios on
 commit `2e8802f`; clean-clone verification passed npm test (4), typecheck,
 build, six Chromium E2E scenarios, Python tests (26), snapshot validation,
 source-register validation, and `git diff --check`. The gate outcome was
 approved by the user on 2026-09-04. Automated Stages 3–4 remain blocked by the
-unchanged Stage 1 source gate. The next action is calculator-only
-pilot/deployment-readiness planning; this does not imply that the full
-automated predictor path has passed. Deployment still requires explicit
-authorization.
+unchanged Stage 1 source gate. The separately authorized future option is the
+proposed Phase 3A research assist; it does not imply that the automated
+predictor path has passed. Deployment still requires explicit authorization.
