@@ -4,6 +4,8 @@
   "generated_at": "2026-08-27T06:00:00Z",
   "valid_until": null,
   "stage_1_approved": false,
-  "artifacts": ["catalog.json", "defaults.json", "forecasts.json", "quality.json"],
-  "warnings": ["Calculator-only snapshot: no automated prices, forecasts, or source-driven defaults are approved."]
+  "modeled_estimates_enabled": true,
+  "modeled_estimate_snapshot_id": "world-bank-modeled-2026-09-09",
+  "artifacts": ["catalog.json", "defaults.json", "forecasts.json", "quality.json", "modeled_price_suggestions.json"],
+  "warnings": ["Observed-price Stage 1 is not approved. Modeled World Bank estimates are optional editable context only; they are not observed retail, wholesale, or farmer selling prices."]
 }

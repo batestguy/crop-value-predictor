@@ -13,8 +13,11 @@
   },
   "app_crop_mappings": [
     {"crop_form_id":"maize-grain-white","app_crop_id":"maize-white","source_form":"dry grain","app_form":"dry grain"},
+    {"crop_form_id":"rice-milled","app_crop_id":"rice-milled","source_form":"milled rice","app_form":"milled rice"},
+    {"crop_form_id":"gari-white","app_crop_id":"gari-white","source_form":"processed cassava","app_form":"processed cassava"},
     {"crop_form_id":"yam-fresh","app_crop_id":"yam","source_form":"fresh tuber","app_form":"fresh tuber"},
-    {"crop_form_id":"sorghum-white","app_crop_id":"sorghum","source_form":"dry grain","app_form":"dry grain"}
+    {"crop_form_id":"sorghum-white","app_crop_id":"sorghum","source_form":"dry grain","app_form":"dry grain"},
+    {"crop_form_id":"millet-pearl","app_crop_id":"millet","source_form":"dry grain","app_form":"dry grain"}
   ],
   "market_registry": {
     "registry_version": "1.0.0",

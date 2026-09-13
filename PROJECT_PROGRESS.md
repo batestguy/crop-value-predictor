@@ -2,19 +2,20 @@
 
 **Plan:** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)  
 **Workflow:** sequential delivery with a user review at every acceptance gate  
-**Last updated:** 2026-09-07
+**Last updated:** 2026-09-13
 
 ## Current status
 
 | Stage | Status | Evidence record | Gate condition |
 |---|---|---|---|
 | 0. Baseline and tracking setup | Approved | [`00-baseline.md`](./docs/phases/00-baseline.md) | Progress records, public remote, and cloud validation are reproducible |
-| 1. Source and feasibility audit | Closed — fallback accepted | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | WFP/HDX technical gate failed; automated prices blocked |
+| 1. Source and feasibility audit | Closed — fallback accepted; observed gate unapproved | [`01-source-audit.md`](./docs/phases/01-source-audit.md) | Reopen only with a materially changed official source path; unchanged gates remain mandatory |
 | 2. Offline decision calculator | Approved | [`02-offline-calculator.md`](./docs/phases/02-offline-calculator.md) | Complete-input calculation, report parity, persistence, and offline restart |
+| 3A. Optional online research assist | Local development slice implemented; hosted Gate A open | [`03-online-research-assist.md`](./docs/phases/03-online-research-assist.md) | Hosted review of source rights, provider terms/free quota, privacy, deterministic validation, and deployment gates |
 | 3. Automated data pipeline | Blocked | [`03-data-pipeline.md`](./docs/phases/03-data-pipeline.md) | Unchanged Stage 1 source gate blocks automated data |
 | 4. Forecasting and validation | Blocked | [`04-forecasting.md`](./docs/phases/04-forecasting.md) | Unchanged Stage 1/Stage 3 dependency blocks forecasting |
-| 5. Deployment and farmer readiness | Approved | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Approved to begin calculator-only pilot preparation; physical Android remains an explicit limitation |
-| 6. Pilot validation and expansion | In progress | [`06-pilot-validation.md`](./docs/phases/06-pilot-validation.md) | Consent-safe pilot materials prepared; participant access and results remain pending |
+| 5. Web deployment and farmer readiness | Approved | [`05-deployment-readiness.md`](./docs/phases/05-deployment-readiness.md) | Browser-first calculator readiness; Cloudflare Pages deployment remains separately gated |
+| 6. Literature-informed calculator readiness | Approved — literature-informed readiness | [`06-pilot-validation.md`](./docs/phases/06-pilot-validation.md) | User approved the 20-source review and requirement map; participant validation remains absent |
 
 ## Status rules
 
@@ -42,6 +43,62 @@ gate outcome. A stage is never approved from code presence alone.
    fallback is accepted, mark it `Closed — fallback accepted` and preserve the
    failed conditions in the evidence record.
 
+## Stage 1 final fallback outcome — 2026-09-13
+
+The reviewed static-export implementation was pushed as commit `cbb9e3c` and
+run once as evidence-only canary
+[34731386407](https://github.com/batestguy/crop-value-predictor/actions/runs/34731386407).
+It failed closed because the official Nigeria FEWS page exposed zero matching
+CSV links. The uploaded manifest records
+`expected exactly one official Nigeria FEWS CSV link, found 0`; no raw FEWS
+file was accepted. Stage 1 is therefore **Closed — fallback accepted**, not
+Approved. `stage_1_approved` remains false, and Stages 3–4 remain blocked.
+
+## Phase 3A Gate A authorization — 2026-09-13
+
+The user authorized Gate A review for the optional Phase 3A online research
+assist, documented in
+[`03-online-research-assist.md`](./docs/phases/03-online-research-assist.md).
+Gate A is not yet passed. Multi-source internet aggregation is the preliminary
+product posture, with the Hugging Face WFP/HDX repackage recorded as one dated
+candidate input rather than a current official feed. Exact source rights,
+provenance, aggregation rules, provider terms, quotas, and privacy evidence
+remain open. The local reference implementation, same-origin development
+endpoint, and one bounded Tavily provider test exist; no deployment or
+production snapshot change has occurred. The default remains the approved
+offline calculator. The
+lane cannot reopen Stage 1 or unlock Stages 3 or 4.
+
+## Phase 3A target clarification — 2026-09-13
+
+The user clarified that Phase 3A should optimize for the best available
+internet-informed aggregate estimate, not for proving that WFP is the sole
+authoritative source. The planned service will combine only comparable,
+evidence-backed observations or listings, apply declared recency and geography
+rules, and show the aggregate, range, contributors, dates, and warnings. The
+Hugging Face Electric Sheep Africa dataset is recorded as one possible dated
+input, not as a current or official live feed. This clarification changes the
+Phase 3A design target but does not authorize implementation, deployment,
+automatic price defaults, or Stage 1/3/4 progression. Local development
+implementation is authorized; hosted deployment remains separately blocked.
+
+For the missing-location fallback, the selected zero-cost direction is Tavily
+Search for bounded web retrieval plus Cloudflare Workers AI for structured
+extraction and aggregation. The published free quotas must be verified again
+at implementation time; if exhausted or unavailable, the feature must fail
+back to manual entry rather than incur paid usage.
+
+The retained raw WFP/HDX CSV was then checked directly for the aggregate use
+case: 88,556 rows, 16 expected fields, zero missing values, zero exact or
+observation-key duplicates, NGN-only positive numeric prices, 14 states, 68
+markets, and 43 commodities. The remaining verification decisions are
+comparability and interpretation: 68% of rows come from Borno/Yobe, only those
+two states have 2026 rows, 12,896 rows use non-mass units, and 1,217 rows carry
+the combined `actual,aggregate` flag. The raw file is therefore structurally
+usable as a baseline aggregate input, but not a standalone current nationwide
+estimate. The complete QA record and closure requirements are in the Phase 3A
+document.
+
 ## Baseline evidence
 
 - Repository: public GitHub remote at `https://github.com/batestguy/crop-value-predictor`,
@@ -54,7 +111,7 @@ gate outcome. A stage is never approved from code presence alone.
 
 The project user authorized execution of the documented prototype architecture:
 one remote, CPU-based Kaggle training release orchestrated and validated by
-GitHub Actions; static versioned forecast outputs deployed to GitHub Pages; no
+GitHub Actions; static versioned forecast outputs deployed to Cloudflare Pages; no
 online learning, live prediction API, local training, or automatic post-launch
 rebuild. See [`batch-training-architecture.md`](./docs/batch-training-architecture.md)
 and [`source-register.md`](./docs/source-register.md).
@@ -146,17 +203,12 @@ approval is claimed.
 
 ## Next action and handoff
 
-Stage 2 was approved on 2026-09-04, recorded in `7e626c0`, based on
-implementation `2e8802f` and evidence `8ef54f5`. Continue calculator-only
-readiness using [Stage 5's work packages](./docs/phases/05-deployment-readiness.md)
-and the [current handoff](./SESSION_HANDOFF.md). Review the existing uncommitted
-implementation against the approved baseline, then validate it in an isolated
-reproducible environment if the primary toolchain remains unusable.
-
-Planning is prepared; implementation verification is pending. Earlier recovery
-entries below are historical and do not reopen the approved Stage 2 gate.
-Stage 1 remains closed with fallback accepted; Stages 3 and 4 remain blocked.
-Deployment and public launch require separate authorization.
+Stage 2 remains approved. The local Phase 3A slice is implemented and verified
+against the raw-data branch and bounded web fallback. See
+[`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md) for the evidence and ordered next
+steps. The next project decision is the hosted Phase 3A Gate A review; Stage 1
+remains closed as fallback and Stages 3/4 remain blocked. Earlier recovery
+entries below are historical and do not reopen any gate.
 
 ## Verification checkpoint — 2026-09-04
 
@@ -259,10 +311,123 @@ No Stage 5 gate approval, deployment, or participant evidence is claimed.
 
 Stage 5 calculator-only browser readiness is now at `Gate review`. The service worker uses generated immutable cache identities and scoped cleanup; PWA assets and registration support both root and `/fieldmargin/` bases; persistence recovers safely from blocked or malformed storage; and browser coverage includes update cleanup, offline restart, print parity, selection recovery, axe critical-violation assertions, keyboard completion, desktop-Chromium Slow-4G final-input-to-result timing, and no-third-party post-load print/report flow. The full local suite passed: 4 calculator tests, typecheck, build, Chromium E2E, snapshot validation, and 26 Python tests. A separate scoped-base Chromium test passed. Fresh review identified and corrected the worker-activation test race and missing non-root base-path coverage.
 
-Physical Android install/update/offline recovery and participant evidence remain uncollected; browser emulation is not a substitute. No deployment, public launch, push, workflow dispatch, automated prices, forecasting, or Stage 6 work was performed.
+Physical Android install/update/offline recovery and participant evidence remain
+uncollected; they are no longer active web-release requirements. No deployment,
+public launch, push, workflow dispatch, automated prices, forecasting, or Stage
+6 work was performed.
 
 ## Stage 5 approval and Stage 6 start — 2026-09-07
 
-The user approved Stage 5's calculator-only browser-evidence package and directed the project to proceed. This approval accepts the documented physical-Android limitation only for beginning Stage 6 preparation; it is not a claim of physical-device validation, deployment approval, or public launch.
+The user approved Stage 5's calculator-only browser-evidence package and directed the project to proceed. This approval covers browser-first web readiness only; it is not deployment approval, public-launch approval, or participant validation.
 
-Stage 6 is `In progress`. The consent-safe moderator script, task rubric, aggregate-analysis worksheet, and calculator release card are in [`docs/pilot-session-kit.md`](./docs/pilot-session-kit.md). Participant recruitment, contact, session records, and storage remain project-team controlled external work. Stages 3 and 4 remain blocked, so no automated-price or forecast evidence is created or implied.
+Stage 6 entered `Gate review` for literature-informed calculator readiness.
+The approval is recorded below.
+The review protocol and matrix are in
+[`docs/academic-evidence-review.md`](./docs/academic-evidence-review.md) and
+[`docs/academic-evidence-matrix.csv`](./docs/academic-evidence-matrix.csv).
+The consent-safe moderator script and session kit remain superseded, deferred
+human-validation materials. Participant recruitment, contact, session records,
+and storage remain project-team-controlled external work. Stages 3 and 4 remain
+blocked, so no automated-price or forecast evidence is created or implied.
+
+## Stage 6 literature-informed readiness — 2026-09-09
+
+Reframed Stage 6 from participant pilot validation to a rapid scoping review
+reported with PRISMA 2020 and JBI guidance. The evidence package contains four
+search areas, exact search strings, frozen screening counts, 20 source rows
+(five per area), stable DOI/URL references, MMAT/context judgments, an internal
+second review pass, claim tiers, and a concern-to-requirement/test map.
+
+The stage was at `Gate review` pending the user's decision. The user approved
+the package on 2026-09-09 as `Approved — literature-informed readiness`. The
+review does not prove Nigerian farmer comprehension, usefulness, completion,
+offline recovery, or physical-device performance. The former 80% completion and
+70% helpfulness thresholds are removed because there is no participant
+denominator. The retained pilot protocol and session kit are future
+human-validation materials only.
+
+## Stage 6 approval — 2026-09-09
+
+The user approved the completed academic evidence review, extraction matrix,
+screening record, two audit passes, evidence tiers, and
+concern-to-requirement map. Stage 6 is now `Approved — literature-informed
+readiness`. This approval does not claim farmer validation and does not unlock
+automated prices, forecasting, deployment, or public launch. Android hardware
+evidence is optional and non-blocking for the web product.
+
+## Stage 1 web-first remediation — 2026-09-09
+
+The active remediation preserved the existing technical and rights gates and
+created immutable audit directories for the fresh attempts. The first run
+downloaded the current WFP/HDX resource and FAOSTAT archive but failed closed
+on FEWS HTTP 403, World Bank zero rows, and an NBS timeout. Qualification
+returned `calculator_only_fallback` with zero eligible series.
+
+The FEWS adapter was repaired to use the official dataset-filtered public API
+contract (`dataset=FEWS_NET_Staple_Food_Price_Data`, `country=NG`,
+`format=json`) and the source regression suite passed 34 tests. Fresh retries
+still encountered FEWS 403/timeouts during full retrieval. Stage 1 remains
+unapproved, `stage_1_approved` remains false, no public snapshot changed, and
+Stages 3 and 4 remain blocked. The browser-first PWA remains the active
+calculator product; Android hardware evidence is optional and non-blocking.
+
+The follow-up FEWS-only attempt now requests the latest 60 complete months and
+uses bounded backoff for transient upstream responses. It still received
+repeated HTTP 403 responses, so the source gate remains blocked by retrieval
+availability rather than by a relaxed threshold.
+
+### 2026-09-09 — modeled context lane implemented
+
+The current official World Bank Nigeria bulk file was retrieved through the
+catalog bulk-discovery API and passed a separate numerical screen: 17,464 rows,
+73 source markets, six source-aligned forms, 100% latest-36-month completeness,
+and a latest observation of 2026-08-01. The generated artifact contains 438
+editable modeled estimates across those forms and markets. It is exposed only
+through `modeled_price_suggestions.json`, with a separate snapshot ID,
+`modeled_estimate` price type, source hash, and explicit “not observed” warning.
+The observed Stage 1 gate remains false; no forecast, observed-price approval,
+or farmer-validation claim was made.
+
+## Stage 1 fresh audit — 2026-09-10
+
+The next-stage observed-price audit was executed into the new immutable
+directory `audit-output-remediation-2026-09-10` using the unchanged August
+2026 cutoff. FEWS NET returned HTTP 403 after its bounded retries, so the
+required-source retrieval gate failed closed. World Bank, WFP/HDX, FAOSTAT,
+and NBS artifacts were retrieved and their manifest checksums passed.
+
+Qualification recorded `calculator_only_fallback`, with zero FEWS eligible
+series, zero WFP eligible series, and zero selected crop forms. No public data
+artifact changed; `stage_1_approved` remains false, and Stages 3 and 4 remain
+blocked. The next actionable step is an authorized retrieval origin that can
+reach the FEWS endpoint, or a separate focused review of the already isolated
+modeled-estimate context lane.
+
+The ordered follow-up sequence is maintained in
+[`docs/next-actions.md`](./docs/next-actions.md). The modeled-context browser
+verification is now complete: the full suite passed 17 tests with one
+intentional base-path skip and exited cleanly. The next decision is whether to
+remain calculator-only or authorize a retrieval origin that can reach FEWS;
+observed-price retrieval remains an externally authorized decision, not a
+local retry loop.
+
+## Authorized cloud FEWS investigation — 2026-09-10
+
+The user authorized an external/cloud retrieval origin. Two bounded canaries
+and the full read-only Stage 1 workflow were dispatched on
+`stage1-adapter-fix`:
+
+- Canaries `34434267144` and `34434497826` tested August and June windows.
+  August returned no positive total; June returned HTTP 403.
+- Full audit `34434760861` completed with the required-source retrieval step
+  failed closed on FEWS HTTP 403. Its artifact was downloaded into the new
+  immutable directory `audit-output-fews-cloud-full-20260910-34434760861`.
+- The cloud qualification report is `calculator_only_fallback`, with zero
+  FEWS eligible series, zero selected crops, and `stage_1_approved: false`.
+  WFP, FAOSTAT, and NBS manifest hashes passed; World Bank used the older
+  remote-branch endpoint and returned zero rows.
+
+The cloud origin is reachable, but no observed-price evidence passed the
+unchanged gates. No public artifact changed, no promotion was attempted, and
+Stages 3 and 4 remain blocked. Further FEWS work requires a justified adapter
+or endpoint-contract change, not repeated retrieval of the same failing path.

@@ -63,8 +63,9 @@ The farmer supplies every decision-driving value.
    changes.
 2. Restore the declared npm toolchain, generate and retain the npm lockfile,
    and verify Python, Node, TypeScript, snapshot, and production-build checks.
-3. Confirm `githubtoken.txt`, raw audit directories, generated build output,
-   and local `.agents` tooling are not staged.
+3. Confirm the external GitHub token is not in the workspace, and that raw
+   audit directories, generated build output, and local `.agents` tooling are
+   not staged.
 4. Commit the current Stage 1 qualification and calculator-boundary foundation
    as a local checkpoint before implementing the remaining Stage 2 behavior.
 5. Do not push, deploy, dispatch workflows, or alter credentials as part of the
@@ -474,3 +475,19 @@ This approval covers complete farmer-entered calculator scenarios only. It does
 not unlock automated prices, source-driven defaults, forecasting, Stage 3,
 Stage 4, deployment, public launch, push, or workflow dispatch. Automated data
 remains blocked by the unchanged Stage 1 source gate.
+
+### 2026-09-10 — modeled context boundary and browser-runner verification
+
+- Corrected the modeled-market hint so it describes an editable modeled
+  estimate and does not call the value a qualified price.
+- Added an end-to-end assertion for the modeled warning, editable prefill,
+  source-aligned market selection, and `not observed` labeling.
+- Replaced the nested npm preview lifecycle with a direct Vite preview server
+  and project-owned Playwright runner so Windows child processes terminate
+  cleanly.
+- Full browser evidence: `npm.cmd run test:e2e` passed 17 tests with 1
+  intentional skip and exited successfully.
+
+Stage 2 remains approved for complete farmer-entered calculator scenarios.
+The modeled lane remains editable context only; Stage 1 remains unapproved and
+Stage 3/forecasting remain blocked.

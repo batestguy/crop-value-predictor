@@ -53,7 +53,7 @@ fields before any release decision:
 5. If the result is still failed, stale, malformed, or unqualified, close the
    release attempt as **calculator-only fallback**. No promotion is needed.
 
-## Release checkpoint (only after a qualified rerun)
+## Release checkpoint (only after a qualified rerun and verifier installation)
 
 A human reviewer must verify all of the following before creating approval
 JSON:
@@ -71,17 +71,15 @@ JSON:
   current `config/mappings.json` SHA-256, and includes the mapping version and
   `mapping_reviewed: true`.
 
-Only then run the manual, local promotion command:
+Promotion is currently unavailable, even when every checkpoint above passes.
+This repository has no protected external signature verifier, so a local
+approval JSON is not a trustworthy release authority and promotion is designed
+to fail closed. Do not create an approval JSON or run
+`pipeline/promote_price_suggestions.py`; it is currently guaranteed to fail.
 
-```powershell
-python pipeline/promote_price_suggestions.py --audit-dir <new-audit-dir> --approval <approval.json>
-python pipeline/validate.py
-python -m unittest discover -s tests -p "test_*.py"
-```
-
-If either command fails, treat it as a failed promotion: do not retry with
-edited public files. Preserve the error output with the ticket, fix the audit
-or approval input, and restart from the qualification step.
+Keep the approved result as audit evidence and retain the calculator-only
+snapshot until a protected, cryptographically verifiable external approval
+artifact and verifier are installed, reviewed, and explicitly authorized.
 
 ## Verification and evidence
 
@@ -100,13 +98,20 @@ command: retrieval should occur only in its separately authorized audit run.
 
 ## FEWS canary workflow
 
-`.github/workflows/fews-canary.yml` is a manual, zero-secret FEWS v3 evidence
-check. It accepts a cutoff month, a bounded start/end date range, and a page
-size (default: `2026-08`, `2026-08-01`, `2026-08-31`, and `25`). It always uses
-a 10-second request timeout, has a five-minute job limit, and uploads its
-`audit-output-fews-canary` directory and command log even when retrieval fails.
+`.github/workflows/fews-canary.yml` is a manual, zero-secret FEWS static-export
+evidence check. It accepts a cutoff month and bounded discovery/download
+timeout (default: `2026-08` and `30` seconds), has a five-minute job limit, and
+uploads its `audit-output-fews-canary` directory and command log even when
+retrieval fails.
 
-Run it only through **Actions → FEWS v3 canary (evidence only) → Run workflow**.
+Run it only through **Actions → FEWS static export canary (evidence only) → Run workflow**.
 Download the artifact and apply the triage table above. The workflow does not
 run qualification or promotion and never writes `public/data/v1`; its artifact
 is evidence, not a release candidate.
+
+The static adapter discovers the official CSV anchor from the configured
+Nigeria FEWS page, permits only configured FEWS-owned HTTPS hosts, validates
+explicit Nigeria/market/date/product/price/transaction/unit/currency/public-
+usage columns, and records the resolved URL, content metadata, cutoff, bytes,
+and SHA-256. The API adapter remains a separately invokable diagnostic canary;
+static and API artifacts are never stitched.
