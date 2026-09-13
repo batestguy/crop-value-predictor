@@ -47,8 +47,11 @@ export async function requestOnlineEstimate(request: OnlineEstimateRequest, fetc
       body: JSON.stringify({ ...request, priceType: request.priceType ?? 'retail', requestedAt: new Date().toISOString() }),
       signal: controller.signal,
     })
-    const payload: unknown = await response.json()
-    if (!response.ok) throw new Error(isRecord(payload) && typeof payload.error === 'string' ? payload.error : `Research request failed (${response.status}).`)
+    const raw = await response.text()
+    let payload: unknown
+    try { payload = raw ? JSON.parse(raw) : undefined } catch { payload = undefined }
+    if (!response.ok) throw new Error(isRecord(payload) && typeof payload.error === 'string' ? payload.error : 'Online lookup is unavailable right now. Enter a local price instead.')
+    if (payload === undefined) throw new Error('Online lookup is unavailable right now. Enter a local price instead.')
     if (!isEstimate(payload)) throw new Error('The research service returned an invalid response.')
     return payload
   } catch (error) {

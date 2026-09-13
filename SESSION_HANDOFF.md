@@ -2,8 +2,8 @@
 
 Updated: 2026-09-13
 Repository: `D:\Crop Value Predictor App`
-This handoff records the completed local Phase 3A implementation slice and the
-hosted Pages Function adapter in this session commit. The pre-existing
+This handoff records the completed local Phase 3A implementation slice, hosted
+Pages Function adapter, and calculator-only static deployment. The pre-existing
 `debug.log` change remains uncommitted. The external Tavily key remains outside
 the repository and is never committed.
 Branch at handoff: `stage1-adapter-fix`
@@ -52,7 +52,11 @@ the retained raw CSV first and uses Tavily only for a missing-location
 fallback, and the UI requires review and explicit confirmation before changing
 a scenario. The hosted Pages Function adapter is now in source, but there is
 no Cloudflare deployment, production source allowlist, or production approval.
-Phase 3A Gate A/D remains open for those decisions.
+The calculator-only static deployment is live at
+`https://crop-value-predictor.pages.dev/`, but the Function bundle returned
+Cloudflare 522 and was not retained in production. The Tavily key was
+intentionally not uploaded. There is no hosted online retrieval or production
+source allowlist; Phase 3A Gate A/D remains open for the online lane.
 
 ## Current project status
 
@@ -69,7 +73,7 @@ automated pipeline and forecasting stages.
 | 3A. Optional online research assist | Local development slice implemented; hosted Gate A open | Multi-source internet aggregate direction, with Hugging Face as one candidate input; see `docs/phases/03-online-research-assist.md` |
 | 3. Automated data pipeline | Blocked | Cannot proceed as an observed-price pipeline until Stage 1 passes |
 | 4. Forecasting and validation | Blocked | Depends on qualified Stage 1/Stage 3 data |
-| 5. Web deployment and farmer readiness | Approved | Browser readiness approved; deployment is separately authorized |
+| 5. Web deployment and farmer readiness | Approved — calculator-only deployment live | Static production site is live; online retrieval remains disabled |
 | 6. Literature-informed calculator readiness | Approved | Academic evidence review approved; participant validation remains absent |
 
 ## Critical truth
@@ -128,14 +132,14 @@ change Stage 1 or automatic ranking.
 1. Keep using the local app for manual and confirmed research-assisted
    scenarios. Start it with the external key loaded only into the server
    process; do not put the key in the repository or browser.
-2. Authenticate Wrangler to the intended Cloudflare account and identify the
-   Pages project/domain. Follow `docs/deployment-runbook.md`.
-3. Configure `TAVILY_API_KEY` as a Pages secret from the external credential
-   path, never in repository files or browser code.
+2. Resolve the Pages Function 522 using a separate staging deployment; keep
+   the production site calculator-only while it is unresolved.
+3. Only if explicitly chosen later, configure `TAVILY_API_KEY` as a Pages
+   secret from the external credential path, never in repository files or
+   browser code.
 4. Run the hosted Gate A/D review: source/terms, free quota, privacy,
    rate-limit, timeout, malformed/no-evidence behavior, and browser smoke test.
-5. Deploy only the committed `dist/` build after those checks. Do not reopen
-   Stage 1, promote online results into `public/data`, enable automatic price
+5. Do not promote online results into `public/data`, enable automatic price
    defaults, or start Stage 3/4 as part of this path.
 
 ### Stage 1 reopening boundary

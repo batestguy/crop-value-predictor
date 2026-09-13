@@ -16,7 +16,7 @@ the existing technical thresholds and the manual-input fallback intact.
 | Offline calculator | Approved and validated | `docs/phases/02-offline-calculator.md` |
 | Observed-price Stage 1 | Closed — fallback accepted; retrieval unavailable | `audit-output-fews-canary-20260913-34731386407` |
 | Modeled context lane | Provisionally retained as editable context | `public/data/v1/modeled_price_suggestions.json` |
-| Optional online research assist | Local slice plus hosted Pages Function adapter implemented; deployment checks open | `docs/phases/03-online-research-assist.md`, `docs/deployment-runbook.md` |
+| Optional online research assist | Static calculator deployed; online Function disabled after 522 and key intentionally not uploaded | `docs/phases/03-online-research-assist.md`, `docs/deployment-runbook.md` |
 | Automated pipeline / forecasting | Blocked | Stage 1 dependency |
 | Browser verification | Complete: 18 passed, 1 intentional skip; Playwright also confirmed research flow | `tests/e2e/calculator.spec.ts`, `scripts/run-e2e.mjs` |
 
@@ -87,10 +87,13 @@ privacy/security controls, and the
 candidate contract. The local Vite endpoint, Python estimator, review UI, and
 draft provenance are now implemented and tested. No production refresh, live
 snapshot, automatic default, or unconfirmed ranking input is authorized. The
-hosted Pages Function adapter and `wrangler.toml` now exist. A real hosted
-endpoint still requires Cloudflare account/project access, server-side secret
-configuration, source-rights/free-tier/privacy/rate-limit review, and a hosted
-browser smoke test. See `docs/deployment-runbook.md` for the exact sequence.
+static calculator is live at `https://crop-value-predictor.pages.dev/`.
+The hosted Pages Function adapter and `wrangler.toml` exist, but the Function
+deployment returned 522 and was replaced by a static-only production upload.
+The Tavily key was intentionally not uploaded, so online lookup remains
+disabled and falls back to manual entry. Resolving the Function runtime issue,
+then configuring a server-side secret and running the hosted smoke test, is a
+separate future action. See `docs/deployment-runbook.md` for the sequence.
 
 ### 5. Continue calculator-only readiness
 

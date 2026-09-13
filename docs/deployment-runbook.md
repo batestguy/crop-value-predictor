@@ -17,8 +17,14 @@ must never be placed in the browser bundle, repository, or command arguments.
   raw snapshot before its Tavily fallback.
 - The hosted Function uses the bounded Tavily fallback contract. It does not
   publish a price snapshot and it does not change `stage_1_approved`.
-- A Cloudflare account, Pages project, configured secret, and hosted smoke test
-  are still required before claiming deployment.
+- The calculator-only static production deployment is live at
+  `https://crop-value-predictor.pages.dev/`.
+- The Pages Function bundle was not retained in production because its first
+  deployment returned a Cloudflare 522 at the host. The online lookup is
+  therefore intentionally unavailable and falls back to manual entry.
+- The Tavily key has not been uploaded, consistent with the project owner’s
+  instruction. A hosted online lookup requires a later explicit decision to
+  configure a server-side secret after the Function 522 is resolved.
 
 ## One-time account setup
 
@@ -92,7 +98,7 @@ Stop before production publishing if any of these is true:
 - The hosted route cannot be tested with the online provider unavailable.
 - A lookup can populate or rank a crop without explicit farmer confirmation.
 
-The app may still be deployed as a calculator-only static preview without the
-secret, but the online button must then fail safely with manual entry. A public
-online deployment should wait until the hosted service and privacy/rate-limit
-review is recorded.
+The current production deployment is the calculator-only case: it has no
+server-side Tavily secret and the online button fails safely with manual entry.
+A public online deployment should wait until the Function runtime issue and
+the hosted service/privacy/rate-limit review are resolved.

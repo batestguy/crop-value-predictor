@@ -2,8 +2,9 @@
 
 **Status:** Gate A authorized; local development slice implemented and verified.
 The local development slice and hosted Pages Function adapter are implemented
-and verified locally. Cloudflare account setup, secret configuration, hosted
-smoke testing, and production use remain open.
+and verified locally. The calculator-only static site is deployed, but the
+Function bundle returned a 522 and the Tavily key was intentionally not
+uploaded. Hosted online retrieval and production use remain open.
 
 **Gate A authorization date:** 2026-09-13
 
@@ -752,11 +753,16 @@ As of 2026-09-13:
 - no model has been pinned or quota-verified for production use;
 - no Phase 3A source allowlist or rights register has been approved for this
   feature;
-- no deployment has occurred;
+- the calculator-only static site is deployed at
+  `https://crop-value-predictor.pages.dev/`;
+- the hosted Function deployment returned a 522 and is not active in the live
+  site; the Tavily key was intentionally not uploaded;
 - no public snapshot has changed;
 - Stage 1 remains closed with fallback accepted and unapproved;
 - Stage 2 remains approved for complete farmer-entered offline scenarios.
 
-The local implementation is authorized for development verification. This
-does not authorize deployment, public launch, paid usage, or promotion into
-`public/data` or the Stage 1 snapshot.
+The local implementation and hosted adapter are authorized for development
+verification. The static calculator deployment is live; online retrieval still
+requires resolution of the Function runtime issue, an explicit server-side
+secret decision, hosted smoke testing, and privacy/rate-limit checks. Nothing
+is promoted into `public/data` or the Stage 1 snapshot.
