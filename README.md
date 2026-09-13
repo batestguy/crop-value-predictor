@@ -11,6 +11,29 @@ npm install
 npm run dev
 ```
 
+### Quick Research for all assumptions
+
+During local development, the optional **Find all starting values** action can
+search the selected crop and Nigerian state through the Tavily adapter. It asks
+for a practical average of:
+
+- selling price and optional low/high range in NGN/kg;
+- yield in tonnes/hectare; and
+- available production costs in NGN/hectare: land preparation, seed,
+  fertilizer, pesticide, labour, irrigation, transport, and storage.
+
+The returned package appears directly below the button in the crop editor under
+**QUICK RESEARCH OUTPUT**. It includes the price, any returned yield/costs,
+warnings, and source links. Nothing changes in the calculator until the farmer
+clicks **Use this estimate**. Missing values remain blank for manual entry.
+
+The local route reads Tavily credentials only from the `TAVILY_API_KEY`
+process environment or the external file
+`%USERPROFILE%\\.config\\crop-value-predictor\\tavily-key.txt`. Never put a key
+in this repository, the browser bundle, command output, or a committed file.
+If no key is available, the app fails closed or shows only retained local price
+context; it does not invent the remaining assumptions.
+
 For a production build:
 
 ```bash
@@ -100,9 +123,10 @@ milestone and remain deferred future human-validation materials.
 
 The copy-ready handoff is [`SESSION_HANDOFF.md`](./SESSION_HANDOFF.md). The
 Stage 6 gate is complete. Gate A for the optional online research assist is
-authorized and in review; the future lane is documented in
+authorized and in review; the local lane is implemented and the future hosted
+lane is documented in
 [`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md);
-it has not been implemented or approved for deployment. Human validation, data
+it has not been approved for deployment. Human validation, data
 promotion, deployment, or another scoped milestone still requires separate
 authorization.
 Literature-informed readiness must not be described as farmer-validated.
