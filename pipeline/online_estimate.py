@@ -282,11 +282,13 @@ def read_external_key(path: Path) -> str:
     return value
 
 
-def estimate(raw_path: Path, crop_id: str, state: str, price_type: str = "Retail", as_of: date | None = None, max_age_days: int = 365, tavily_key: str | None = None, crop_name: str | None = None, crop_form: str | None = None) -> dict[str, Any]:
+def estimate(raw_path: Path, crop_id: str, state: str, price_type: str = "Retail", as_of: date | None = None, max_age_days: int = 365, tavily_key: str | None = None, crop_name: str | None = None, crop_form: str | None = None, research_all: bool = False) -> dict[str, Any]:
     local = local_estimate(raw_path, crop_id, state, price_type, as_of, max_age_days)
-    if local is not None:
+    if local is not None and not research_all:
         return local
     if not tavily_key:
+        if local is not None:
+            return {**local, "warnings": local["warnings"] + ["No web-search credential was supplied, so only the retained local price is shown."]}
         return {"status": "no_estimate", "crop_id": crop_id, "state": state, "price_type": price_type.lower(), "warnings": ["No usable local observation and no web-search credential was supplied."]}
     try:
         result = tavily_fallback(crop_id, state, price_type, tavily_key, crop_name=crop_name, crop_form=crop_form)
@@ -304,12 +306,13 @@ def main() -> int:
     parser.add_argument("--api-key-file", type=Path, default=DEFAULT_KEY)
     parser.add_argument("--crop-name")
     parser.add_argument("--crop-form")
+    parser.add_argument("--research-all", action="store_true")
     parser.add_argument("--as-of", type=date.fromisoformat)
     args = parser.parse_args()
     key = os.environ.get("TAVILY_API_KEY")
     if key is None and args.api_key_file.exists():
         key = read_external_key(args.api_key_file)
-    print(json.dumps(estimate(args.raw, args.crop, args.state, args.price_type, args.as_of, tavily_key=key, crop_name=args.crop_name, crop_form=args.crop_form), indent=2))
+    print(json.dumps(estimate(args.raw, args.crop, args.state, args.price_type, args.as_of, tavily_key=key, crop_name=args.crop_name, crop_form=args.crop_form, research_all=args.research_all), indent=2))
     return 0
 
 

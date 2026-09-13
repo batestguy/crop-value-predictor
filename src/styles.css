@@ -41,6 +41,7 @@ footer { display:flex; justify-content:space-between; padding-top:27px; margin-t
 .print-report { display: none; }
 @media print { body { background: white; } .topbar, .hero, .control-panel, .editor-card, footer, .outline-button, .notice { display: none !important; } .app-shell { padding: 0; } .workspace-grid { display: block; padding: 0; } .results-panel { width: 100%; } .recommendation, .result-card { break-inside: avoid; } .print-report { display: block; margin-top: 24px; } }
 .research-box { margin-top: 25px; padding: 17px; border: 1px solid #d7cbb9; background: #f7f0e4; }
+.research-output-hint { margin-top: 9px !important; margin-bottom: 0 !important; font-size: 11px !important; color: var(--accent) !important; }
 .research-box h3 { margin: 0 0 8px; font-size: 22px; }
 .research-box p { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .research-kicker { color: #a15f45 !important; font: 500 10px 'DM Mono', monospace !important; letter-spacing: .1em; text-transform: uppercase; }
@@ -49,6 +50,7 @@ footer { display:flex; justify-content:space-between; padding-top:27px; margin-t
 .research-button:disabled { cursor: not-allowed; opacity: .45; }
 .research-message { margin-top: 12px !important; color: #8b563e !important; }
 .research-result { margin-top: 16px; padding-top: 15px; border-top: 1px solid #d7cbb9; }
+.research-output-label { margin: 0 0 10px !important; color: var(--accent) !important; font-size: 10px !important; font-weight: 700; letter-spacing: .14em; }
 .research-value { display: grid; gap: 4px; margin-bottom: 12px; }
 .research-value span { color: #a15f45; font: 500 10px 'DM Mono', monospace; letter-spacing: .08em; }
 .research-value strong { color: var(--ink); font: 600 27px 'Fraunces', serif; }

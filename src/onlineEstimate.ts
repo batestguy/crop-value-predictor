@@ -6,6 +6,7 @@ export type OnlineEstimateRequest = {
   priceType?: 'retail' | 'wholesale'
   cropName?: string
   cropForm?: string
+  researchAll?: boolean
 }
 
 export type OnlineEstimateSource = { title: string; url: string }

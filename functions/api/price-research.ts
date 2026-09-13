@@ -2,7 +2,7 @@ interface Env {
   TAVILY_API_KEY?: string
 }
 
-type RequestBody = { cropId?: unknown; state?: unknown; priceType?: unknown; cropName?: unknown; cropForm?: unknown }
+type RequestBody = { cropId?: unknown; state?: unknown; priceType?: unknown; cropName?: unknown; cropForm?: unknown; researchAll?: unknown }
 type SearchResult = { title?: unknown; url?: unknown }
 
 const SEARCH_TERMS: Record<string, string> = {
@@ -79,21 +79,23 @@ export async function onRequest(context: { request: Request; env: Env }) {
   const state = typeof body.state === 'string' ? body.state.trim() : ''
   const cropName = typeof body.cropName === 'string' ? body.cropName.trim() : ''
   const cropForm = typeof body.cropForm === 'string' ? body.cropForm.trim() : ''
+  const researchAll = body.researchAll === true
   const priceType = body.priceType === 'wholesale' ? 'wholesale' : body.priceType === 'retail' ? 'retail' : ''
   const isCustomCrop = /^custom:[a-z0-9-]{1,100}$/.test(cropId)
+  const researchInputs = isCustomCrop || researchAll
   const validCustomDetails = /^[A-Za-z0-9][A-Za-z0-9 .()/'-]{1,79}$/.test(cropName) && /^[A-Za-z0-9][A-Za-z0-9 .()/'-]{1,79}$/.test(cropForm)
-  if ((!SEARCH_TERMS[cropId] && !isCustomCrop) || (isCustomCrop && !validCustomDetails) || !NIGERIAN_STATES.has(state.toLowerCase()) || !priceType) return json({ error: 'Choose a supported crop, Nigerian state, and price type.' }, 400)
+  if ((!SEARCH_TERMS[cropId] && !isCustomCrop) || (researchInputs && !validCustomDetails) || !NIGERIAN_STATES.has(state.toLowerCase()) || !priceType) return json({ error: 'Choose a supported crop, Nigerian state, and price type.' }, 400)
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30_000)
   try {
-    const query = isCustomCrop
+    const query = researchInputs
       ? `${state} Nigeria ${cropName} ${cropForm} average farm yield tonnes per hectare ${priceType} market price NGN per kilogram production cost per hectare 2026. Use multiple recent sources and give a practical average, not a single quote. Return labelled values ESTIMATE_NGN_PER_KG, LOW_NGN_PER_KG, HIGH_NGN_PER_KG, YIELD_T_PER_HA, and any available COST_*_NGN_PER_HA values in NGN/kg and NGN/ha.`
       : `${state} ${SEARCH_TERMS[cropId]} market price Nigeria 2026 ${priceType} per kilogram`
     const response = await fetch('https://api.tavily.com/search', { method: 'POST', headers: { authorization: `Bearer ${context.env.TAVILY_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({ query, search_depth: 'basic', max_results: 8, include_answer: true, include_raw_content: false }), signal: controller.signal })
     if (!response.ok) return json({ error: 'The free research provider was unavailable.' }, 502)
     const payload = await response.json() as { answer?: unknown; results?: unknown[] }
-    const result = parseAnswer(payload.answer, cropId, state, priceType, Array.isArray(payload.results) ? payload.results : [], isCustomCrop)
+    const result = parseAnswer(payload.answer, cropId, state, priceType, Array.isArray(payload.results) ? payload.results : [], researchInputs)
     return result ? json(result) : json({ status: 'no_estimate', crop_id: cropId, state, price_type: priceType, warnings: ['The web provider returned no parseable price evidence within the bounded request.'] })
   } catch (error) {
     return json({ error: error instanceof DOMException && error.name === 'AbortError' ? 'The lookup timed out. Enter a local price instead.' : 'The free research provider was unavailable.' }, 504)

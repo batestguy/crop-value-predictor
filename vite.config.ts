@@ -23,12 +23,14 @@ function onlineEstimateApi() {
           const state = typeof input?.state === 'string' ? input.state.trim() : ''
           const cropName = typeof input?.cropName === 'string' ? input.cropName.trim() : ''
           const cropForm = typeof input?.cropForm === 'string' ? input.cropForm.trim() : ''
+          const researchAll = input?.researchAll === true
           const priceType = input?.priceType === 'wholesale' ? 'Wholesale' : input?.priceType === 'retail' ? 'Retail' : ''
           const isCustomCrop = /^custom:[a-z0-9-]{1,100}$/.test(crop)
           const validCustomDetails = /^[A-Za-z0-9][A-Za-z0-9 .()/'-]{1,79}$/.test(cropName) && /^[A-Za-z0-9][A-Za-z0-9 .()/'-]{1,79}$/.test(cropForm)
           if ((!supportedCrops.has(crop) && !isCustomCrop) || (isCustomCrop && !validCustomDetails) || !/^[A-Za-z][A-Za-z .'-]{1,79}$/.test(state) || !priceType) return sendJson(response, 400, { error: 'Choose a supported crop, Nigerian state, and price type.' })
           const args = [resolve(process.cwd(), 'pipeline', 'online_estimate.py'), '--crop', crop, '--state', state, '--price-type', priceType]
-          if (isCustomCrop) args.push('--crop-name', cropName, '--crop-form', cropForm)
+          if (isCustomCrop || researchAll) args.push('--crop-name', cropName, '--crop-form', cropForm)
+          if (researchAll) args.push('--research-all')
           const child = spawn(process.env.PYTHON || 'python', args, { cwd: process.cwd(), env: process.env })
           let output = ''
           let finished = false

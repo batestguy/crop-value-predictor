@@ -112,25 +112,37 @@ test('labels modeled context as editable and never as a qualified price', async 
 })
 
 test('reviews and explicitly confirms an online estimate before saving it', async ({ page }) => {
-  await page.route('**/api/price-research', async (route) => route.fulfill({
+  await page.route('**/api/price-research', async (route) => {
+    const request = route.request().postDataJSON()
+    expect(request.cropName).toBe('White maize')
+    expect(request.cropForm).toBe('dry grain')
+    expect(request.researchAll).toBe(true)
+    await route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({
       status: 'web_fallback', crop_id: 'maize-white', state: 'Lagos', price_type: 'retail',
       estimate_ngn_per_kg: 816, low_ngn_per_kg: 349, high_ngn_per_kg: 816,
+      yield_t_per_ha: 2,
+      costs_per_ha: { land_preparation: 100000, seed: 40000 },
       confidence: 'low', source_count: 2,
       sources: [{ title: 'Example market report', url: 'https://example.com/market-report' }],
       warnings: ['No usable local observation was found.'],
     }),
-  }))
+    })
+  })
   await page.goto('/')
   await page.getByLabel('Farm state').fill('Lagos')
-  await page.getByRole('button', { name: 'Find internet estimate' }).click()
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
   await expect(page.getByText('₦816 / kg', { exact: true })).toBeVisible()
+  await expect(page.getByText('QUICK RESEARCH OUTPUT', { exact: true })).toBeVisible()
+  await expect(page.getByText('Starting values found:', { exact: false })).toBeVisible()
   await expect(page.getByText('This is a starting point, not a guarantee.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Use this estimate' })).toBeVisible()
   await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('')
   await page.getByRole('button', { name: 'Use this estimate' }).click()
+  await expect(page.getByLabel('Yield tonnes per hectare')).toHaveValue('2')
+  await expect(page.getByLabel('Land prep')).toHaveValue('100000')
   await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('816')
   await expect(page.getByText('Internet estimate · Lagos · confirmed')).toBeVisible()
   await page.reload()
@@ -144,6 +156,7 @@ test('adds an other crop and reviews Tavily starting values before applying them
     expect(request.cropId).toBe('custom:soybean-dry-grain')
     expect(request.cropName).toBe('Soybean')
     expect(request.cropForm).toBe('dry grain')
+    expect(request.researchAll).toBe(true)
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -166,7 +179,7 @@ test('adds an other crop and reviews Tavily starting values before applying them
   await expect(page.getByLabel('Soybean')).toBeChecked()
   await expect(page.getByLabel('Crop being edited')).toHaveValue('custom:soybean-dry-grain')
   await page.getByLabel('Farm state').fill('Bauchi')
-  await page.getByRole('button', { name: 'Find internet values' }).click()
+  await page.getByRole('button', { name: 'Find all starting values' }).click()
   await expect(page.getByText('₦1,250 / kg', { exact: true })).toBeVisible()
   await expect(page.getByText('Starting values found:', { exact: false })).toBeVisible()
   await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('')
