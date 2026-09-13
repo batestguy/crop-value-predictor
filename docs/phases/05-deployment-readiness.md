@@ -10,7 +10,8 @@ gate.
 
 Stage 5 covers a static, English, offline web calculator pilot. It does not
 authorize automated prices, source-driven defaults, forecasts, accounts, cloud
-saves, scheduled refresh, deployment, or public launch. Calculator drafts stay
+saves, scheduled refresh, hosted online research, or a broader public launch.
+Calculator drafts stay
 in versioned `localStorage`. Any future automated-data path is separate and
 conditional: IndexedDB snapshot storage, source checksum/provenance, and
 explicit forecast/default gates are required.
@@ -87,6 +88,7 @@ Academic evidence must not be described as participant validation.
 | 2026-09-07 | Added the browser evidence package: critical-only axe assertions for initial, completed, persistence-error, and mobile states; keyboard-only completion; a desktop Chromium Slow 4G measurement; and post-load no-third-party-request coverage through print/report. | Stage 5 is `Gate review`, awaiting the user's gate decision. |
 | 2026-09-07 | User directed the project to proceed to the next stage. | Stage 5 approved for calculator-only Stage 6 preparation. |
 | 2026-09-09 | The delivery plan was revised to make the static PWA the primary web product. | Android hardware evidence is optional and non-blocking; Cloudflare Pages is the target static host. |
+| 2026-09-13 | The JJMB UI slice and local Nigeria flag watermark were released in commit `56e439d`; the static-only build was deployed to Cloudflare Pages and verified at the main Pages URL. | Static calculator release complete; the hosted research Function remains excluded after its earlier 522. |
 
 ## Verification evidence — 2026-09-07
 

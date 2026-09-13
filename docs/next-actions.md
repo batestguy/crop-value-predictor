@@ -123,9 +123,9 @@ promotion.
 ### 6. Re-open Stage 1 only after a materially changed source path
 
 Stage 3 can begin only after Stage 1 technical and rights approval. Stage 4
-also requires an approved Stage 3 data pipeline and validation design. Deployment
-or public launch requires separate authorization even though browser readiness
-is approved.
+also requires an approved Stage 3 data pipeline and validation design. The
+calculator-only static deployment is complete; hosted online retrieval and a
+broader public launch require separate authorization.
 
 ## Exit criteria for the next project update
 

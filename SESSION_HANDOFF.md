@@ -23,6 +23,13 @@ path only and was not printed, stored, or committed. The browser test also
 confirms that Soybean and Carrot requests carry their crop names, forms, IDs,
 state, and `researchAll: true`.
 
+The static-only release was deployed successfully at 12:44 WAT using commit
+`56e439d`. Cloudflare returned the deployment URL
+`https://b5bbe675.crop-value-predictor.pages.dev`; the main URL
+`https://crop-value-predictor.pages.dev/` also returned HTTP 200. Public
+Playwright verified the JJMB card, custom-crop UI, and local flag asset. The
+hosted research Function was excluded from this upload.
+
 ## Latest handoff update — 2026-09-13
 
 ### Completed in this session
@@ -162,10 +169,11 @@ cost categories. The UI requires review and explicit confirmation before
 changing a scenario. The hosted Pages Function adapter is now in source, but there is
 no Cloudflare deployment, production source allowlist, or production approval.
 The calculator-only static deployment is live at
-`https://crop-value-predictor.pages.dev/`, but the Function bundle returned
-Cloudflare 522 and was not retained in production. The Tavily key was
-intentionally not uploaded. There is no hosted online retrieval or production
-source allowlist; Phase 3A Gate A/D remains open for the online lane.
+`https://crop-value-predictor.pages.dev/`. The Function bundle returned
+Cloudflare 522 during an earlier attempt and was intentionally excluded from
+the latest static upload. The Tavily key was not uploaded. There is no hosted
+online retrieval or production source allowlist; Phase 3A Gate A/D remains
+open for the online lane.
 
 ## Current project status
 

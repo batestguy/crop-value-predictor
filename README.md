@@ -137,8 +137,9 @@ authorized and in review; the local lane is implemented and the future hosted
 lane is documented in
 [`docs/phases/03-online-research-assist.md`](./docs/phases/03-online-research-assist.md);
 it has not been approved for deployment. Human validation, data
-promotion, deployment, or another scoped milestone still requires separate
-authorization.
+promotion, hosted online retrieval, or another scoped milestone still requires
+separate authorization. The calculator-only static release is deployed at
+`https://crop-value-predictor.pages.dev/`.
 Literature-informed readiness must not be described as farmer-validated.
 
 The Stage 1 audit closed on 2026-09-13 after the authorized static-export
@@ -148,8 +149,8 @@ online research assist may return a confirmed, editable internet aggregate
 estimate with its supporting evidence, but
 it cannot reopen Stage 1 or automatically rank a scenario.
 
-Production data integration, Stage 3, deployment, and public launch remain
-blocked until their separate gates pass.
+Production data integration, Stages 3 and 4, hosted online retrieval, and a
+broader public launch remain blocked until their separate gates pass.
 
 Stage 2 is **Approved** on commit `2e8802f`: clean-clone
 verification passed npm tests, typecheck, build, six Chromium E2E scenarios,
