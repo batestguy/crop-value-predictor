@@ -1,97 +1,69 @@
-import { StrictMode, useMemo, useState } from 'react'
+import { StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
+import { COST_CATEGORIES, calculateScenarios, type CostCategory, type UserScenarioInput } from './calculations'
+import { clearDraft, loadDraft, saveDraft, type SavedScenarioV1 } from './persistence'
+import { loadApprovedPriceSuggestions, suggestionsForCrop, type PriceSuggestion, type PriceSuggestionsSnapshot } from './priceSuggestions'
 
-type Crop = { crop_id: string; name: string; form: string }
-type Forecast = { crop_id: string; location_id?: string; price_type: string; point: number; lower_80: number; upper_80: number; target_month: string; status: string; validation: { wape: number } }
-type YieldDefault = { crop_id: string; yield_t_per_ha: number; source_id: string; as_of: string }
-type CostDefault = { crop_id: string; items: Record<string, number>; source_id: string; as_of: string; stale: boolean }
-
-const crops: Crop[] = [
-  { crop_id: 'maize-white', name: 'White maize', form: 'dry grain' },
-  { crop_id: 'rice', name: 'Rice', form: 'paddy' },
-  { crop_id: 'cassava', name: 'Cassava', form: 'fresh roots' },
-  { crop_id: 'yam', name: 'Yam', form: 'fresh tuber' },
-  { crop_id: 'sorghum', name: 'Sorghum', form: 'dry grain' },
-]
-const forecasts: Forecast[] = [
-  { crop_id: 'maize-white', price_type: 'wholesale', point: 825, lower_80: 690, upper_80: 970, target_month: '2026-11', status: 'baseline', validation: { wape: .146 } },
-  { crop_id: 'rice', price_type: 'wholesale', point: 1180, lower_80: 990, upper_80: 1430, target_month: '2026-11', status: 'baseline', validation: { wape: .179 } },
-  { crop_id: 'cassava', price_type: 'farmgate', point: 310, lower_80: 240, upper_80: 390, target_month: '2026-11', status: 'baseline', validation: { wape: .201 } },
-  { crop_id: 'yam', price_type: 'wholesale', point: 710, lower_80: 520, upper_80: 920, target_month: '2026-11', status: 'baseline', validation: { wape: .237 } },
-  { crop_id: 'sorghum', price_type: 'wholesale', point: 625, lower_80: 520, upper_80: 760, target_month: '2026-11', status: 'baseline', validation: { wape: .158 } },
-]
-const yields: YieldDefault[] = [
-  { crop_id: 'maize-white', yield_t_per_ha: 2.1, source_id: 'FAOSTAT QCL', as_of: '2024' },
-  { crop_id: 'rice', yield_t_per_ha: 2.0, source_id: 'FAOSTAT QCL', as_of: '2024' },
-  { crop_id: 'cassava', yield_t_per_ha: 8.2, source_id: 'FAOSTAT QCL', as_of: '2024' },
-  { crop_id: 'yam', yield_t_per_ha: 9.0, source_id: 'FAOSTAT QCL', as_of: '2024' },
-  { crop_id: 'sorghum', yield_t_per_ha: 1.3, source_id: 'FAOSTAT QCL', as_of: '2024' },
-]
-const costs: CostDefault[] = [
-  { crop_id: 'maize-white', items: { land_preparation: 80000, seed: 45000, fertilizer: 120000, pesticide: 35000, labour: 90000, irrigation: 0, transport: 55000, storage: 25000 }, source_id: 'NBS NASS 2023', as_of: '2023', stale: true },
-  { crop_id: 'rice', items: { land_preparation: 95000, seed: 55000, fertilizer: 145000, pesticide: 45000, labour: 120000, irrigation: 80000, transport: 65000, storage: 30000 }, source_id: 'NBS NASS 2023', as_of: '2023', stale: true },
-  { crop_id: 'cassava', items: { land_preparation: 75000, seed: 70000, fertilizer: 85000, pesticide: 25000, labour: 110000, irrigation: 0, transport: 70000, storage: 20000 }, source_id: 'NBS NASS 2023', as_of: '2023', stale: true },
-  { crop_id: 'yam', items: { land_preparation: 100000, seed: 150000, fertilizer: 90000, pesticide: 30000, labour: 130000, irrigation: 0, transport: 85000, storage: 35000 }, source_id: 'NBS NASS 2023', as_of: '2023', stale: true },
-  { crop_id: 'sorghum', items: { land_preparation: 70000, seed: 40000, fertilizer: 95000, pesticide: 25000, labour: 80000, irrigation: 0, transport: 50000, storage: 22000 }, source_id: 'NBS NASS 2023', as_of: '2023', stale: true },
-]
-const labels: Record<string, string> = { land_preparation: 'Land prep', seed: 'Seed', fertilizer: 'Fertilizer', pesticide: 'Pesticide', labour: 'Labour', irrigation: 'Irrigation', transport: 'Transport', storage: 'Storage' }
+const crops = [
+  ['maize-white', 'White maize', 'dry grain'], ['rice', 'Rice', 'paddy'], ['cassava', 'Cassava', 'fresh roots'], ['yam', 'Yam', 'fresh tuber'], ['sorghum', 'Sorghum', 'dry grain'],
+] as const
+const labels: Record<CostCategory, string> = { land_preparation: 'Land prep', seed: 'Seed', fertilizer: 'Fertilizer', pesticide: 'Pesticide', labour: 'Labour', irrigation: 'Irrigation', transport: 'Transport', storage: 'Storage' }
+type DraftCrop = SavedScenarioV1['inputsByCropId'][string]
+const blankCrop = (): DraftCrop => ({ yieldTPerHa: '', sellingPriceNgnPerKg: '', lowPriceNgnPerKg: '', highPriceNgnPerKg: '', costsPerHa: Object.fromEntries(COST_CATEGORIES.map((key) => [key, ''])) as Record<CostCategory, string> })
 const money = (value: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(value)
+const number = (value: string) => value.trim() === '' ? Number.NaN : Number(value)
+const priceLabel = (draft: DraftCrop) => draft.priceOrigin === 'sourced_suggestion' && draft.priceSuggestion ? `Sourced suggestion · ${draft.priceSuggestion.marketName} · ${draft.priceSuggestion.priceType}` : 'User-entered value'
 
 function App() {
-  const [area, setArea] = useState(1)
-  const [selected, setSelected] = useState<string[]>(['maize-white', 'rice', 'cassava'])
-  const [location, setLocation] = useState('nigeria-national-median')
-  const [yieldOverrides, setYieldOverrides] = useState<Record<string, string>>({})
-  const [costOverrides, setCostOverrides] = useState<Record<string, Record<string, string>>>({})
-  const [activeCrop, setActiveCrop] = useState('maize-white')
-
-  const results = useMemo(() => selected.map((id) => {
-    const crop = crops.find((item) => item.crop_id === id)!
-    const forecast = forecasts.find((item) => item.crop_id === id && item.location_id === location) ?? forecasts.find((item) => item.crop_id === id)!
-    const yieldDefault = yields.find((item) => item.crop_id === id)!
-    const costDefault = costs.find((item) => item.crop_id === id)!
-    const yieldPerHa = Number(yieldOverrides[id] || yieldDefault.yield_t_per_ha)
-    const edited = costOverrides[id] || {}
-    const totalPerHa = Object.entries(costDefault.items).reduce((sum, [key, value]) => sum + Number(edited[key] ?? value), 0)
-    const totalCost = totalPerHa * area
-    const kilograms = yieldPerHa * 1000 * area
-    return { crop, forecast, yieldPerHa, totalCost, revenue: forecast.point * kilograms, low: forecast.lower_80 * kilograms - totalCost, high: forecast.upper_80 * kilograms - totalCost, profit: forecast.point * kilograms - totalCost, volatility: Math.round((forecast.upper_80 - forecast.lower_80) / forecast.point * 100), fallback: location !== 'nigeria-national-median' && !forecast.location_id }
-  }).sort((a, b) => b.profit - a.profit), [area, location, selected, yieldOverrides, costOverrides])
-  const winner = results[0]
-  const toggleCrop = (id: string) => { setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]); if (!selected.includes(id)) setActiveCrop(id) }
-  const updateCost = (cropId: string, key: string, value: string) => setCostOverrides((current) => ({ ...current, [cropId]: { ...current[cropId], [key]: value } }))
-
+  const [restored] = useState(() => loadDraft()); const initial = restored.draft
+  // A saved draft can mention a crop that no longer ships with the calculator.
+  // Keep its inputs on disk for recovery, but never select an unavailable crop.
+  const initialSelected = initial
+    ? initial.selectedCropIds.filter((id) => crops.some((crop) => crop[0] === id))
+    : ['maize-white', 'rice']
+  const [area, setArea] = useState(initial?.areaHa ?? '')
+  const [selected, setSelected] = useState<string[]>(initialSelected)
+  const [inputs, setInputs] = useState<Record<string, DraftCrop>>(initial?.inputsByCropId ?? {})
+  const [activeCrop, setActiveCrop] = useState(initialSelected[0] ?? '')
+  const [priceSnapshot, setPriceSnapshot] = useState<PriceSuggestionsSnapshot>()
+  const [suggestionsLoaded, setSuggestionsLoaded] = useState(false)
+  const [notice, setNotice] = useState(restored.recovered ? 'Your saved draft could not be read, so a blank calculator was opened.' : restored.storageUnavailable ? 'This browser blocked local storage. Your changes will not survive a reload.' : '')
+  const skipInitialSave = useRef(restored.recovered || restored.storageUnavailable)
+  const getCrop = (id: string) => crops.find((crop) => crop[0] === id)!
+  const draftFor = (id: string) => inputs[id] ?? blankCrop()
+  useEffect(() => { loadApprovedPriceSuggestions().then((snapshot) => { setPriceSnapshot(snapshot); setSuggestionsLoaded(true) }) }, [])
+  useEffect(() => {
+    if (skipInitialSave.current) { skipInitialSave.current = false; return }
+    const blank = area.trim() === '' && selected.length === 0 && Object.keys(inputs).length === 0
+    if (blank) {
+      if (!clearDraft()) setNotice('Your browser could not clear the saved draft.')
+    } else if (!saveDraft({ areaHa: area, selectedCropIds: selected, inputsByCropId: inputs })) {
+      setNotice('Your browser could not save this draft. Keep a copy of your figures before leaving.')
+    }
+  }, [area, selected, inputs])
+  const batch = useMemo(() => calculateScenarios(selected.map((id) => { const crop = getCrop(id); const draft = draftFor(id); return { crop: { crop_id: crop[0], name: crop[1], form: crop[2] }, areaHa: number(area), yieldTPerHa: number(draft.yieldTPerHa), sellingPriceNgnPerKg: number(draft.sellingPriceNgnPerKg), ...(draft.lowPriceNgnPerKg || draft.highPriceNgnPerKg ? { priceRangeNgnPerKg: { low: number(draft.lowPriceNgnPerKg ?? ''), high: number(draft.highPriceNgnPerKg ?? '') } } : {}), costsPerHa: Object.fromEntries(COST_CATEGORIES.map((key) => [key, number(draft.costsPerHa[key])])) as Record<CostCategory, number> } as UserScenarioInput })), [area, selected, inputs])
+  const update = (id: string, patch: Partial<DraftCrop>) => setInputs((current) => ({ ...current, [id]: { ...draftFor(id), ...patch } }))
+  const updateCost = (id: string, key: CostCategory, value: string) => update(id, { costsPerHa: { ...draftFor(id).costsPerHa, [key]: value } })
+  const applySuggestion = (id: string, suggestion: PriceSuggestion) => update(id, { marketId: suggestion.market_id, sellingPriceNgnPerKg: String(suggestion.value_ngn_per_kg), priceOrigin: 'sourced_suggestion', priceSuggestion: { snapshotId: priceSnapshot!.snapshot_id, suggestionId: suggestion.suggestion_id, marketId: suggestion.market_id, marketName: suggestion.market_name, priceType: suggestion.price_type, observationDate: suggestion.observation_date, sourceAttribution: suggestion.source.attribution } })
+  const chooseSuggestion = (id: string, suggestionId: string) => {
+    if (!suggestionId) { update(id, { marketId: '' }); return }
+    const suggestion = suggestionsForCrop(priceSnapshot, id).find((item) => item.suggestion_id === suggestionId)
+    if (suggestion) applySuggestion(id, suggestion)
+  }
+  const enterPrice = (id: string, sellingPriceNgnPerKg: string) => update(id, { sellingPriceNgnPerKg, priceOrigin: 'user_entered' })
+  const toggle = (id: string) => { setSelected((current) => { const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id]; if (id === activeCrop && !next.includes(id)) setActiveCrop(next[0] ?? ''); return next }); if (!selected.includes(id)) setActiveCrop(id) }
+  const ready = batch.status === 'ready'; const winner = ready ? batch.results[0] : undefined; const active = draftFor(activeCrop); const activeSuggestions = suggestionsForCrop(priceSnapshot, activeCrop)
+  const reset = () => { const cleared = clearDraft(); setArea(''); setSelected([]); setInputs({}); setActiveCrop(''); setNotice(cleared ? 'Draft cleared. Enter at least two complete crop scenarios to compare.' : 'Your browser could not clear the saved draft. The screen was reset, but saved data may remain.') }
   return <div className="app-shell">
-    <header className="topbar"><div className="wordmark"><span className="leaf-mark">✳</span><span>fieldmargin</span></div><div className="status-chip"><span className="pulse" /> cached pilot snapshot · 24 Aug 2026</div><button className="icon-button" aria-label="Open help">?</button></header>
-    <main>
-      <section className="hero"><div><p className="eyebrow">A calmer way to plan a season</p><h1>Know your margin<br /><em>before</em> you plant.</h1><p className="hero-copy">Compare a few crops with the numbers you can trust today — and keep working when the signal drops.</p></div><div className="hero-note"><span className="note-label">FIELD NOTE 01</span><strong>Profit is a scenario,<br />not a promise.</strong><span>Use your own yield, costs, and selling point before you decide.</span></div></section>
-      <div className="notice"><span className="notice-icon">◒</span><span><strong>Pilot seed data.</strong> Price forecasts and cost defaults are illustrative until the source audit is complete.</span><button onClick={() => window.open('https://microdata.worldbank.org/catalog/4503', '_blank')}>View source →</button></div>
-      <section className="workspace-grid">
-        <aside className="control-panel">
-          <div className="step-head"><span className="step-number">01</span><div><p className="eyebrow">Your field</p><h2>Set the scene</h2></div></div>
-          <label className="field-label">Where will you sell?</label><select value={location} onChange={(event) => setLocation(event.target.value)}><option value="nigeria-national-median">Nigeria national median</option><option value="market-lagos">Lagos market basket</option><option value="market-kano">Kano market basket</option></select><p className="field-hint">Market coverage is limited to this pilot snapshot.</p>
-          <label className="field-label">How much land?</label><div className="input-with-unit"><input type="number" min="0.1" step="0.1" value={area} onChange={(event) => setArea(Math.max(.1, Number(event.target.value)))} /><span>hectares</span></div>
-          <div className="step-head crop-step"><span className="step-number">02</span><div><p className="eyebrow">Your shortlist</p><h2>Pick crops to compare</h2></div></div>
-          <div className="crop-list">{crops.map((crop) => <label className={`crop-option ${selected.includes(crop.crop_id) ? 'is-selected' : ''}`} key={crop.crop_id}><input type="checkbox" checked={selected.includes(crop.crop_id)} onChange={() => toggleCrop(crop.crop_id)} /><span className="crop-dot" /><span><strong>{crop.name}</strong><small>{crop.form}</small></span><span className="checkmark">✓</span></label>)}</div>
-          <p className="selection-hint">{selected.length} selected · compare at least 2</p>
-        </aside>
-        <section className="results-panel">
-          <div className="results-head"><div><p className="eyebrow">03 / Decision view</p><h2>Your field margin</h2></div><button className="outline-button" onClick={() => window.print()}>Print report <span>↗</span></button></div>
-          {winner && <div className="recommendation"><div className="recommendation-tag">RECOMMENDED SCENARIO</div><div className="recommendation-main"><div><h3>{winner.crop.name}</h3><p>{money(winner.profit)} estimated net profit on {area} ha</p></div><div className="recommendation-orbit"><span>₦</span></div></div><div className="recommendation-meta"><span>3-month price · {winner.forecast.price_type}{winner.fallback ? ' · national fallback' : ''}</span><span>range {money(winner.low)} – {money(winner.high)}</span></div></div>}
-          <div className="result-toolbar"><div><h3>Compare your shortlist</h3><p>Point estimate, using cached forecast and your editable costs.</p></div><span className="horizon-pill">NOV 2026 <span>⌄</span></span></div>
-          <div className="comparison-list">{results.map((result, index) => <article className={`result-card ${index === 0 ? 'top-result' : ''}`} key={result.crop.crop_id}><div className="rank">{String(index + 1).padStart(2, '0')}</div><div className="result-name"><strong>{result.crop.name}</strong><span>{result.forecast.price_type} · ±{result.volatility}% range</span></div><div className="result-numbers"><span><small>NET PROFIT</small><strong>{money(result.profit)}</strong></span><span><small>REVENUE</small><strong>{money(result.revenue)}</strong></span><span><small>ALL-IN COST</small><strong>{money(result.totalCost)}</strong></span></div><div className="profit-bar"><span style={{ width: `${winner ? Math.max(8, Math.min(100, result.profit / Math.max(1, winner.profit) * 100)) : 8}%` }} /></div><button className="edit-button" onClick={() => setActiveCrop(result.crop.crop_id)} aria-label={`Edit ${result.crop.name}`}>edit</button></article>)}</div>
-          <div className="assumptions"><div><span className="assumption-icon">⌁</span><span><strong>How to read this</strong><br />Net profit is ranked on the point estimate. The shaded range is price uncertainty, not a yield guarantee.</span></div><div className="assumption-source">Source: <a href="https://data.fao.org/catalog/iso/d24a448b-3b62-4c09-8c1d-4a39bb599876" target="_blank">FAOSTAT</a> · costs: NBS NASS 2023</div></div>
-        </section>
-      </section>
-      <section className="editor-card"><div className="editor-head"><div><p className="eyebrow">Make it yours</p><h2>Edit assumptions</h2></div><select value={activeCrop} onChange={(event) => setActiveCrop(event.target.value)}>{selected.map((id) => <option key={id} value={id}>{crops.find((crop) => crop.crop_id === id)?.name}</option>)}</select></div><div className="editor-grid"><div><label className="field-label">Yield override <span>tonnes / ha</span></label><input className="line-input" type="number" min="0" step="0.1" value={yieldOverrides[activeCrop] ?? yields.find((item) => item.crop_id === activeCrop)?.yield_t_per_ha ?? ''} onChange={(event) => setYieldOverrides((current) => ({ ...current, [activeCrop]: event.target.value }))} /><p className="field-hint">Default: {yields.find((item) => item.crop_id === activeCrop)?.yield_t_per_ha} t/ha · sourced reference</p></div><div className="cost-editor"><label className="field-label">Production costs <span>NGN / ha</span></label><div className="cost-grid">{Object.entries(costs.find((item) => item.crop_id === activeCrop)?.items ?? {}).map(([key, value]) => <label key={key}><span>{labels[key]}</span><input type="number" min="0" value={costOverrides[activeCrop]?.[key] ?? value} onChange={(event) => updateCost(activeCrop, key, event.target.value)} /></label>)}</div><p className="field-hint">Defaults are dated and stale. Replace them with your local quotes before planting.</p></div></div></section>
-    </main>
-    <footer><span>fieldmargin · offline-first crop planning for Nigeria</span><a href="https://deerflow.tech" target="_blank" rel="noreferrer">Created By Deerflow</a><span>Snapshot pilot-seed-2026-08-24</span></footer>
-  </div>
+    <header className="topbar"><div className="wordmark"><span className="leaf-mark">✳</span><span>fieldmargin</span></div><div className="status-chip"><span className="pulse" /> calculator-only · works offline</div><button className="icon-button" aria-label="Open help">?</button></header>
+    <main><section className="hero"><div><p className="eyebrow">A calmer way to plan a season</p><h1>Know your margin<br /><em>before</em> you plant.</h1><p className="hero-copy">Compare crops using your own field numbers. Your draft stays on this device.</p></div><div className="hero-note"><span className="note-label">FIELD NOTE 01</span><strong>Profit is a scenario,<br />not a promise.</strong><span>Enter a selling point, yield, and local costs for each crop.</span></div></section>
+      {notice && <div className="notice" role="status"><span>ⓘ</span><span>{notice}</span><button onClick={() => setNotice('')}>Dismiss</button></div>}
+      <section className="workspace-grid"><aside className="control-panel"><div className="step-head"><span className="step-number">01</span><div><p className="eyebrow">Your field</p><h2>Set the scene</h2></div></div><label className="field-label">How much land?</label><div className="input-with-unit"><input aria-label="Area in hectares" type="number" min="0" step="0.1" value={area} onChange={(e) => setArea(e.target.value)} /><span>hectares</span></div><div className="step-head crop-step"><span className="step-number">02</span><div><p className="eyebrow">Your shortlist</p><h2>Pick crops to compare</h2></div></div><div className="crop-list">{crops.map((crop) => <label className={`crop-option ${selected.includes(crop[0]) ? 'is-selected' : ''}`} key={crop[0]}><input type="checkbox" checked={selected.includes(crop[0])} onChange={() => toggle(crop[0])} /><span className="crop-dot" /><span><strong>{crop[1]}</strong><small>{crop[2]}</small></span><span className="checkmark">✓</span></label>)}</div><p className="selection-hint">{selected.length} selected · compare at least 2</p><button className="text-button" onClick={reset}>Clear saved draft</button></aside>
+        <section className="results-panel"><div className="results-head"><div><p className="eyebrow">03 / Decision view</p><h2>Your field margin</h2></div><button className="outline-button" disabled={!ready} onClick={() => window.print()}>Print report <span>↗</span></button></div>{winner ? <div className="recommendation"><div className="recommendation-tag">HIGHEST POINT SCENARIO</div><div className="recommendation-main"><div><h3>{winner.crop.name}</h3><p>{money(winner.profit)} estimated net profit on {area} ha</p></div><div className="recommendation-orbit"><span>₦</span></div></div><div className="recommendation-meta"><span>{priceLabel(draftFor(winner.crop.crop_id))} · point selling price</span><span>{winner.lowProfit !== undefined ? `range ${money(winner.lowProfit)} – ${money(winner.highProfit!)}` : 'No price range entered'}</span></div></div> : <div className="notice"><span>ⓘ</span><div>{batch.errors.length ? batch.errors.map((error, index) => <p key={`${error.cropId}-${error.field}-${index}`}>{error.cropId ? `${getCrop(error.cropId)[1]}: ` : ''}{error.message}</p>) : <p>Complete every field for every selected crop.</p>}</div></div>}<div className="result-toolbar"><div><h3>Compare your shortlist</h3><p>{ready ? 'Ranked by estimated net profit from your entered scenarios.' : 'Ranking appears only when every selected crop is complete.'}</p></div></div><div className="comparison-list">{ready && batch.results.map((result, index) => <article className={`result-card ${index === 0 ? 'top-result' : ''}`} key={result.crop.crop_id}><div className="rank">{String(index + 1).padStart(2, '0')}</div><div className="result-name"><strong>{result.crop.name}</strong><span>{priceLabel(draftFor(result.crop.crop_id))}</span></div><div className="result-numbers"><span><small>NET PROFIT</small><strong>{money(result.profit)}</strong></span><span><small>REVENUE</small><strong>{money(result.revenue)}</strong></span><span><small>ALL-IN COST</small><strong>{money(result.totalCost)}</strong></span></div><div className="profit-bar"><span style={{ width: `${Math.max(8, Math.min(100, result.profit / Math.max(1, batch.results[0].profit) * 100))}%` }} /></div><button className="edit-button" onClick={() => setActiveCrop(result.crop.crop_id)}>edit</button></article>)}</div>{ready && <div className="assumptions"><div><span className="assumption-icon">⌁</span><span><strong>How to read this</strong><br />Figures use your scenario inputs. Any supplied market price remains editable; nothing here is a forecast or guarantee.</span></div><div className="assumption-source">Basis: NGN, hectares, tonnes/ha, NGN/kg</div></div>}</section></section>
+      <section className="editor-card"><div className="editor-head"><div><p className="eyebrow">Make it yours</p><h2>Enter assumptions</h2></div>{selected.length ? <select aria-label="Crop being edited" value={activeCrop} onChange={(e) => setActiveCrop(e.target.value)}>{selected.map((id) => <option key={id} value={id}>{getCrop(id)[1]}</option>)}</select> : <p role="status">Select a crop above to enter assumptions.</p>}</div>{selected.length > 0 && <div className="editor-grid"><div><label className="field-label" htmlFor="yield-input">Yield <span>tonnes / ha</span></label><input id="yield-input" className="line-input" aria-label="Yield tonnes per hectare" type="number" min="0" step="0.1" value={active.yieldTPerHa} onChange={(e) => update(activeCrop, { yieldTPerHa: e.target.value })} /><label className="field-label" htmlFor="market-input">Covered market <span>optional price prefill</span></label><select id="market-input" aria-label="Covered market" value={active.priceSuggestion?.suggestionId ?? ''} disabled={!activeSuggestions.length} onChange={(e) => chooseSuggestion(activeCrop, e.target.value)}><option value="">{suggestionsLoaded ? 'Choose a covered market' : 'Checking approved price snapshot…'}</option>{activeSuggestions.map((suggestion) => <option key={suggestion.suggestion_id} value={suggestion.suggestion_id}>{suggestion.market_name} · {suggestion.price_type}</option>)}</select><p className="field-hint">{activeSuggestions.length ? 'Selecting a market and price type fills the latest qualified price. You can change it.' : suggestionsLoaded ? 'No approved price suggestion for this crop. Enter your own selling price.' : 'Selling price stays manual until an approved local snapshot is available.'}</p><label className="field-label" htmlFor="price-input">Selling price <span>NGN / kg</span></label><input id="price-input" className="line-input" aria-label="Selling price NGN per kg" type="number" min="0" value={active.sellingPriceNgnPerKg} onChange={(e) => enterPrice(activeCrop, e.target.value)} /><p className="field-hint">{priceLabel(active)}</p><div className="range-fields"><label htmlFor="low-price">Low price<input id="low-price" aria-label="Low price" type="number" value={active.lowPriceNgnPerKg ?? ''} onChange={(e) => update(activeCrop, { lowPriceNgnPerKg: e.target.value })} /></label><label htmlFor="high-price">High price<input id="high-price" aria-label="High price" type="number" value={active.highPriceNgnPerKg ?? ''} onChange={(e) => update(activeCrop, { highPriceNgnPerKg: e.target.value })} /></label></div></div><div className="cost-editor"><label className="field-label">Production costs <span>NGN / ha · zero allowed</span></label><div className="cost-grid">{COST_CATEGORIES.map((key) => <label key={key}><span>{labels[key]}</span><input aria-label={labels[key]} type="number" min="0" value={active.costsPerHa[key]} onChange={(e) => updateCost(activeCrop, key, e.target.value)} /></label>)}</div></div></div>}</section>
+      {ready && <section className="print-report"><h2>Fieldmargin scenario report</h2><p>Generated {new Date().toLocaleString()} · ranking basis: estimated net profit from your scenario prices.</p>{batch.results.map((r) => <div key={r.crop.crop_id}><h3>{r.crop.name} ({r.crop.form})</h3><p>Area: {r.assumptions.areaHa} ha · Yield: {r.assumptions.yieldTPerHa} t/ha · Selling price: {money(r.assumptions.sellingPriceNgnPerKg)}/kg</p><p>Price basis: {priceLabel(draftFor(r.crop.crop_id))}{draftFor(r.crop.crop_id).priceSuggestion ? ` · observation ${draftFor(r.crop.crop_id).priceSuggestion!.observationDate} · ${draftFor(r.crop.crop_id).priceSuggestion!.sourceAttribution}` : ''}</p><p>{money(r.profit)} net profit · {money(r.revenue)} revenue · {money(r.totalCost)} total cost</p><p>Price range: {r.assumptions.priceRangeNgnPerKg ? `${money(r.assumptions.priceRangeNgnPerKg.low)}–${money(r.assumptions.priceRangeNgnPerKg.high)}/kg` : 'not entered'}</p><p>Costs/ha: {COST_CATEGORIES.map((key) => `${labels[key]} ${money(r.assumptions.costsPerHa[key])}`).join(' · ')}</p></div>)}<p>Disclaimer: These are user-entered scenarios, not forecasts, confidence intervals, or guarantees.</p></section>}
+    </main><footer><span>fieldmargin · offline crop planning for Nigeria</span><span>Calculator-only fallback</span></footer></div>
 }
-
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => undefined))
-}
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined))

@@ -1,7 +1,9 @@
 # Stage 3 — Automated Data Pipeline
 
 **Status:** Not started  
-**Dependency:** Stage 1 approval
+**Dependency:** A future source qualification report that passes the full Stage
+1 technical and rights gate; the accepted calculator-only fallback does not
+satisfy this dependency
 
 ## Objective
 
@@ -26,3 +28,9 @@ warning; and no secret or paid service is required.
 
 The current refresh workflow is a validation scaffold. No pipeline gate work has
 been accepted.
+# Stage 3 remains blocked while Stage 1 is closed at the calculator-only fallback.
+
+The 2026-09-04 WFP/HDX remediation produced no technically qualified price
+series. Automated prices, source-driven defaults, and pipeline promotion remain
+blocked until a new immutable source audit passes all technical and rights
+gates.

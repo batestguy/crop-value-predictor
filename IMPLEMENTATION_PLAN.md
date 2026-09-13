@@ -4,6 +4,21 @@
 **Plan date:** 2026-08-24  
 **Original specification:** `Crop Value Predictor App.txt`, version 1.0
 
+## Current delivery outcome — 2026-08-27
+
+Stage 1 completed its audit and evidence review, but the production-price gate
+did not pass. The authenticated qualification report selected zero crop forms:
+the best recent FEWS NET completeness was 69.4%, below the required 80%, and
+the remaining rights and transaction-type questions do not support automated
+recommendations. Stage 1 is therefore **Closed — fallback accepted**, not
+Approved.
+
+The authorized next milestone is the calculator-only form of Stage 2. It must
+rank only complete farmer-entered scenarios. No seed forecast, inferred market
+price, unqualified yield, or unqualified cost default may drive a ranking. The
+detailed execution contract and acceptance evidence are maintained in
+[`docs/phases/02-offline-calculator.md`](./docs/phases/02-offline-calculator.md).
+
 ## 1. Delivery decision
 
 The product is viable as a zero-cost, public pilot if it is delivered as a
@@ -371,6 +386,12 @@ profit interval, and ranking to the naira rounding rule; incomplete inputs
 cannot be ranked; changing hectares scales revenue and per-hectare costs
 correctly; the calculator works after network removal and a browser restart.
 
+**Active fallback interpretation (2026-08-27):** because Stage 1 closed without
+qualified production prices, this gate is implemented with user-entered area,
+yield, sale price, and costs only. Optional user-entered low/high prices produce
+the interval. At least two complete crop scenarios are required before any
+ranking, recommendation label, or printable report is available.
+
 ### Stage 3 — Automated data pipeline
 
 **Work**
@@ -599,3 +620,16 @@ farmer-entered expected sale prices instead of automated forecasts.
 - [Cloudflare Pages free-plan limits](https://developers.cloudflare.com/pages/platform/limits/)
 - [GitHub Actions billing and free public-repository usage](https://docs.github.com/en/actions/concepts/billing-and-usage)
 - [web.dev: offline PWA data with Cache Storage and IndexedDB](https://web.dev/learn/pwa/offline-data)
+# Verification boundary — 2026-09-04
+
+Stage 1 is `Closed — fallback accepted`: WFP/HDX produced zero qualified price
+series, and automated prices remain blocked. Stage 2 is `Approved` for
+calculator-only scenarios on
+commit `2e8802f`; clean-clone verification passed npm test (4), typecheck,
+build, six Chromium E2E scenarios, Python tests (26), snapshot validation,
+source-register validation, and `git diff --check`. The gate outcome was
+approved by the user on 2026-09-04. Automated Stages 3–4 remain blocked by the
+unchanged Stage 1 source gate. The next action is calculator-only
+pilot/deployment-readiness planning; this does not imply that the full
+automated predictor path has passed. Deployment still requires explicit
+authorization.

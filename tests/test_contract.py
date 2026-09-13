@@ -26,6 +26,11 @@ class SnapshotContractTests(unittest.TestCase):
             self.assertLessEqual(forecast["lower_80"], forecast["point"])
             self.assertLessEqual(forecast["point"], forecast["upper_80"])
 
+    def test_unapproved_release_cannot_advertise_price_suggestions(self):
+        manifest = self.load("manifest.json")
+        if not manifest["stage_1_approved"]:
+            self.assertNotIn("price_suggestions.json", manifest["artifacts"])
+
 
 if __name__ == "__main__":
     unittest.main()

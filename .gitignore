@@ -1,7 +1,15 @@
 node_modules/
+.npm-cache/
+.npm-cache-*/
 dist/
 __pycache__/
 .pytest_cache/
 .venv/
 data/raw/
 *.pyc
+audit-output*/
+playwright-report/
+test-results/
+# Local GitHub credentials; never commit.
+githubtoken.txt
+*.token
