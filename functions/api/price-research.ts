@@ -37,6 +37,14 @@ function parseAnswer(answer: unknown, cropId: string, state: string, priceType: 
   const rawValue = numberFrom(match[1])
   if (!Number.isFinite(rawValue) || rawValue <= 0) return undefined
   const divisor = !explicit && natural && !['kg', 'kilogram'].includes(natural[2].toLowerCase()) ? 1000 : 1
+  const marked = (name: string) => {
+    const value = answer.match(new RegExp(`${name}\\s*[:=]\\s*(?:NGN|Naira|N)?\\s*([0-9][0-9,]*(?:\\.[0-9]+)?)`, 'i'))
+    if (!value) return undefined
+    const number = numberFrom(value[1])
+    return Number.isFinite(number) && number > 0 ? number : undefined
+  }
+  const low = marked('LOW_NGN_PER_KG')
+  const high = marked('HIGH_NGN_PER_KG')
   const yieldMatch = customCrop ? answer.match(/YIELD_T_PER_HA\s*[:=]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i) : null
   const yieldValue = yieldMatch ? numberFrom(yieldMatch[1]) : undefined
   const costs = customCrop ? Object.fromEntries(COST_CATEGORIES.flatMap((category) => {
@@ -51,6 +59,8 @@ function parseAnswer(answer: unknown, cropId: string, state: string, priceType: 
   }).map((item) => ({ title: typeof item.title === 'string' ? item.title : '', url: item.url as string })).slice(0, 8)
   return {
     status: 'web_fallback', estimate_ngn_per_kg: Math.round((rawValue / divisor) * 100) / 100,
+    ...(low !== undefined ? { low_ngn_per_kg: Math.round((low / divisor) * 100) / 100 } : {}),
+    ...(high !== undefined ? { high_ngn_per_kg: Math.round((high / divisor) * 100) / 100 } : {}),
     price_type: priceType, crop_id: cropId, state, confidence: 'low', source_count: sources.length,
     sources, ...(yieldValue && Number.isFinite(yieldValue) && yieldValue > 0 ? { yield_t_per_ha: Math.round(yieldValue * 100) / 100 } : {}), ...(Object.keys(costs).length ? { costs_per_ha: costs } : {}), warnings: ['No usable local observation was found; this is a web-grounded estimate and requires farmer confirmation.', ...(divisor === 1000 ? ['The provider returned a metric-ton value; it was converted to NGN/kg by dividing by 1,000.'] : [])],
   }

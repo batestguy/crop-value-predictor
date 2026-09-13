@@ -218,8 +218,10 @@ def parse_tavily_response(payload: dict[str, Any], crop_id: str, state: str, pri
             sources.append({"title": result.get("title", ""), "url": result["url"]})
     range_match = re.search(r"range\s+from\s+(?:₦|NGN|Naira)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s+to\s+(?:₦|NGN|Naira)?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:per|/)\s*(?P<range_unit>kg|kilogram|metric\s+ton|tonne|ton)", answer, re.IGNORECASE)
     range_divisor = 1000.0 if range_match and range_match.group("range_unit").casefold() not in {"kg", "kilogram"} else 1.0
-    low = _parse_number(range_match.group(1)) / range_divisor if range_match else None
-    high = _parse_number(range_match.group(2)) / range_divisor if range_match else None
+    explicit_low = _marked_number(answer, "LOW_NGN_PER_KG")
+    explicit_high = _marked_number(answer, "HIGH_NGN_PER_KG")
+    low = explicit_low if explicit_low is not None else (_parse_number(range_match.group(1)) / range_divisor if range_match else None)
+    high = explicit_high if explicit_high is not None else (_parse_number(range_match.group(2)) / range_divisor if range_match else None)
     yield_value, costs = _custom_input_estimates(answer) if custom_crop else (None, {})
     return {
         "status": "web_fallback",
