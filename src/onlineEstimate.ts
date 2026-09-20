@@ -50,7 +50,8 @@ export async function requestOnlineEstimate(request: OnlineEstimateRequest, fetc
   const controller = new AbortController()
   const timer = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetcher('/api/price-research', {
+    const apiPath = `${import.meta.env.BASE_URL}api/price-research`
+    const response = await fetcher(apiPath, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ...request, priceType: request.priceType ?? 'retail', requestedAt: new Date().toISOString() }),

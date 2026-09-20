@@ -26,6 +26,9 @@ self.addEventListener('fetch', (event) => {
   const request = event.request
   const url = new URL(request.url)
   if (request.method !== 'GET' || url.origin !== self.location.origin || !url.pathname.startsWith(base)) return
+  // Never serve a cached worker script. Browser update checks must reach the
+  // deployment so an older installed worker cannot pin a stale app shell.
+  if (url.pathname === `${base}sw.js`) return
   event.respondWith((async () => {
     const cache = await caches.open(cacheName)
     const key = request.mode === 'navigate' ? `${base}index.html` : url.pathname
