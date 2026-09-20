@@ -6,6 +6,10 @@ Fieldmargin is an offline-first crop comparison tool for Nigerian farmers. It
 helps you test a season using your own land, yield, selling price, and cost
 assumptions before you plant.
 
+> **TEMPORARY LIVE-LINK NOTICE: Use a private/incognito browser window before
+> opening any live link below while we repair the public Cloudflare route. A
+> normal browser session may currently show `ERR_FAILED`.**
+
 <p align="center">
   <a href="https://a5b50794.crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
   &nbsp; | &nbsp;
