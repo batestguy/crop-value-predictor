@@ -118,4 +118,7 @@ function App() {
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined))
+// Bump this when the worker contract changes so phones with an older app
+// shell can request the replacement worker script.
+const SERVICE_WORKER_VERSION = '2026-09-20'
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js?v=${SERVICE_WORKER_VERSION}`, { updateViaCache: 'none' }).catch(() => undefined))

@@ -55,6 +55,10 @@ function sendJson(response: any, status: number, payload: unknown) {
 }
 
 export default defineConfig({
+  // GitHub Pages serves this repository below /crop-value-predictor/, while
+  // Cloudflare Pages serves the same build at the domain root. Keep the
+  // deployment-specific path in the workflow/environment rather than baking
+  // a host-specific URL into the app.
   base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), onlineEstimateApi()],
   build: { target: 'es2020' },

@@ -7,7 +7,7 @@ helps you test a season using your own land, yield, selling price, and cost
 assumptions before you plant.
 
 <p align="center">
-  <a href="https://crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
+  <a href="https://a5b50794.crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
   &nbsp; | &nbsp;
   <a href="./SESSION_HANDOFF.md">Read the project handoff</a>
   &nbsp; | &nbsp;
@@ -27,12 +27,12 @@ assumptions before you plant.
 
 ## Live demo
 
-**[Launch the Fieldmargin demo](https://crop-value-predictor.pages.dev/)**
+**[Launch the Fieldmargin demo](https://a5b50794.crop-value-predictor.pages.dev/)**
 
 The production demo includes the offline calculator, custom crops, bag
 equivalents, and optional Quick Research through the server-side Tavily route.
 
-`https://crop-value-predictor.pages.dev/`
+`https://a5b50794.crop-value-predictor.pages.dev/`
 
 ## Why it exists
 
@@ -97,7 +97,7 @@ answer fails safely back to manual entry.
 
 ## Try a custom crop
 
-1. Open the [live app](https://crop-value-predictor.pages.dev/).
+1. Open the [live app](https://a5b50794.crop-value-predictor.pages.dev/).
 2. Enter your land area and a Nigerian state, for example `Bauchi`.
 3. Under **Another crop**, enter a crop name and its product form.
 4. Add it to the shortlist and complete the crop assumptions.
