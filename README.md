@@ -38,6 +38,12 @@ equivalents, and optional Quick Research through the server-side Tavily route.
 
 `https://a5b50794.crop-value-predictor.pages.dev/`
 
+> **Access note:** If the Cloudflare Pages link does not open in your regular
+> browser, try a private/incognito window. Some browsers or networks retain a
+> failed Pages connection. We are also working on a free custom subdomain,
+> `fieldmargin.is-a.dev`, for a more reliable public link. It is pending
+> approval and will be added here once active.
+
 ## Why it exists
 
 Farm decisions often begin with incomplete information. Fieldmargin makes the
