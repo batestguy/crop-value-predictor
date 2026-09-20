@@ -1,12 +1,53 @@
 # Next-session handoff
 
-Updated: 2026-09-13
+Updated: 2026-09-20
 Repository: `D:\Crop Value Predictor App`
 This handoff records the completed local Phase 3A implementation slice, hosted
 Pages Function adapter, and public deployment of the bounded research route. The pre-existing
 `debug.log` change remains uncommitted. The external Tavily key remains outside
 the repository and is never committed.
-Branch at handoff: `stage1-adapter-fix`
+Branch at handoff: `main` (local); README warning PR: `#11`
+
+## Live-link incident and README handoff — 2026-09-20
+
+### Current truth
+
+- The versioned Cloudflare preview URL
+  `https://a5b50794.crop-value-predictor.pages.dev/` currently shows
+  `ERR_FAILED` in the user's Brave browser. Do not describe that preview URL
+  as a reliable public live link until it is independently verified again.
+- The README now places a bold temporary notice before the first live link:
+  users should use a private/incognito window while the public Cloudflare route
+  is being repaired. The notice applies to every live link in the README.
+- The README change is committed locally in `8d02ea8`. The local branch was
+  synced with `origin/main` in merge commit `2d0f5e6`; the resulting diff from
+  `origin/main` contains only the README warning.
+- Direct pushes to protected `main` are rejected until the required `validate`
+  status check passes. The README-only branch
+  `docs/incognito-live-link-notice` was pushed successfully and PR
+  `https://github.com/batestguy/crop-value-predictor/pull/11` was opened.
+- The README change is not part of production `main` until PR #11 passes
+  validation and is merged. After merge, verify whether the Cloudflare Pages
+  integration deploys automatically; otherwise use the authorized Pages
+  deployment procedure.
+- `fieldmargin.is-a.dev` is not yet an active replacement URL. Do not claim it
+  is live until its registration is approved, the DNS record points to the
+  Pages project, and HTTPS is verified in both a normal and private browser.
+
+### Next session — exact order
+
+1. Open PR #11 and confirm the required `validate` check and merge status.
+2. After merge, verify the deployed canonical/custom URL in Brave normal mode
+   and a private/incognito window. Test the calculator shell, service-worker
+   update, and `/api/price-research` behavior without exposing credentials.
+3. Keep the incognito warning until a stable public URL is confirmed. Then
+   update the README to the verified URL and remove or revise the temporary
+   warning in a separate documented change.
+4. Run `git status --short`. Preserve the pre-existing `debug.log` change and
+   the untracked `.playwright-cli/` and `output/` artifacts unless the user
+   explicitly asks for cleanup. None were included in PR #11.
+5. Do not put Tavily or GitHub credentials in the repository, deployment files,
+   command output, or handoff.
 
 ## Release slice update — 2026-09-13
 
