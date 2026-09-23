@@ -1,12 +1,60 @@
 # Next-session handoff
 
-Updated: 2026-09-13
+Updated: 2026-09-23
 Repository: `D:\Crop Value Predictor App`
 This handoff records the completed local Phase 3A implementation slice, hosted
 Pages Function adapter, and public deployment of the bounded research route. The pre-existing
 `debug.log` change remains uncommitted. The external Tavily key remains outside
 the repository and is never committed.
-Branch at handoff: `stage1-adapter-fix`
+Branch at handoff: `main` (production deployment `2c672af6`, commit `37dfec2`)
+
+## Live-link incident — resolved 2026-09-23
+
+### Root cause
+
+Cloudflare Pages answers `/index.html` with `308 → /`. The service worker
+precached `/index.html`, stored the redirected response, and served it for
+navigations. Chromium-based browsers reject a redirected response for a
+navigation, so every visit after the first showed `ERR_FAILED`; private windows
+worked only because they start without a service worker. The local e2e server
+did not redirect, so tests never saw it.
+
+### Fix (PR #12, merged as `37dfec2`)
+
+- `scripts/write-precache.mjs` precaches the app shell at the base URL instead
+  of `index.html`.
+- `public/sw.js` uses the base URL as the navigation key, rebuilds any
+  redirected response before caching or serving it, and calls `skipWaiting()`
+  on install so clients stuck on the old worker recover on their next visit.
+- `scripts/serve-preview.mjs` now mirrors the Pages `index.html` redirect. With
+  the old worker six e2e tests fail with `ERR_FAILED`; with the fix all pass.
+- README links point to production `https://crop-value-predictor.pages.dev/`.
+  The pinned preview `a5b50794…pages.dev` is a fixed build that still ships the
+  broken worker and must not be linked again.
+- PR #11 (incognito warning) was closed as superseded.
+
+### Deployment and verification
+
+- Deployed with `wrangler pages deploy --branch main` → deployment `2c672af6`.
+  Merging to `main` does not deploy; CI (`validate`) only checks.
+- Checks: `npm test` 4 passed, typecheck clean, build ok, `test:e2e` 22 passed
+  and 1 skipped, CI `validate` passed.
+- Production Playwright check: three reloads under service-worker control
+  succeeded on desktop and an emulated Pixel 7. The user confirmed the site
+  opens in their normal Brave window.
+- `fieldmargin.is-a.dev` is still unregistered (it redirects to
+  `is-a.dev/available`). Do not link it until registration and HTTPS are
+  verified.
+
+### Next session
+
+1. Preserve the pre-existing `debug.log` change and the untracked
+   `.playwright-cli/` and `output/` artifacts unless the user asks for cleanup.
+2. The local `main` branch still holds superseded commits (`8d02ea8`, `2d0f5e6`,
+   `dca5ddd`). Their handoff content is carried forward here; resync local
+   `main` with `origin/main` only with the user's approval.
+3. Do not put Tavily or GitHub credentials in the repository, deployment files,
+   command output, or handoff.
 
 ## Release slice update — 2026-09-13
 
