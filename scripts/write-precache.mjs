@@ -22,6 +22,6 @@ const worker = await readFile('public/sw.js', 'utf8')
 const hash = createHash('sha256').update(base).update(worker)
 for (const path of paths) hash.update(path).update(await readFile(join('dist', path)))
 const cachePrefix = `fieldmargin-${encodeURIComponent(base)}-`
-const config = { cacheName: cachePrefix + hash.digest('hex').slice(0, 20), cachePrefix, base, files: paths.map((path) => base + path) }
+const config = { cacheName: cachePrefix + hash.digest('hex').slice(0, 20), cachePrefix, base, files: paths.map((path) => path === 'index.html' ? base : base + path) }
 await writeFile('dist/sw.js', `self.__FIELDMARGIN_BUILD=${JSON.stringify(config)};\n${worker}`)
 await writeFile('dist/precache.json', JSON.stringify(config, null, 2) + '\n')

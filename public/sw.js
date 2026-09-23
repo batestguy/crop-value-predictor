@@ -1,14 +1,27 @@
 // Production supplies an immutable, base-scoped cache configuration.
 const { cacheName, cachePrefix, base, files } = self.__FIELDMARGIN_BUILD
+// Hosts such as Cloudflare Pages answer /index.html with a redirect to the
+// directory URL. Browsers reject a redirected response for a navigation with
+// ERR_FAILED, so rebuild any redirected response before it is cached.
+async function unredirected(response) {
+  if (!response.redirected) return response
+  return new Response(await response.blob(), { status: response.status, statusText: response.statusText, headers: response.headers })
+}
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     try {
       const cache = await caches.open(cacheName)
-      await cache.addAll(files.map((url) => new Request(url, { cache: 'reload' })))
+      await Promise.all(files.map(async (url) => {
+        const response = await fetch(new Request(url, { cache: 'reload' }))
+        if (!response.ok) throw new Error(`Precache failed for ${url}: ${response.status}`)
+        await cache.put(url, await unredirected(response))
+      }))
     } catch (error) {
       await caches.delete(cacheName)
       throw error
     }
+    // Activate immediately so a broken older worker cannot keep failing pages.
+    await self.skipWaiting()
   })())
 })
 self.addEventListener('activate', (event) => {
@@ -31,8 +44,8 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname === `${base}sw.js`) return
   event.respondWith((async () => {
     const cache = await caches.open(cacheName)
-    const key = request.mode === 'navigate' ? `${base}index.html` : url.pathname
+    const key = request.mode === 'navigate' ? base : url.pathname
     const cached = await cache.match(key)
-    return cached || fetch(request)
+    return cached ? unredirected(cached) : fetch(request)
   })())
 })
