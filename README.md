@@ -7,7 +7,7 @@ helps you test a season using your own land, yield, selling price, and cost
 assumptions before you plant.
 
 <p align="center">
-  <a href="https://a5b50794.crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
+  <a href="https://crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
   &nbsp; | &nbsp;
   <a href="./SESSION_HANDOFF.md">Read the project handoff</a>
   &nbsp; | &nbsp;
@@ -27,18 +27,21 @@ assumptions before you plant.
 
 ## Live demo
 
-**[Launch the Fieldmargin demo](https://a5b50794.crop-value-predictor.pages.dev/)**
+**[Launch the Fieldmargin demo](https://crop-value-predictor.pages.dev/)**
 
 The production demo includes the offline calculator, custom crops, bag
 equivalents, and optional Quick Research through the server-side Tavily route.
 
-`https://a5b50794.crop-value-predictor.pages.dev/`
+`https://crop-value-predictor.pages.dev/`
 
-> **Access note:** If the Cloudflare Pages link does not open in your regular
-> browser, try a private/incognito window. Some browsers or networks retain a
-> failed Pages connection. We are also working on a free custom subdomain,
-> `fieldmargin.is-a.dev`, for a more reliable public link. It is pending
-> approval and will be added here once active.
+It works in desktop and phone browsers (Chrome, Brave, Safari, Firefox). On a
+phone you can also use **Add to Home screen** to install it; after the first
+visit the calculator keeps working offline.
+
+> **Access note:** An earlier release could show `ERR_FAILED` on a second visit
+> in some browsers because of a service-worker bug. That is fixed. If a browser
+> that visited before still shows the error, reload once; if it persists, clear
+> the site data for `crop-value-predictor.pages.dev` and open the link again.
 
 ## Why it exists
 
@@ -103,7 +106,7 @@ answer fails safely back to manual entry.
 
 ## Try a custom crop
 
-1. Open the [live app](https://a5b50794.crop-value-predictor.pages.dev/).
+1. Open the [live app](https://crop-value-predictor.pages.dev/).
 2. Enter your land area and a Nigerian state, for example `Bauchi`.
 3. Under **Another crop**, enter a crop name and its product form.
 4. Add it to the shortlist and complete the crop assumptions.
