@@ -38,10 +38,11 @@ It works in desktop and phone browsers (Chrome, Brave, Safari, Firefox). On a
 phone you can also use **Add to Home screen** to install it; after the first
 visit the calculator keeps working offline.
 
-> **Access note:** An earlier release could show `ERR_FAILED` on a second visit
-> in some browsers because of a service-worker bug. That is fixed. If a browser
-> that visited before still shows the error, reload once; if it persists, clear
-> the site data for `crop-value-predictor.pages.dev` and open the link again.
+> **Access note:** Releases before 2026-09-23 could show `ERR_FAILED` on a
+> second visit in Chromium-based browsers (Brave, Chrome, Android) because of a
+> service-worker bug. The fix is live and was verified on desktop and a phone
+> profile. If a browser that visited earlier still shows the error, reload once;
+> if it persists, clear the site data for `crop-value-predictor.pages.dev`.
 
 ## Why it exists
 

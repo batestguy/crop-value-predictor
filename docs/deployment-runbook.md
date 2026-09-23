@@ -25,6 +25,13 @@ must never be placed in the browser bundle, repository, or command arguments.
 - `TAVILY_API_KEY` is configured only as an encrypted production Pages secret.
   It is not present in the repository, browser bundle, command output, or
   deployment files.
+- The current production deployment is `2c672af6` (source commit `37dfec2`,
+  2026-09-23). It carries the service-worker fix for the `ERR_FAILED`
+  repeat-visit bug (PR #12). Pushing or merging to `main` does not deploy;
+  CI only validates. Publish with the `wrangler pages deploy` command below.
+- If `npx wrangler` fails with `EBUSY ... node_modules\workerd`, the install
+  was interrupted by a file lock (usually antivirus). Retry with a fresh cache
+  outside the repository, for example `npx.cmd -y --cache <dir> wrangler@4`.
 
 ## One-time account setup
 
