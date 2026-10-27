@@ -50,6 +50,17 @@ self.addEventListener('fetch', (event) => {
     const cache = await caches.open(cacheName)
     const key = request.mode === 'navigate' ? base : url.pathname
     const cached = await cache.match(key)
-    return cached ? unredirected(cached) : fetch(request)
+    if (cached) return unredirected(cached)
+    const response = await fetch(request)
+    // Crop photography is deliberately not precached. Cache it the first time it is
+    // actually viewed, so the offline experience is unchanged after that visit.
+    if (response.ok && url.pathname.includes('/crops/')) {
+      // unredirected() is async: it must be awaited before cache.put, otherwise
+      // cache.put receives a Promise and rejects, which fails the whole image request.
+      try {
+        await cache.put(key, await unredirected(response.clone()))
+      } catch { /* a cache write must never break the image itself */ }
+    }
+    return response
   })())
 })

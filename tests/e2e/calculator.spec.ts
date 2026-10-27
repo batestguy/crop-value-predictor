@@ -528,3 +528,32 @@ test('sends Soybean dry grain and Carrot fresh to the research API', async ({ pa
     { cropName: 'Carrot', cropForm: 'fresh', cropId: 'custom:carrot-fresh', researchAll: true },
   ])
 })
+
+test('shows crop photography with Commons attribution that actually decodes', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('checkbox', { name: /^White maize/ }).check()
+  await page.getByRole('checkbox', { name: /^Rice paddy/ }).check()
+
+  // One thumbnail per built-in crop.
+  await expect(page.locator('img.crop-thumb')).toHaveCount(8)
+
+  // The banner follows the crop currently being edited, so pin that explicitly.
+  await page.getByLabel('Crop being edited').selectOption({ label: 'Rice' })
+
+  const banner = page.locator('.crop-photo img')
+  await expect(banner).toBeVisible()
+  await expect(page.locator('.crop-photo-caption')).toContainText('Rice')
+
+  // Attribution must link to the source file and name the licence.
+  const credit = page.locator('.crop-photo-credit a').first()
+  await expect(credit).toHaveAttribute('href', /commons\.wikimedia\.org/)
+  await expect(page.locator('.crop-photo-credit')).toContainText('CC BY-SA')
+
+  // naturalWidth > 0 proves the response decoded. A bad service-worker cache write
+  // leaves this at 0 while currentSrc still looks correct, which is exactly the
+  // failure this test exists to catch.
+  await banner.scrollIntoViewIfNeeded()
+  await expect
+    .poll(() => banner.evaluate((el: HTMLImageElement) => el.naturalWidth), { timeout: 15000 })
+    .toBeGreaterThan(0)
+})
