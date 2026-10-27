@@ -221,7 +221,7 @@ test('clear saved draft returns to blank calculator', async ({ page }) => {
   await page.getByLabel('Area in hectares').fill('4')
   await page.getByRole('button', { name: 'Clear saved draft' }).click()
   await expect(page.getByLabel('Area in hectares')).toHaveValue('')
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('fieldmargin.saved-scenario.v1'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('seasonmargin.saved-scenario.v1'))).toBeNull()
 })
 
 test('preserves ranges and prints the same assumptions and results', async ({ page }) => {
@@ -247,16 +247,35 @@ test('preserves ranges and prints the same assumptions and results', async ({ pa
 
 test('recovers and removes malformed or unsupported saved drafts', async ({ page }) => {
   for (const value of ['{broken', JSON.stringify({ schemaVersion: 99 })]) {
-    await page.addInitScript((draft) => localStorage.setItem('fieldmargin.saved-scenario.v1', draft), value)
+    await page.addInitScript((draft) => localStorage.setItem('seasonmargin.saved-scenario.v1', draft), value)
     await page.goto('/')
     await expect(page.getByText('blank calculator was opened')).toBeVisible()
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('fieldmargin.saved-scenario.v1'))).toBeNull()
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('seasonmargin.saved-scenario.v1'))).toBeNull()
     await page.evaluate(() => localStorage.clear())
   }
 })
 
-test('opens a safe empty state when a saved draft has no active crops', async ({ page }) => {
+test('migrates a draft saved under the pre-rename Fieldmargin key', async ({ page }) => {
+  // The app shipped as Fieldmargin until 2026-10-27. A draft written under the old
+  // key must still open, and must be copied forward so it survives the next save.
   await page.addInitScript(() => localStorage.setItem('fieldmargin.saved-scenario.v1', JSON.stringify({
+    schemaVersion: 1,
+    savedAt: new Date().toISOString(),
+    areaHa: '1',
+    selectedCropIds: ['rice'],
+    inputsByCropId: {
+      rice: { yieldTPerHa: '', sellingPriceNgnPerKg: '', costsPerHa: { land_preparation: '', seed: '', fertilizer: '', pesticide: '', labour: '', irrigation: '', transport: '', storage: '' } },
+    },
+  })))
+  await page.goto('/')
+  await expect(page.getByLabel('Crop being edited')).toHaveValue('rice')
+  await expect(page.getByLabel('Area in hectares')).toHaveValue('1')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('seasonmargin.saved-scenario.v1'))).not.toBeNull()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('fieldmargin.saved-scenario.v1'))).toBeNull()
+})
+
+test('opens a safe empty state when a saved draft has no active crops', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('seasonmargin.saved-scenario.v1', JSON.stringify({
     schemaVersion: 1, savedAt: new Date().toISOString(), areaHa: '', selectedCropIds: [], inputsByCropId: {},
   })))
   await page.goto('/')
@@ -265,7 +284,7 @@ test('opens a safe empty state when a saved draft has no active crops', async ({
 })
 
 test('drops unavailable saved crops and selects an available crop to edit', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('fieldmargin.saved-scenario.v1', JSON.stringify({
+  await page.addInitScript(() => localStorage.setItem('seasonmargin.saved-scenario.v1', JSON.stringify({
     schemaVersion: 1,
     savedAt: new Date().toISOString(),
     areaHa: '1',
@@ -283,7 +302,7 @@ test('drops unavailable saved crops and selects an available crop to edit', asyn
 test('warns when browser storage is blocked or a reset cannot clear it', async ({ page }) => {
   await page.addInitScript(() => {
     const original = Storage.prototype
-    ;(window as Window & { fieldmarginStorage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> }).fieldmarginStorage = {
+    ;(window as Window & { seasonMarginStorage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> }).seasonMarginStorage = {
       getItem: original.getItem, setItem: original.setItem, removeItem: original.removeItem,
     }
     Storage.prototype.getItem = () => { throw new DOMException('blocked', 'SecurityError') }
@@ -295,7 +314,7 @@ test('warns when browser storage is blocked or a reset cannot clear it', async (
   await expectNoCriticalAxeViolations(page)
 
   await page.evaluate(() => {
-    const original = (window as Window & { fieldmarginStorage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> }).fieldmarginStorage
+    const original = (window as Window & { seasonMarginStorage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> }).seasonMarginStorage
     Storage.prototype.getItem = original.getItem
     Storage.prototype.setItem = original.setItem
     Storage.prototype.removeItem = () => { throw new DOMException('blocked', 'SecurityError') }
@@ -381,21 +400,21 @@ test('does not make third-party requests after the calculator has loaded', async
   expect(thirdPartyRequests).toEqual([])
 })
 
-test('publishes a base-scoped manifest and clears only superseded Fieldmargin caches', async ({ page }) => {
+test('publishes a base-scoped manifest and clears only superseded Season Margin caches', async ({ page }) => {
   await page.goto('/')
   const manifest = await page.evaluate(async () => (await fetch(document.querySelector<HTMLLinkElement>('link[rel="manifest"]')!.href)).json())
   expect(manifest).toMatchObject({ id: '/', scope: '/', start_url: '/' })
-  expect(manifest.icons[0].src).toBe('/fieldmargin-icon.svg')
+  expect(manifest.icons[0].src).toBe('/seasonmargin-icon.svg')
 
   await waitForActiveServiceWorker(page)
   await page.evaluate(async () => {
-    await (await caches.open('fieldmargin-%2F-obsolete')).put('/obsolete', new Response('old'))
+    await (await caches.open('seasonmargin-%2F-obsolete')).put('/obsolete', new Response('old'))
     await (await caches.open('unrelated-cache')).put('/keep', new Response('keep'))
     await (await navigator.serviceWorker.getRegistration())?.unregister()
   })
   await page.reload()
   await waitForActiveServiceWorker(page)
-  await expect.poll(() => page.evaluate(async () => !(await caches.keys()).includes('fieldmargin-%2F-obsolete'))).toBe(true)
+  await expect.poll(() => page.evaluate(async () => !(await caches.keys()).includes('seasonmargin-%2F-obsolete'))).toBe(true)
   await expect.poll(() => page.evaluate(async () => (await caches.keys()).includes('unrelated-cache'))).toBe(true)
 })
 
@@ -405,32 +424,32 @@ test('restarts offline after the service worker is ready', async ({ page, contex
   await page.reload()
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByText('fieldmargin', { exact: true })).toBeVisible()
+  await expect(page.getByText('season margin', { exact: true })).toBeVisible()
   await expect(page.getByText('calculator-only · works offline')).toBeVisible()
 })
 
-test('supports a /fieldmargin/ base path with scoped PWA assets and offline reload', async ({ page, context }) => {
-  test.skip(basePath !== '/fieldmargin/', 'Run with E2E_BASE_PATH=/fieldmargin/.')
-  await page.goto('/fieldmargin/')
+test('supports a /seasonmargin/ base path with scoped PWA assets and offline reload', async ({ page, context }) => {
+  test.skip(basePath !== '/seasonmargin/', 'Run with E2E_BASE_PATH=/seasonmargin/.')
+  await page.goto('/seasonmargin/')
 
   const manifest = await page.evaluate(async () => (await fetch(document.querySelector<HTMLLinkElement>('link[rel="manifest"]')!.href)).json())
-  expect(manifest).toMatchObject({ id: '/fieldmargin/', scope: '/fieldmargin/', start_url: '/fieldmargin/' })
-  expect(manifest.icons[0].src).toBe('/fieldmargin/fieldmargin-icon.svg')
+  expect(manifest).toMatchObject({ id: '/seasonmargin/', scope: '/seasonmargin/', start_url: '/seasonmargin/' })
+  expect(manifest.icons[0].src).toBe('/seasonmargin/seasonmargin-icon.svg')
 
-  await waitForActiveServiceWorker(page, '/fieldmargin/')
+  await waitForActiveServiceWorker(page, '/seasonmargin/')
   await expect.poll(() => page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.getRegistration('/fieldmargin/')
+    const registration = await navigator.serviceWorker.getRegistration('/seasonmargin/')
     return {
       scope: registration?.scope,
       controlled: navigator.serviceWorker.controller?.scriptURL === registration?.active?.scriptURL,
     }
-  })).toEqual({ scope: `${serverOrigin}/fieldmargin/`, controlled: true })
+  })).toEqual({ scope: `${serverOrigin}/seasonmargin/`, controlled: true })
 
   await page.reload()
   await context.setOffline(true)
   try {
     await page.reload()
-    await expect(page.getByText('fieldmargin', { exact: true })).toBeVisible()
+    await expect(page.getByText('season margin', { exact: true })).toBeVisible()
   } finally {
     await context.setOffline(false)
   }

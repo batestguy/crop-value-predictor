@@ -1,7 +1,7 @@
 # npm Toolchain Fix Handoff
 
 **Updated:** 2026-08-28  
-**Project:** Fieldmargin Crop Value Planner  
+**Project:** Season Margin Crop Value Planner  
 **Purpose:** Resume the unfinished npm/toolchain repair in a new session.
 
 ## Current state

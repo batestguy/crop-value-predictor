@@ -9,7 +9,7 @@ const server = await preview({
   plugins: [{
     // Mirror Cloudflare Pages, which redirects .../index.html to the directory
     // URL. The service worker must still serve navigations from that setup.
-    name: 'fieldmargin-pages-index-redirect',
+    name: 'seasonmargin-pages-index-redirect',
     configurePreviewServer(server) {
       server.middlewares.use((request, response, next) => {
         const [path, query] = request.url.split('?')
