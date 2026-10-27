@@ -17,7 +17,12 @@ manifest.id = manifest.scope = manifest.start_url = base
 manifest.icons = manifest.icons.map((icon) => ({ ...icon, src: base + icon.src.replace(/^\.\//, '') }))
 await writeFile('dist/manifest.webmanifest', JSON.stringify(manifest, null, 2) + '\n')
 const paths = (await walk('dist')).map((path) => path.replaceAll('\\', '/').slice(5))
-  .filter((path) => !['sw.js', 'precache.json'].includes(path)).sort()
+  .filter((path) => !['sw.js', 'precache.json'].includes(path))
+  // Photography is 1.4 MB; precaching it would wreck the offline-first budget. Only the
+  // 160 px list thumbnails (about 35 KB in total) ship in the install payload. The banner
+  // sizes are cached on first view by the fetch handler in public/sw.js.
+  .filter((path) => !path.startsWith('crops/') || path.endsWith('-160.webp'))
+  .sort()
 const worker = await readFile('public/sw.js', 'utf8')
 const hash = createHash('sha256').update(base).update(worker)
 for (const path of paths) hash.update(path).update(await readFile(join('dist', path)))
