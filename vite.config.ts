@@ -7,7 +7,7 @@ const supportedCrops = new Set(['maize-white', 'rice', 'rice-milled', 'yam', 'so
 
 function onlineEstimateApi() {
   return {
-    name: 'fieldmargin-online-estimate-api',
+    name: 'seasonmargin-online-estimate-api',
     configureServer(server: { middlewares: { use: Function } }) {
       server.middlewares.use('/api/price-research', (request: any, response: any, next: () => void) => {
         if (request.method !== 'POST') return next()

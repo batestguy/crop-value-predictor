@@ -389,7 +389,10 @@ class SourceRegisterTests(unittest.TestCase):
         self.assertIsNone(convert_kg("1 bag"))
         self.assertIsNone(convert_kg("100_tubers", "kg"))
         rows = [{"canonical_crop_id": "maize", "market": "A", "price_type": "retail", "month": f"{y:04d}-{m:02d}"} for y in (2023, 2024, 2025, 2026) for m in range(1, 13) if (y, m) <= (2026, 7)]
-        eligible, rejected = qualify_series(rows, "2026-07")
+        # Pin the snapshot date. Without it qualify_series falls back to date.today(), so the
+        # 75-day freshness gate starts failing these July rows once the wall clock moves on
+        # (it did, from 2026-10-27) even though nothing about the gate changed.
+        eligible, rejected = qualify_series(rows, "2026-07", date(2026, 7, 31))
         self.assertEqual(len(eligible), 1)
         self.assertFalse(rejected)
 

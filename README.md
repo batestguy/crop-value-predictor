@@ -1,10 +1,20 @@
-# fieldmargin
+# Season Margin
 
 > A calmer way to plan a season.
 
-Fieldmargin is an offline-first crop comparison tool for Nigerian farmers. It
+Season Margin is an offline-first crop comparison tool for Nigerian farmers. It
 helps you test a season using your own land, yield, selling price, and cost
 assumptions before you plant.
+
+> **Renamed on 2026-10-27.** This project was previously called *Fieldmargin*.
+> That name belongs to [fieldmargin.com](https://www.fieldmargin.com/), an established UK
+> farm-management product selling farm mapping and field-job planning — the same category
+> as this app. The name was changed to avoid trading on it. Saved drafts and cached
+> app shells written under the old name are migrated automatically
+> (`LEGACY_STORAGE_KEY` in `src/persistence.ts`, `LEGACY_CACHE_PREFIX` in `public/sw.js`).
+>
+> The deployment URL is unchanged: the Cloudflare Pages project is still
+> `crop-value-predictor`, so the live link above keeps working.
 
 <p align="center">
   <a href="https://crop-value-predictor.pages.dev/"><strong>Open the live app</strong></a>
@@ -22,12 +32,12 @@ assumptions before you plant.
 </p>
 
 <p align="center">
-  <img src="./docs/screenshots/fieldmargin-overview.png" alt="Fieldmargin overview showing the field setup, crop shortlist, margin view, custom crop form, and JJMB about card" width="960">
+  <img src="./docs/screenshots/seasonmargin-overview.png" alt="Season Margin overview showing the field setup, crop shortlist, margin view, custom crop form, and JJMB about card" width="960">
 </p>
 
 ## Live demo
 
-**[Launch the Fieldmargin demo](https://crop-value-predictor.pages.dev/)**
+**[Launch the Season Margin demo](https://crop-value-predictor.pages.dev/)**
 
 The production demo includes the offline calculator, custom crops, bag
 equivalents, and optional Quick Research through the server-side Tavily route.
@@ -46,7 +56,7 @@ visit the calculator keeps working offline.
 
 ## Why it exists
 
-Farm decisions often begin with incomplete information. Fieldmargin makes the
+Farm decisions often begin with incomplete information. Season Margin makes the
 assumptions visible, lets you change them, and shows the effect on your margin.
 The calculator stays useful without an internet connection, while an optional
 research button can find a starting point when you want outside context.
@@ -79,7 +89,7 @@ The live release includes the field-notebook interface, Nigeria watermark, JJMB
 about card, custom crop form, and calculator-only default.
 
 <p align="center">
-  <img src="./docs/screenshots/public-research-release.png" alt="Public Fieldmargin release showing the field setup and crop comparison layout" width="960">
+  <img src="./docs/screenshots/public-research-release.png" alt="Public Season Margin release showing the field setup and crop comparison layout" width="960">
 </p>
 
 ## How Quick Research works
@@ -189,6 +199,6 @@ decision-maker.
 
 ## About
 
-Fieldmargin is the JJMB crop-planning project: practical planning support for
+Season Margin is the JJMB crop-planning project: practical planning support for
 Nigerian farms, with clear assumptions and a gentler path from uncertainty to a
 decision.

@@ -42,7 +42,7 @@ did not redirect, so tests never saw it.
 - Production Playwright check: three reloads under service-worker control
   succeeded on desktop and an emulated Pixel 7. The user confirmed the site
   opens in their normal Brave window.
-- `fieldmargin.is-a.dev` is still unregistered (it redirects to
+- `seasonmargin.is-a.dev` is still unregistered (it redirects to
   `is-a.dev/available`). Do not link it until registration and HTTPS are
   verified.
 

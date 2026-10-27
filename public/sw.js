@@ -1,5 +1,8 @@
 // Production supplies an immutable, base-scoped cache configuration.
-const { cacheName, cachePrefix, base, files } = self.__FIELDMARGIN_BUILD
+const { cacheName, cachePrefix, base, files } = self.__SEASONMARGIN_BUILD
+// The app shipped as "Fieldmargin" until 2026-10-27. Caches written under the old
+// prefix are no longer reused, so they are deleted here rather than left in storage.
+const LEGACY_CACHE_PREFIX = 'fieldmargin-'
 // Hosts such as Cloudflare Pages answer /index.html with a redirect to the
 // directory URL. Browsers reject a redirected response for a navigation with
 // ERR_FAILED, so rebuild any redirected response before it is cached.
@@ -27,7 +30,8 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     for (const name of await caches.keys()) {
-      if (name.startsWith(cachePrefix) && name !== cacheName) await caches.delete(name)
+      const superseded = name.startsWith(cachePrefix) || name.startsWith(LEGACY_CACHE_PREFIX)
+      if (superseded && name !== cacheName) await caches.delete(name)
     }
     await self.clients.claim()
   })())

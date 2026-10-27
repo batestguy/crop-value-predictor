@@ -5,7 +5,10 @@ export type SavedPriceSuggestion = { snapshotId: string; suggestionId: string; m
 export type SavedOnlineEstimate = { state: string; priceType: 'retail' | 'wholesale'; estimateNgnPerKg: number; lowNgnPerKg?: number; highNgnPerKg?: number; yieldTPerHa?: number; costsPerHa?: Partial<Record<CostCategory, number>>; status: 'local' | 'web_fallback'; confidence?: 'low' | 'medium' | 'high'; sourceCount?: number; observationCount?: number; marketCount?: number; dateFrom?: string; dateTo?: string; publisher?: string; sources?: { title: string; url: string }[]; retrievedAt: string }
 export type SavedCustomCrop = { name: string; form: string }
 export type SavedScenarioV1 = { schemaVersion: 1; savedAt: string; areaHa: string; selectedCropIds: string[]; customCrops?: Record<string, SavedCustomCrop>; inputsByCropId: Record<string, { yieldTPerHa: string; sellingPriceNgnPerKg: string; lowPriceNgnPerKg?: string; highPriceNgnPerKg?: string; costsPerHa: Record<CostCategory, string>; marketId?: string; priceOrigin?: PriceOrigin; priceSuggestion?: SavedPriceSuggestion; onlineEstimate?: SavedOnlineEstimate }> }
-export const STORAGE_KEY = 'fieldmargin.saved-scenario.v1'
+export const STORAGE_KEY = 'seasonmargin.saved-scenario.v1'
+// The app was called Fieldmargin until 2026-10-27. Drafts saved under the old key are
+// migrated on first load so nobody loses a scenario they had already entered.
+export const LEGACY_STORAGE_KEY = 'fieldmargin.saved-scenario.v1'
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isStringRecord = (value: unknown): value is Record<string, string> => isRecord(value) && Object.values(value).every((item) => typeof item === 'string')
 const isSavedCrop = (value: unknown): value is SavedScenarioV1['inputsByCropId'][string] => {
@@ -27,16 +30,23 @@ const isSavedDraft = (value: unknown): value is SavedScenarioV1 => isRecord(valu
 const validCustomCrops = (value: unknown): value is Record<string, SavedCustomCrop> => isRecord(value) && Object.entries(value).every(([id, crop]) => /^custom:[a-z0-9-]{1,100}$/.test(id) && isRecord(crop) && typeof crop.name === 'string' && crop.name.trim().length > 0 && crop.name.length <= 80 && typeof crop.form === 'string' && crop.form.trim().length > 0 && crop.form.length <= 80)
 export function loadDraft(): { draft?: SavedScenarioV1; recovered: boolean; storageUnavailable?: boolean } {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    let raw = localStorage.getItem(STORAGE_KEY)
+    const legacyRaw = raw ? null : localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacyRaw) raw = legacyRaw
     if (!raw) return { recovered: false }
     const value: unknown = JSON.parse(raw)
     if (!isSavedDraft(value) || (value.customCrops !== undefined && !validCustomCrops(value.customCrops))) throw new Error('invalid')
     const selectedCropIds = [...new Set(value.selectedCropIds)].filter((id) => Object.prototype.hasOwnProperty.call(value.inputsByCropId, id))
+    // Copy a legacy draft forward, then drop it. A failed copy is not fatal: the
+    // draft still loads, and the next save writes the current key.
+    if (legacyRaw) {
+      try { localStorage.setItem(STORAGE_KEY, legacyRaw); localStorage.removeItem(LEGACY_STORAGE_KEY) } catch { /* keep the legacy copy */ }
+    }
     return { draft: { ...value, selectedCropIds }, recovered: false }
   } catch {
-    try { localStorage.removeItem(STORAGE_KEY) } catch { return { recovered: false, storageUnavailable: true } }
+    try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LEGACY_STORAGE_KEY) } catch { return { recovered: false, storageUnavailable: true } }
     return { recovered: true }
   }
 }
 export function saveDraft(draft: Omit<SavedScenarioV1, 'schemaVersion' | 'savedAt'>): boolean { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...draft, schemaVersion: 1, savedAt: new Date().toISOString() })); return true } catch { return false } }
-export function clearDraft(): boolean { try { localStorage.removeItem(STORAGE_KEY); return true } catch { return false } }
+export function clearDraft(): boolean { try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LEGACY_STORAGE_KEY); return true } catch { return false } }

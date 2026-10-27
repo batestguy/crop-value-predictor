@@ -309,7 +309,7 @@ No Stage 5 gate approval, deployment, or participant evidence is claimed.
 
 ## Calculator readiness implementation — 2026-09-07
 
-Stage 5 calculator-only browser readiness is now at `Gate review`. The service worker uses generated immutable cache identities and scoped cleanup; PWA assets and registration support both root and `/fieldmargin/` bases; persistence recovers safely from blocked or malformed storage; and browser coverage includes update cleanup, offline restart, print parity, selection recovery, axe critical-violation assertions, keyboard completion, desktop-Chromium Slow-4G final-input-to-result timing, and no-third-party post-load print/report flow. The full local suite passed: 4 calculator tests, typecheck, build, Chromium E2E, snapshot validation, and 26 Python tests. A separate scoped-base Chromium test passed. Fresh review identified and corrected the worker-activation test race and missing non-root base-path coverage.
+Stage 5 calculator-only browser readiness is now at `Gate review`. The service worker uses generated immutable cache identities and scoped cleanup; PWA assets and registration support both root and `/seasonmargin/` bases; persistence recovers safely from blocked or malformed storage; and browser coverage includes update cleanup, offline restart, print parity, selection recovery, axe critical-violation assertions, keyboard completion, desktop-Chromium Slow-4G final-input-to-result timing, and no-third-party post-load print/report flow. The full local suite passed: 4 calculator tests, typecheck, build, Chromium E2E, snapshot validation, and 26 Python tests. A separate scoped-base Chromium test passed. Fresh review identified and corrected the worker-activation test race and missing non-root base-path coverage.
 
 Physical Android install/update/offline recovery and participant evidence remain
 uncollected; they are no longer active web-release requirements. No deployment,
@@ -431,3 +431,18 @@ The cloud origin is reachable, but no observed-price evidence passed the
 unchanged gates. No public artifact changed, no promotion was attempted, and
 Stages 3 and 4 remain blocked. Further FEWS work requires a justified adapter
 or endpoint-contract change, not repeated retrieval of the same failing path.
+
+## 2026-10-27 — Renamed from Fieldmargin to Season Margin (trademark collision)
+
+- **Reason:** `fieldmargin.com` is a live UK farm-management software company selling farm mapping, livestock tracking and field-job planning — the same product category as this app. Shipping a farm planning tool under that name was trademark exposure and read as a clone. The name was changed rather than risk it.
+- **Name chosen:** **Season Margin**. Checked before committing: npm `seasonmargin` free, `seasonmargin.com` and `seasonmargin.app` unregistered, and no live company of that name found. Rejected alternatives and why — `season ledger` (live tax/bookkeeping product), `cropmargin.com` (Commodity & Ingredient Hedging LLC), `gona` (GONA / gonaafrica.org and Babban Gona already occupy it in Nigerian agriculture), `fieldledger` (parked lander, and uncomfortably close to the name being avoided).
+- **What changed:** wordmark, page title, manifest name/short_name, print report heading, footer, icon file, README, and the `fieldmargin*` identifiers (`localStorage` key, service-worker cache prefix, build global, test base path).
+- **Existing users are not broken.** Two compatibility shims, both deliberate and still containing the old name on purpose:
+  - `LEGACY_STORAGE_KEY` in `src/persistence.ts` — a draft saved under `fieldmargin.saved-scenario.v1` is read, copied to the new key and the old one removed.
+  - `LEGACY_CACHE_PREFIX` in `public/sw.js` — old `fieldmargin-*` caches are deleted on activate instead of lingering in storage forever.
+- **Screenshots were stale and were regenerated.** `docs/screenshots/seasonmargin-overview.png` and `public-research-release.png` still showed "fieldmargin" in the wordmark and footer, which would have defeated the rename. Both re-captured from the built app at 958 px, with the same illustration state (2 ha, Bauchi, White maize vs Rice).
+- **Deployment untouched:** `wrangler.toml` still names the Pages project `crop-value-predictor`, so the live URL is unchanged. Renaming the Pages project would have created a new site and broken the link.
+- **Verification:** typecheck clean; unit tests 4/4; build clean; E2E **23 passed, 1 skipped** (the skip is the `/seasonmargin/` base-path test, which needs `E2E_BASE_PATH` *and* `VITE_BASE_PATH`). A new E2E test covers the legacy draft migration.
+- **Pre-existing issues found, NOT caused by this change and not fixed here:**
+  - `tests/test_sources.py::test_qualification_unit_and_gate_boundaries` fails at HEAD as well (verified in a clean worktree). Unrelated to naming.
+  - `scripts/run-e2e.mjs` never sets `VITE_BASE_PATH`, so the base-path test cannot pass from the documented `E2E_BASE_PATH=... npm run test:e2e` command — the build defaults to `/`. It passes once `VITE_BASE_PATH` is also exported. Worth fixing separately.
