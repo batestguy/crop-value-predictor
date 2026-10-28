@@ -1,6 +1,6 @@
 # Season Margin
 
-> A calmer way to plan a season.
+> Know your margin before you plant.
 
 Season Margin is an offline-first crop comparison tool for Nigerian farmers. It
 helps you test a season using your own land, yield, selling price, and cost
@@ -32,8 +32,23 @@ assumptions before you plant.
 </p>
 
 <p align="center">
-  <img src="./docs/screenshots/seasonmargin-overview.png" alt="Season Margin overview showing the field setup, crop shortlist, margin view, custom crop form, and JJMB about card" width="960">
+  <img src="./docs/screenshots/seasonmargin-overview.png" alt="Season Margin home screen: Know your margin before you plant, the field-note card, and the first calculator step" width="960">
 </p>
+
+## Watch the walkthrough
+
+[![Play the Season Margin walkthrough: three crops ranked, with the decision view and price basis visible](./docs/screenshots/decision-view.png)](./docs/media/demo-walkthrough.mp4)
+
+**[Download the walkthrough — MP4, 2.9 MB, 1:20](./docs/media/demo-walkthrough.mp4)**
+
+One continuous take of the whole workflow: set an area, add a crop that is not on
+the list, ask the research assistant for starting values, replace the returned
+price with a local one, complete the other two crops by hand, read the ranking,
+print the report, and reload with the network turned off.
+
+> The recording is a production build served locally with the research endpoint
+> stubbed, so the take is deterministic and spends no Tavily credits. The app is
+> unmodified — only the numbers returned by that single request are fixed.
 
 ## Live demo
 
@@ -74,22 +89,39 @@ research button can find a starting point when you want outside context.
 
 ## See it in action
 
-### A complete research result
+### The decision view
 
-The research output appears directly below the button that requested it. It
-shows the estimate, range, yield, available costs, warning, and evidence links.
+Three crops ranked by net profit from the figures the farmer typed. Every row
+carries its own price basis, and the basis strip names the units.
 
 <p align="center">
-  <img src="./docs/screenshots/research-output.png" alt="Filled Soybean assumptions with a visible Quick Research Output panel" width="960">
+  <img src="./docs/screenshots/decision-view.png" alt="Decision view ranking Rice, Soybean and White maize by net profit, with the price basis and units shown" width="960">
 </p>
 
-### The public release
+### A research result, before you accept it
 
-The live release includes the field-notebook interface, Nigeria watermark, JJMB
-about card, custom crop form, and calculator-only default.
+The estimate, range, bag equivalents, warning, and evidence links appear below
+the button that requested them. Nothing changes in the scenario until
+**Use this estimate** is pressed.
 
 <p align="center">
-  <img src="./docs/screenshots/public-research-release.png" alt="Public Season Margin release showing the field setup and crop comparison layout" width="960">
+  <img src="./docs/screenshots/research-output.png" alt="Quick Research result showing 1,250 naira per kilogram, a price range, starting yield and costs, evidence links, and the Use this estimate button" width="720">
+</p>
+
+### The printable report
+
+The same figures, the same basis, and the same wording as the screen.
+
+<p align="center">
+  <img src="./docs/screenshots/print-report.png" alt="Printable scenario report listing each crop's area, yield, selling price, price basis, profit, and cost breakdown" width="720">
+</p>
+
+### On a phone
+
+The same calculator at 390 px wide, with the field-note layout intact.
+
+<p align="center">
+  <img src="./docs/screenshots/mobile.png" alt="Season Margin on a 390 pixel wide phone screen" width="300">
 </p>
 
 ## How Quick Research works
@@ -170,8 +202,9 @@ test against the production research route.
 
 The main code is organized into `src/` for the React calculator,
 `functions/` for the hosted research endpoint, `pipeline/` for local data
-helpers, `public/data/` for versioned context artifacts, and `docs/` for phase
-contracts, deployment notes, and screenshots.
+helpers, `public/data/` for versioned context artifacts, `docs/` for phase
+contracts, deployment notes, screenshots, and the demo video, and `scripts/` for
+build and documentation tooling such as `demo-capture.mjs`.
 
 ## Product boundaries
 

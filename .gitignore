@@ -13,3 +13,9 @@ test-results/
 # Local GitHub credentials; never commit.
 githubtoken.txt
 *.token
+
+# Demo capture intermediates; the encoded MP4 is committed.
+docs/media/*.webm
+
+# Local audio used only for the demo mix; not redistributed.
+Instance_2face_Naijapals.mp3
