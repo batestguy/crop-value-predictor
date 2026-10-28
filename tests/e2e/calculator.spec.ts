@@ -100,15 +100,15 @@ test('labels modeled context as editable and never as a qualified price', async 
     }
   }, { id: snapshotId, modeledSnapshot: snapshot })
   await page.goto('/')
-  await expect(page.getByText('Optional modeled estimates are shown as editable context only.')).toBeVisible()
+  await expect(page.getByText('Prices marked ‘modeled estimate’ come from World Bank monthly data')).toBeVisible()
   await page.getByLabel('White gari').check()
   await page.getByLabel('Crop being edited').selectOption({ label: 'White gari' })
   await expect(page.getByLabel('Covered market')).toBeEnabled()
-  await expect(page.getByText('Selecting a market fills an editable modeled estimate.')).toBeVisible()
+  await expect(page.getByText('This fills in a modeled price.')).toBeVisible()
   await expect(page.getByText('latest qualified price')).toHaveCount(0)
   await page.getByLabel('Covered market').selectOption('world-bank:gari:kano:2026-08-01')
   await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('716.71')
-  await expect(page.getByText('Modeled estimate · Kano · not observed')).toBeVisible()
+  await expect(page.getByText('Modeled estimate · Kano', { exact: true })).toBeVisible()
 })
 
 test('reviews and explicitly confirms an online estimate before saving it', async ({ page }) => {
@@ -135,9 +135,9 @@ test('reviews and explicitly confirms an online estimate before saving it', asyn
   await page.getByLabel('Farm state').fill('Lagos')
   await page.getByRole('button', { name: 'Find all starting values' }).click()
   await expect(page.getByText('₦816 / kg', { exact: true })).toBeVisible()
-  await expect(page.getByText('QUICK RESEARCH OUTPUT', { exact: true })).toBeVisible()
+  await expect(page.getByText('2 web results were found for this crop.', { exact: true })).toBeVisible()
   await expect(page.getByText('Starting values found:', { exact: false })).toBeVisible()
-  await expect(page.getByText('This is a starting point, not a guarantee.')).toBeVisible()
+  await expect(page.getByText('web prices go stale, and often come from another state.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Use this estimate' })).toBeVisible()
   await expect(page.getByLabel('Selling price NGN per kg')).toHaveValue('')
   await page.getByRole('button', { name: 'Use this estimate' }).click()
@@ -201,7 +201,7 @@ test('has no critical accessibility violations before and after a ranked result'
   await page.getByLabel('Area in hectares').fill('1')
   await completeCrop(page, 'White maize', '2', '800')
   await completeCrop(page, 'Rice', '3', '1000')
-  await expect(page.getByText('Highest point scenario', { exact: false })).toBeVisible()
+  await expect(page.getByText('Top margin', { exact: false })).toBeVisible()
   await expectNoCriticalAxeViolations(page)
 })
 
@@ -242,7 +242,7 @@ test('preserves ranges and prints the same assumptions and results', async ({ pa
   await expect(report).toContainText('Seed ₦20')
   await expect(report).toContainText('Fertilizer ₦0')
   await expect(report).toContainText('Storage ₦0')
-  await expect(report).toContainText('Disclaimer: These are user-entered scenarios')
+  await expect(report).toContainText('Profit is a scenario, not a promise. Figures are the inputs you entered.')
 })
 
 test('recovers and removes malformed or unsupported saved drafts', async ({ page }) => {
@@ -342,7 +342,7 @@ test('completes a two-crop comparison using the keyboard', async ({ page }) => {
   await typeInto('Selling price NGN per kg', '1000')
   for (const label of costs) await typeInto(label, '0')
 
-  await expect(page.getByText('Highest point scenario', { exact: false })).toBeVisible()
+  await expect(page.getByText('Top margin', { exact: false })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Print report' })).toBeEnabled()
 })
 
@@ -359,7 +359,7 @@ test('keeps the final-input-to-result time within five seconds on emulated Slow 
 
     const startedAt = performance.now()
     await page.getByLabel('Storage').fill('0')
-    await expect(page.getByText('Highest point scenario', { exact: false })).toBeVisible()
+    await expect(page.getByText('Top margin', { exact: false })).toBeVisible()
     const elapsedMs = performance.now() - startedAt
     const evidence = {
       profile: slow4G,
@@ -425,7 +425,7 @@ test('restarts offline after the service worker is ready', async ({ page, contex
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByText('season margin', { exact: true })).toBeVisible()
-  await expect(page.getByText('calculator-only · works offline')).toBeVisible()
+  await expect(page.getByText('works offline')).toBeVisible()
 })
 
 test('supports a /seasonmargin/ base path with scoped PWA assets and offline reload', async ({ page, context }) => {
@@ -464,19 +464,18 @@ test.describe('emulated mobile', () => {
     await completeCrop(page, 'White maize', '2', '800')
     await completeCrop(page, 'Rice', '3', '1000')
     await expect(page.getByRole('button', { name: 'Print report' })).toBeEnabled()
-    await expect(page.getByText('Highest point scenario', { exact: false })).toBeVisible()
+    await expect(page.getByText('Top margin', { exact: false })).toBeVisible()
     await expect(page.getByLabel('Yield tonnes per hectare')).toBeVisible()
     await expectNoCriticalAxeViolations(page)
   })
 })
 
-test('shows a local decorative Nigeria watermark and JJMB context without blocking the calculator', async ({ page }) => {
+test('shows a local decorative Nigeria watermark without blocking the calculator', async ({ page }) => {
   await page.goto('/')
   const watermark = page.locator('.nigeria-watermark')
   await expect(watermark).toBeVisible()
   await expect(watermark).toHaveAttribute('src', `${basePath}nigeria-flag.svg`)
   await expect(watermark).toHaveAttribute('aria-hidden', 'true')
-  await expect(page.getByRole('region', { name: 'JJMB' })).toContainText('Practical crop planning for Nigerian farms.')
   await expect.poll(() => watermark.evaluate((element) => {
     const styles = getComputedStyle(element)
     return { pointerEvents: styles.pointerEvents, position: styles.position }

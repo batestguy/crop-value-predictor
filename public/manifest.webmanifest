@@ -7,7 +7,7 @@
   "display": "standalone",
   "background_color": "#f5f1e8",
   "theme_color": "#173d32",
-  "description": "Offline-first crop value and profit decision aid for Nigeria.",
+  "description": "Compare crop profits with your own prices, yields and costs. Works offline.",
   "icons": [
     {"src":"./seasonmargin-icon.svg","sizes":"192x192 512x512","type":"image/svg+xml","purpose":"any maskable"}
   ]
