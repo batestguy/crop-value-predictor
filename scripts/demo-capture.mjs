@@ -135,12 +135,32 @@ async function assertRanked(page, where) {
   }
 }
 
+async function captureResearchStill(browser, page) {
+  const narrow = await browser.newContext({ viewport: { width: 620, height: 1200 }, deviceScaleFactor: 2 });
+  const np = await narrow.newPage();
+  await np.route("**/api/price-research", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(RESEARCH_RESPONSE) }),
+  );
+  await np.goto(BASE);
+  await np.evaluate(() => localStorage.clear());
+  await np.reload();
+  await np.getByLabel("Area in hectares").fill("2");
+  await np.getByLabel("Other crop name").fill("Soybean");
+  await np.getByLabel("Other crop form").fill("dry grain");
+  await np.getByRole("button", { name: "Add other crop" }).click();
+  await np.getByLabel("Farm state").fill("Bauchi");
+  await np.getByRole("button", { name: "Find all starting values" }).click();
+  await np.getByRole("button", { name: "Use this estimate" }).waitFor();
+  await np.locator(".editor-card").screenshot({ path: `${SHOTS}/research-output.png` });
+  await narrow.close();
+}
+
 async function main() {
   const rawDir = fs.mkdtempSync(path.join(os.tmpdir(), "seasonmargin-demo-"));
   const browser = await chromium.launch();
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
-    deviceScaleFactor: 1,
+    deviceScaleFactor: wantVideo ? 1 : 2,
     ...(wantVideo ? { recordVideo: { dir: rawDir, size: { width: 1280, height: 720 } } } : {}),
   });
   const page = await context.newPage();
@@ -194,7 +214,6 @@ async function main() {
 
   await stage(page, "Check the price, range and sources before you use anything.", 5400, async () => {
     await scrollTo(page, ".research-result", "end", 900);
-    if (wantShots) await page.locator(".editor-card").screenshot({ path: `${SHOTS}/research-output.png` });
   });
 
   await stage(page, "Use it as a starting point — then type your own price.", 5600, async () => {
@@ -280,6 +299,7 @@ async function main() {
   }
 
   if (wantShots) {
+    await captureResearchStill(browser, page);
     const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
     const mp = await mobile.newPage();
     await mp.goto(BASE);
