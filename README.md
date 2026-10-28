@@ -39,12 +39,12 @@ assumptions before you plant.
 
 [![Play the Season Margin walkthrough: three crops ranked, with the decision view and price basis visible](./docs/screenshots/decision-view.png)](./docs/media/demo-walkthrough.mp4)
 
-**[Download the walkthrough — MP4, 2.9 MB, 1:20](./docs/media/demo-walkthrough.mp4)**
+**[Download the walkthrough — MP4, 3.1 MB, 1:04](./docs/media/demo-walkthrough.mp4)**
 
-One continuous take of the whole workflow: set an area, add a crop that is not on
-the list, ask the research assistant for starting values, replace the returned
-price with a local one, complete the other two crops by hand, read the ranking,
-print the report, and reload with the network turned off.
+One continuous take of the whole workflow, captioned step by step: set an area,
+add a crop that is not on the list, ask the research assistant for starting
+values, replace the returned price with a local one, complete the other crops by
+hand, read the ranking, print the report, and reload with the network turned off.
 
 > The recording is a production build served locally with the research endpoint
 > stubbed, so the take is deterministic and spends no Tavily credits. The app is

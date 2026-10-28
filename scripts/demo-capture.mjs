@@ -3,7 +3,11 @@
  *
  * This is a documentation tool, never imported by the app. The Quick Research
  * response is stubbed with page.route() so the recording is deterministic, costs
- * no Tavily credits, and can be produced offline by any maintainer.
+ * no Tavily credits, and can be produced offline by any maintainer. The stub is
+ * disclosed on camera and in the README.
+ *
+ * Every stage is a caption plus at least one visible action, padded to a minimum
+ * on-screen duration, so no frame is filler and no caption flashes past.
  *
  * Usage (with a production build being served, e.g. `npm run preview -- --port 4180`):
  *   node scripts/demo-capture.mjs --video
@@ -61,7 +65,39 @@ const COSTS = ["Land prep", "Seed", "Fertilizer", "Pesticide", "Labour", "Irriga
 
 const wait = (page, ms) => page.waitForTimeout(ms);
 
-async function smoothScrollTo(page, selector, block = "center", settle = 850) {
+/** One-line caption burned into the recording, bottom centre. */
+async function say(page, text) {
+  if (!wantVideo) return;
+  await page.evaluate((t) => {
+    let el = document.getElementById("demo-caption");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "demo-caption";
+      el.style.cssText =
+        "position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:99999;" +
+        "max-width:900px;padding:11px 24px;border-radius:999px;white-space:nowrap;" +
+        "background:rgba(23,61,50,.93);color:#f7f3e8;font:500 22px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;" +
+        "letter-spacing:.005em;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.18)";
+      document.body.appendChild(el);
+    }
+    el.textContent = t;
+  }, text);
+}
+
+/**
+ * Runs one stage: caption first, then the action, then pad to minMs so the
+ * caption is readable and the shot always contains movement.
+ */
+async function stage(page, caption, minMs, action) {
+  const started = Date.now();
+  await say(page, caption);
+  await wait(page, 140);
+  await action();
+  const remaining = minMs - (Date.now() - started);
+  if (remaining > 0) await wait(page, remaining);
+}
+
+async function scrollTo(page, selector, block = "center", settle = 620) {
   await page.evaluate(
     ([sel, blk]) => {
       const el = document.querySelector(sel);
@@ -72,43 +108,31 @@ async function smoothScrollTo(page, selector, block = "center", settle = 850) {
   await wait(page, settle);
 }
 
-async function type(page, label, value, delay = 45) {
+/** Types like a person, for the moments that must be seen. */
+async function type(page, label, value, delay = 55) {
   const field = page.getByLabel(label, { exact: true });
   await field.click();
   await field.fill("");
   await field.pressSequentially(value, { delay });
 }
 
-async function fillCosts(page, values) {
-  for (let i = 0; i < COSTS.length; i++) {
-    await type(page, COSTS[i], String(values[i] ?? 0), 12);
-  }
+/** Fills without animation, for the repetitive fields. */
+async function fillField(page, label, value) {
+  await page.getByLabel(label, { exact: true }).fill(String(value));
 }
 
-async function completeCrop(page, crop, { yieldT, price, costs }) {
-  await page.getByLabel("Crop being edited").selectOption({ label: crop });
-  await wait(page, 350);
-  await type(page, "Yield tonnes per hectare", String(yieldT), 55);
-  await type(page, "Selling price NGN per kg", String(price), 55);
-  await fillCosts(page, costs);
-  await wait(page, 300);
+async function fillCosts(page, values, fast = false) {
+  for (let i = 0; i < COSTS.length; i++) {
+    if (fast) await fillField(page, COSTS[i], String(values[i] ?? 0));
+    else await type(page, COSTS[i], String(values[i] ?? 0), 14);
+  }
 }
 
 async function assertRanked(page, where) {
-  const blocked = await page.locator(".results-panel .notice").innerText().catch(() => "");
-  const ranked = await page.locator(".recommendation").count();
-  if (!ranked) {
-    throw new Error(`Scenario not ranked after ${where}. Panel says: ${blocked.replace(/\s+/g, " ").slice(0, 300)}`);
+  if (!(await page.locator(".recommendation").count())) {
+    const why = await page.locator(".results-panel").innerText().catch(() => "");
+    throw new Error(`Scenario not ranked after ${where}: ${why.replace(/\s+/g, " ").slice(0, 300)}`);
   }
-}
-
-function addBadgeScript() {
-  const badge = document.createElement("div");
-  badge.textContent = "Demo · research response stubbed";
-  badge.style.cssText =
-    "position:fixed;left:16px;bottom:14px;z-index:9999;padding:5px 10px;border-radius:20px;" +
-    "background:rgba(23,61,50,.82);color:#f6f2e8;font:11px/1 'DM Mono',monospace;letter-spacing:.06em;pointer-events:none";
-  document.body.appendChild(badge);
 }
 
 async function main() {
@@ -122,7 +146,7 @@ async function main() {
   const page = await context.newPage();
 
   await page.route("**/api/price-research", async (route) => {
-    await wait(page, 900); // let the "Looking up..." state read on camera
+    await wait(page, 700); // the lookup state should read on camera, not flash
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(RESEARCH_RESPONSE) });
   });
 
@@ -133,105 +157,123 @@ async function main() {
   await page.evaluate(() => {
     document.documentElement.style.scrollBehavior = "smooth";
   });
-  if (wantVideo) await page.evaluate(addBadgeScript);
-  await wait(page, 2000);
+  if (wantVideo) {
+    await page.evaluate(() => {
+      const badge = document.createElement("div");
+      badge.textContent = "demo · research response stubbed";
+      badge.style.cssText =
+        "position:fixed;right:14px;bottom:18px;z-index:99998;padding:6px 11px;border-radius:999px;" +
+        "background:rgba(23,61,50,.14);color:#4d6658;font:500 12px/1 system-ui,sans-serif;pointer-events:none";
+      document.body.appendChild(badge);
+    });
+  }
 
-  if (wantShots) await page.screenshot({ path: `${SHOTS}/seasonmargin-overview.png` });
-  await wait(page, 1600);
-
-  // 1. Field size and bag size.
-  await type(page, "Area in hectares", "2");
-  await wait(page, 900);
-
-  // 2. Add a crop that is not on the list.
-  await smoothScrollTo(page, ".custom-crop-box", "center");
-  await type(page, "Other crop name", "Soybean", 70);
-  await type(page, "Other crop form", "dry grain", 70);
-  await page.getByRole("button", { name: "Add other crop" }).click();
-  await wait(page, 900);
-
-  // 3. Ask the research assistant for starting values.
-  await type(page, "Farm state", "Bauchi", 70);
-  await wait(page, 300);
-  await page.getByRole("button", { name: "Find all starting values" }).click();
-  await wait(page, 1900);
-  await smoothScrollTo(page, ".research-result", "center", 1100);
-
-  if (wantShots) await page.locator(".editor-card").screenshot({ path: `${SHOTS}/research-output.png` });
-  await wait(page, 2600);
-
-  // 4. Accept the estimate, then replace it with the farmer's own price.
-  await page.getByRole("button", { name: "Use this estimate" }).click();
-  await wait(page, 1300);
-  await type(page, "Selling price NGN per kg", "1180", 90);
-  await wait(page, 900);
-  // The estimate covers the price, yield and most costs; the farmer fills the rest.
-  await fillCosts(page, [180000, 50000, 120000, 35000, 90000, 0, 40000, 25000]);
-  await wait(page, 900);
-
-  // 5. Complete the other two crops by hand.
-  await smoothScrollTo(page, ".editor-card", "start");
-  await completeCrop(page, "White maize", {
-    yieldT: 2,
-    price: 800,
-    costs: [60000, 25000, 90000, 15000, 70000, 0, 30000, 20000],
-  });
-  await completeCrop(page, "Rice", {
-    yieldT: 3,
-    price: 1000,
-    costs: [70000, 30000, 95000, 18000, 80000, 0, 35000, 20000],
+  await stage(page, "Start with how much land you farm — every figure scales from it.", 4200, async () => {
+    if (wantShots) await page.screenshot({ path: `${SHOTS}/seasonmargin-overview.png` });
+    await scrollTo(page, ".control-panel", "start", 1300);
   });
 
-  // 6. The comparison now ranks.
-  await assertRanked(page, "completing three crops");
-  await smoothScrollTo(page, ".results-panel", "start", 1000);
-  if (wantShots) await page.screenshot({ path: `${SHOTS}/decision-view.png` });
-  await wait(page, 2400);
-
-  // 7. A price range shows the interval, not a forecast.
-  await page.getByLabel("Crop being edited").selectOption({ label: "White maize" });
-  await wait(page, 400);
-  await type(page, "Low price", "700", 60);
-  await type(page, "High price", "900", 60);
-  await wait(page, 1100);
-  await smoothScrollTo(page, ".results-panel", "start", 900);
-  await wait(page, 1200);
-
-  // 8. Local units: change the bag size.
-  await smoothScrollTo(page, ".control-panel", "start");
-  await type(page, "Bag size in kilograms", "100", 90);
-  await wait(page, 1100);
-
-  // 9. The printable report carries the same figures.
-  await page.emulateMedia({ media: "print" });
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-  await wait(page, 800);
-  await page.locator(".print-report").scrollIntoViewIfNeeded();
-  await wait(page, 2400);
-  if (wantShots) await page.locator(".print-report").screenshot({ path: `${SHOTS}/print-report.png` });
-  await wait(page, 2200);
-  await page.emulateMedia({ media: "screen" });
-
-  // 10. The calculator still works with the network off.
-  await context.setOffline(true);
-  await page.reload();
-  await wait(page, 1600);
-  await page.evaluate(() => {
-    document.documentElement.style.scrollBehavior = "smooth";
+  await stage(page, "Pick two or more crops; the shortlist carries through every step.", 5600, async () => {
+    await type(page, "Area in hectares", "2", 110);
+    await scrollTo(page, ".crop-list", "center");
+    await page.getByLabel(/^Cassava/).check();
   });
-  if (wantVideo) await page.evaluate(addBadgeScript);
-  await wait(page, 2200);
-  if (wantShots) await page.screenshot({ path: `${SHOTS}/offline-restart.png` });
-  await context.setOffline(false);
+
+  await stage(page, "Not on the list? Add the crop and how it is sold.", 5200, async () => {
+    await scrollTo(page, ".custom-crop-box", "center");
+    await type(page, "Other crop name", "Soybean", 45);
+    await type(page, "Other crop form", "dry grain", 35);
+    await page.getByRole("button", { name: "Add other crop" }).click();
+  });
+
+  await stage(page, "Ask the research assistant for starting values.", 4400, async () => {
+    await type(page, "Farm state", "Bauchi", 45);
+    await page.getByRole("button", { name: "Find all starting values" }).click();
+    await wait(page, 900);
+  });
+
+  await stage(page, "Check the price, range and sources before you use anything.", 5400, async () => {
+    await scrollTo(page, ".research-result", "end", 900);
+    if (wantShots) await page.locator(".editor-card").screenshot({ path: `${SHOTS}/research-output.png` });
+  });
+
+  await stage(page, "Use it as a starting point — then type your own price.", 5600, async () => {
+    await page.getByRole("button", { name: "Use this estimate" }).click();
+    await wait(page, 700);
+    await type(page, "Selling price NGN per kg", "1180", 80);
+    await fillField(page, "Irrigation", 0);
+  });
+
+  await stage(page, "The other crops go in by hand: yield, price, eight costs.", 7200, async () => {
+    await scrollTo(page, ".editor-card", "start");
+    await page.getByLabel("Crop being edited").selectOption({ label: "White maize" });
+    await wait(page, 300);
+    await type(page, "Yield tonnes per hectare", "2", 60);
+    await type(page, "Selling price NGN per kg", "800", 60);
+    await fillCosts(page, [60000, 25000, 90000, 15000, 70000, 0, 30000, 20000]);
+
+    await page.getByLabel("Crop being edited").selectOption({ label: "Rice" });
+    await wait(page, 300);
+    await fillField(page, "Yield tonnes per hectare", 3);
+    await fillField(page, "Selling price NGN per kg", 1000);
+    await fillCosts(page, [70000, 30000, 95000, 18000, 80000, 0, 35000, 20000], true);
+
+    await page.getByLabel("Crop being edited").selectOption({ label: "Cassava" });
+    await wait(page, 300);
+    await fillField(page, "Yield tonnes per hectare", 15);
+    await fillField(page, "Selling price NGN per kg", 400);
+    await fillCosts(page, [50000, 20000, 40000, 10000, 60000, 0, 25000, 10000], true);
+  });
+
+  await stage(page, "Nothing is ranked until every selected crop is complete.", 4600, async () => {
+    await assertRanked(page, "completing the shortlist");
+    await scrollTo(page, ".recommendation", "start", 750);
+    if (wantShots) await page.screenshot({ path: `${SHOTS}/decision-view.png` });
+  });
+
+  await stage(page, "Add a price range to see the spread — not a forecast.", 5400, async () => {
+    await page.getByLabel("Crop being edited").selectOption({ label: "White maize" });
+    await wait(page, 350);
+    await type(page, "Low price", "700", 60);
+    await type(page, "High price", "900", 60);
+    await scrollTo(page, ".recommendation", "start", 650);
+  });
+
+  await stage(page, "Change the bag size and every price shows in your bags.", 4300, async () => {
+    await scrollTo(page, ".control-panel", "start", 650);
+    await type(page, "Bag size in kilograms", "100", 80);
+  });
+
+  await stage(page, "Print the same figures, with the same basis and wording.", 5600, async () => {
+    await page.emulateMedia({ media: "print" });
+    await page.locator(".print-report").scrollIntoViewIfNeeded();
+    await wait(page, 900);
+    if (wantShots) await page.locator(".print-report").screenshot({ path: `${SHOTS}/print-report.png` });
+    await page.mouse.wheel(0, 240);
+    await wait(page, 700);
+    await page.mouse.wheel(0, 240);
+    await wait(page, 500);
+    await page.emulateMedia({ media: "screen" });
+  });
+
+  await stage(page, "Reload with the network off. The scenario is still there.", 5200, async () => {
+    await context.setOffline(true);
+    await page.reload();
+    await wait(page, 900);
+    // The reload wipes the injected caption; put it back so the last shot is labelled.
+    await say(page, "Reload with the network off. The scenario is still there.");
+    await wait(page, 500);
+    if (wantShots) await page.screenshot({ path: `${SHOTS}/offline-restart.png` });
+    await context.setOffline(false);
+  });
 
   await context.close();
 
   if (wantVideo) {
     const files = fs.readdirSync(rawDir).filter((f) => f.endsWith(".webm"));
     if (!files.length) throw new Error("No video produced");
-    const src = path.join(rawDir, files[0]);
     const dest = `${MEDIA}/demo-walkthrough.webm`;
-    fs.copyFileSync(src, dest);
+    fs.copyFileSync(path.join(rawDir, files[0]), dest);
     fs.rmSync(rawDir, { recursive: true, force: true });
     const mb = (fs.statSync(dest).size / 1024 / 1024).toFixed(1);
     console.log(`video: ${dest} (${mb} MB raw)`);
