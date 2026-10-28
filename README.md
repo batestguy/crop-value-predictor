@@ -37,7 +37,7 @@ assumptions before you plant.
 
 ## Watch the walkthrough
 
-[![Play the Season Margin walkthrough: three crops ranked, with the decision view and price basis visible](./docs/screenshots/decision-view.png)](./docs/media/demo-walkthrough.mp4)
+[![Play the Season Margin walkthrough: four crops ranked, with the decision view and price basis visible](./docs/screenshots/decision-view.png)](./docs/media/demo-walkthrough.mp4)
 
 **[Download the walkthrough — MP4, 3.1 MB, 1:04](./docs/media/demo-walkthrough.mp4)**
 
@@ -49,6 +49,9 @@ hand, read the ranking, print the report, and reload with the network turned off
 > The recording is a production build served locally with the research endpoint
 > stubbed, so the take is deterministic and spends no Tavily credits. The app is
 > unmodified — only the numbers returned by that single request are fixed.
+
+Stage-by-stage table, reproduction commands, and capture settings:
+[Demo walkthrough](./docs/demo-walkthrough.md).
 
 ## Live demo
 
@@ -105,7 +108,7 @@ the button that requested them. Nothing changes in the scenario until
 **Use this estimate** is pressed.
 
 <p align="center">
-  <img src="./docs/screenshots/research-output.png" alt="Quick Research result showing 1,250 naira per kilogram, a price range, starting yield and costs, evidence links, and the Use this estimate button" width="720">
+  <img src="./docs/screenshots/research-output.png" alt="Quick Research panel showing 1,250 naira per kilogram, a 1,100 to 1,400 range, starting yield and costs, evidence links, and the Use this estimate button" width="520">
 </p>
 
 ### The printable report
@@ -223,6 +226,7 @@ decision-maker.
 ## Documentation
 
 - [Next-session handoff](./SESSION_HANDOFF.md)
+- [Demo walkthrough](./docs/demo-walkthrough.md)
 - [Project progress](./PROJECT_PROGRESS.md)
 - [Next actions and gates](./docs/next-actions.md)
 - [Offline calculator phase](./docs/phases/02-offline-calculator.md)
